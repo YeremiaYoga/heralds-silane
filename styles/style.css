@@ -29,3 +29,142 @@
     -ms-border-radius: 5px;
     -o-border-radius: 5px;
 }
+
+/* --- BUNGKUSAN UTAMA --- */
+.silane-dialog-wrapper {
+  padding: 15px;
+  min-height: 350px;
+  display: flex;
+  flex-direction: column;
+}
+.silane-dialog-middle {
+  flex: 1;
+}
+.silane-dialog-bottom {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* --- TEXT & TYPOGRAPHY --- */
+.silane-title {
+  margin: 0 0 5px 0;
+  border: none;
+}
+.silane-subtitle {
+  color: var(--color-text-dark-secondary);
+  margin: 0;
+  font-size: 13px;
+}
+.silane-error-msg {
+  color: darkred;
+  font-weight: bold;
+  margin-top: 5px;
+  display: none;
+}
+
+/* --- INPUTS --- */
+.silane-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.silane-form-group label {
+  font-weight: bold;
+}
+.silane-input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--color-border-dark);
+  background: var(--color-bg-body);
+}
+.silane-input.mono {
+  font-family: monospace;
+}
+
+/* --- BUTTONS --- */
+.silane-btn {
+  width: 100px;
+  cursor: pointer;
+}
+.silane-btn.primary {
+  width: 120px;
+  background: var(--color-bg-option);
+  color: white;
+}
+.silane-link-danger {
+  color: darkred;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px;
+}
+
+/* --- HEADER DASHBOARD --- */
+.silane-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+.silane-profile-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.silane-profile-img {
+  width: 42px;
+  height: 42px;
+  border-radius: 5px;
+  border: 1px solid var(--color-border-dark);
+  object-fit: cover;
+  background: rgba(0,0,0,0.1);
+}
+.silane-status-text {
+  font-size: 13px;
+  margin-top: 2px;
+}
+.silane-username {
+  font-weight: bold;
+  color: var(--color-text-light-highlight);
+}
+.silane-status-badge {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+/* --- TABS --- */
+.silane-tabs-nav {
+  display: flex;
+  border-bottom: 1px solid var(--color-border-dark);
+}
+.silane-tab-btn {
+  flex: 1;
+  border: none;
+  padding: 10px;
+  cursor: pointer;
+  border-radius: 5px 5px 0 0;
+  background: transparent;
+  color: var(--color-text-dark-secondary);
+  border-bottom: 2px solid transparent;
+  font-weight: normal;
+}
+.silane-tab-btn.active {
+  background: rgba(0,0,0,0.1);
+  font-weight: bold;
+  color: inherit;
+  border-bottom: 2px solid var(--color-text-light-highlight);
+}
+
+/* --- TAB CONTENT --- */
+.silane-tab-content {
+  display: none;
+  padding: 30px 20px;
+  text-align: center;
+  background: rgba(0,0,0,0.05);
+  border: 1px solid var(--color-border-dark);
+  border-top: none;
+}
+.silane-tab-content.active {
+  display: block;
+}
