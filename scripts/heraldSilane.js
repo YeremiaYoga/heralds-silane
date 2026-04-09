@@ -1,6 +1,7 @@
 import { API_BASE_URL } from "./helper.js";
 
 let heraldSilane_currentDialog = null;
+let heraldSilane_uploadDialog = null;
 
 async function heraldSilane_renderAccessButton() {
   const existingButton = document.getElementById(
@@ -16,13 +17,13 @@ async function heraldSilane_renderAccessButton() {
     div.innerHTML = html;
     const exporter = div.firstChild;
     exporter.id = "heraldSilane-accessButtonContainer";
-    exporter.classList.add("heraldSilane-accessButtonWrapper");
+    exporter.classList.add("heraldSilane-accessButtonContainer");
 
     const accessButton = document.createElement("button");
     accessButton.id = "heraldSilane-accessButton";
     accessButton.classList.add("heraldSilane-accessButton");
     accessButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i>';
-    accessButton.title = "Open Silane";
+    accessButton.title = "Open Silane Asset";
 
     accessButton.addEventListener(
       "click",
@@ -37,29 +38,22 @@ async function heraldSilane_renderAccessButton() {
 }
 
 async function heraldSilane_showDialog() {
-  const dialogContent = `
-    <div id="heraldSilane-dialogContainer" style="font-family: 'Segoe UI', Roboto, Helvetica, sans-serif; color: #ececec; min-height: 500px; padding: 10px;">
-      <div id="heraldSilane-dialogTopContainer"></div>
-      <div id="heraldSilane-dialogMiddleContainer"></div>
-      <div id="heraldSilane-dialogBottomContainer" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;"></div>
-    </div>
-  `;
-
+  const dialogContent = `<div id="heraldSilane-dialogContainer"></div>`;
   const dialogOptions = {
-    width: 850,
+    width: 900,
     height: "auto",
     resizable: true,
+    classes: ["dialog", "silane-custom-dialog"],
   };
-
   const dialog = new Dialog(
-    { title: "Silane", content: dialogContent, buttons: {} },
+    { title: "Silane Assets", content: dialogContent, buttons: {} },
     dialogOptions,
   );
   heraldSilane_currentDialog = dialog;
   dialog.render(true);
 
   Hooks.once("renderDialog", async (app) => {
-    if (app instanceof Dialog && app.title === "Silane") {
+    if (app instanceof Dialog && app.title === "Silane Assets") {
       await heraldSilane_renderRouting();
     }
   });
@@ -72,39 +66,33 @@ async function heraldSilane_renderRouting() {
 }
 
 async function heraldSilane_renderLoginView() {
-  const top = document.getElementById("heraldSilane-dialogTopContainer");
-  const middle = document.getElementById("heraldSilane-dialogMiddleContainer");
-  const bottom = document.getElementById("heraldSilane-dialogBottomContainer");
+  const container = document.getElementById("heraldSilane-dialogContainer");
+  if (!container) return;
 
-  if (!top || !middle || !bottom) return;
-
-  top.innerHTML = `
-    <div style="text-align: center; padding: 20px 0;">
-      <h2 style="margin: 0 0 8px; font-weight: 600; font-size: 1.5em; border: none;">Silane Authentication</h2>
-      <p style="color: #aaa; margin: 0; font-size: 0.95em;">Please connect to your node to continue.</p>
+  container.innerHTML = `
+    <div class="hs-layout-override">
+      <div class="silane-dialog-wrapper">
+        <div class="silane-dialog-middle">
+          <h2 class="silane-title">Silane Authentication</h2>
+          <p class="silane-subtitle">Please connect to your node to continue.</p>
+          <div class="silane-form-group">
+            <label for="heraldSilane-secretId">Secret ID</label>
+            <input type="password" id="heraldSilane-secretId" class="silane-input mono" placeholder="Enter Secret ID" />
+            <div id="heraldSilane-loginMsg" class="silane-error-msg"></div>
+          </div>
+        </div>
+        <div class="silane-dialog-bottom">
+          <button id="heraldSilane-btnCancel" class="silane-btn">Cancel</button>
+          <button id="heraldSilane-btnLogin" class="silane-btn primary">Connect</button>
+        </div>
+      </div>
     </div>
-  `;
-
-  middle.innerHTML = `
-    <div style="background: rgba(0,0,0,0.2); padding: 25px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-      <label for="heraldSilane-secretId" style="display: block; margin-bottom: 8px; font-weight: 500; color: #ccc;">Secret ID</label>
-      <input type="password" id="heraldSilane-secretId" placeholder="Enter Secret ID" style="width: 100%; padding: 12px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; font-family: monospace; letter-spacing: 2px; box-sizing: border-box; outline: none;" />
-      <div id="heraldSilane-loginMsg" style="display: none; color: #ff6b6b; margin-top: 10px; font-size: 0.9em; text-align: center;"></div>
-    </div>
-  `;
-
-  bottom.innerHTML = `
-    <button id="heraldSilane-btnCancel" style="padding: 10px 20px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: #ccc; cursor: pointer; transition: all 0.2s;">Cancel</button>
-    <button id="heraldSilane-btnLogin" style="padding: 10px 24px; border-radius: 8px; border: none; background: #4a90e2; color: white; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);">Connect</button>
   `;
 
   document
     .getElementById("heraldSilane-btnCancel")
     .addEventListener("click", () => {
-      if (heraldSilane_currentDialog) {
-        heraldSilane_currentDialog.close();
-        heraldSilane_currentDialog = null;
-      }
+      if (heraldSilane_currentDialog) heraldSilane_currentDialog.close();
     });
 
   document
@@ -123,8 +111,7 @@ async function heraldSilane_renderLoginView() {
       }
 
       btn.disabled = true;
-      btn.textContent = "Connecting...";
-      btn.style.opacity = "0.7";
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
       msgDiv.style.display = "none";
 
       try {
@@ -133,9 +120,7 @@ async function heraldSilane_renderLoginView() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ secretId: secretId }),
         });
-
         const data = await response.json();
-
         if (response.ok) {
           localStorage.setItem(
             "heraldSilane_token",
@@ -158,21 +143,18 @@ async function heraldSilane_renderLoginView() {
       } finally {
         btn.disabled = false;
         btn.textContent = "Connect";
-        btn.style.opacity = "1";
       }
     });
 }
 
 async function heraldSilane_renderMainView() {
-  const top = document.getElementById("heraldSilane-dialogTopContainer");
-  const middle = document.getElementById("heraldSilane-dialogMiddleContainer");
-  const bottom = document.getElementById("heraldSilane-dialogBottomContainer");
+  const container = document.getElementById("heraldSilane-dialogContainer");
+  if (!container) return;
 
-  if (!top || !middle || !bottom) return;
-
-  let activeTab = "image";
+  let activeTab = "images";
   let userName = "Unknown User";
   let userImage = "icons/svg/mystery-man.svg";
+  let selectedItems = new Set();
 
   const userDataStr = localStorage.getItem("heraldSilane_user");
   if (userDataStr) {
@@ -180,152 +162,186 @@ async function heraldSilane_renderMainView() {
       const userData = JSON.parse(userDataStr);
       userName = userData.username || userName;
       userImage = userData.profile_picture || userImage;
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) {}
   }
 
-  top.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 20px;">
-      <div style="display: flex; align-items: center; gap: 15px;">
-        <img src="${userImage}" style="width: 50px; height: 50px; border-radius: 12px; object-fit: cover; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);" />
-        <div>
-          <div style="font-weight: 600; font-size: 1.2em; color: #fff;">${userName}</div>
-          <div style="font-size: 0.85em; color: #4ae290; display: flex; align-items: center; gap: 6px; margin-top: 2px;">
-            <i class="fa-solid fa-circle-dot" style="font-size: 0.6em;"></i> Online
+  container.innerHTML = `
+    <div class="hs-layout-override">
+      <div class="hs-main">
+        <div class="hs-sidebar">
+          <button id="hs-tab-images" class="hs-circle-btn active" title="Images"><i class="fa-solid fa-image"></i></button>
+          <button id="hs-tab-audio" class="hs-circle-btn" title="Audio"><i class="fa-solid fa-music"></i></button>
+          <button id="hs-tab-visage" class="hs-circle-btn" title="Visage"><i class="fa-solid fa-masks-theater"></i></button>
+        </div>
+        <div class="hs-content">
+          <div class="hs-header">
+            <h2 id="hs-content-title" class="hs-title">Image Gallery</h2>
+            <div class="hs-actions" id="hs-actions-container">
+              <button id="hs-btn-delete" class="hs-btn hs-btn-danger" disabled title="Delete Selected">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+              <button id="hs-btn-open-upload" class="hs-btn hs-btn-primary">
+                <i class="fa-solid fa-upload"></i> Upload
+              </button>
+            </div>
           </div>
+          <div id="hs-gallery-container" class="hs-gallery"></div>
         </div>
       </div>
-      <button id="heraldSilane-btnLogout" style="background: rgba(255, 107, 107, 0.1); border: 1px solid rgba(255, 107, 107, 0.2); color: #ff6b6b; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-arrow-right-from-bracket"></i> Disconnect
-      </button>
-    </div>
-
-    <div style="display: flex; gap: 8px; margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 6px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);">
-      <button id="tabBtn-image" style="flex: 1; padding: 10px; border: none; border-radius: 6px; background: #4a90e2; color: white; cursor: pointer; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;">
-        <i class="fa-solid fa-image"></i> Images
-      </button>
-      <button id="tabBtn-music" style="flex: 1; padding: 10px; border: none; border-radius: 6px; background: transparent; color: #888; cursor: pointer; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;">
-        <i class="fa-solid fa-music"></i> Audio
-      </button>
-    </div>
-  `;
-
-  middle.innerHTML = `
-    <div id="tabContent-image" style="display: block;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <h3 style="margin: 0; font-size: 1.1em; font-weight: 500; border: none;">Media Gallery</h3>
-        <button id="silane-btnTriggerImage" style="padding: 8px 16px; background: rgba(74, 144, 226, 0.15); color: #4a90e2; border: 1px solid rgba(74, 144, 226, 0.3); border-radius: 8px; cursor: pointer; font-size: 0.9em; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
-          <i class="fa-solid fa-cloud-arrow-up"></i> Upload
-        </button>
-      </div>
-      <input type="file" id="silane-imageInput" accept="image/*" style="display: none;">
-      <div id="silane-list-image" style="min-height: 200px; max-height: 350px; overflow-y: auto; background: rgba(0,0,0,0.15); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
-      </div>
-    </div>
-
-    <div id="tabContent-music" style="display: none;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <h3 style="margin: 0; font-size: 1.1em; font-weight: 500; border: none;">Audio Tracks</h3>
-        <button id="silane-btnTriggerMusic" style="padding: 8px 16px; background: rgba(74, 144, 226, 0.15); color: #4a90e2; border: 1px solid rgba(74, 144, 226, 0.3); border-radius: 8px; cursor: pointer; font-size: 0.9em; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
-          <i class="fa-solid fa-cloud-arrow-up"></i> Upload
-        </button>
-      </div>
-      <input type="file" id="silane-musicInput" accept="audio/*" style="display: none;">
-      <div id="silane-list-music" style="min-height: 200px; max-height: 350px; overflow-y: auto; background: rgba(0,0,0,0.15); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+      
+      <div class="hs-footer">
+        <div class="hs-user-info">
+          <img src="${userImage}" class="hs-user-avatar" />
+          <div class="hs-user-name">Welcome, ${userName}</div>
+        </div>
+        <div style="text-align: right;">
+          <button id="hs-btn-logout" class="hs-btn-logout">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Disconnect
+          </button>
+          <div style="font-size: 0.7em; color: #52525b; margin-top: 4px;">powered by projectignite.web.id</div>
+        </div>
       </div>
     </div>
   `;
 
-  bottom.innerHTML = `
-    <button id="heraldSilane-btnClose" style="padding: 10px 24px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; cursor: pointer; font-weight: 500; transition: all 0.2s;">Close</button>
-  `;
+  const tabs = {
+    images: document.getElementById("hs-tab-images"),
+    audio: document.getElementById("hs-tab-audio"),
+    visage: document.getElementById("hs-tab-visage"),
+  };
 
-  const btnImage = document.getElementById("tabBtn-image");
-  const btnMusic = document.getElementById("tabBtn-music");
-  const contentImage = document.getElementById("tabContent-image");
-  const contentMusic = document.getElementById("tabContent-music");
+  const galleryContainer = document.getElementById("hs-gallery-container");
+  const actionsContainer = document.getElementById("hs-actions-container");
+  const deleteBtn = document.getElementById("hs-btn-delete");
+  const titleText = document.getElementById("hs-content-title");
+  const btnOpenUpload = document.getElementById("hs-btn-open-upload");
 
-  const fetchFileList = async (type) => {
-    const listDiv = document.getElementById(`silane-list-${type}`);
-    if (!listDiv) return;
-    listDiv.innerHTML = `<div style="text-align: center; padding: 30px; color: #888; font-style: italic;"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</div>`;
+  const updateDeleteBtnState = () => {
+    deleteBtn.disabled = selectedItems.size === 0;
+  };
+
+  const fetchGalleryData = async () => {
+    galleryContainer.innerHTML = `<div style="grid-column: 1 / -1; display:flex; align-items:center; justify-content:center; height:100%; color: #a1a1aa; padding-top:40px;"><i class="fa-solid fa-circle-notch fa-spin fa-2x"></i></div>`;
+    selectedItems.clear();
+    updateDeleteBtnState();
 
     try {
       const token = localStorage.getItem("heraldSilane_token");
-      const response = await fetch(`${API_BASE_URL}/api/herald_silane/data`, {
+      const response = await fetch(`${API_BASE_URL}/api/silane_assets/data`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
         const result = await response.json();
-        const filesArray = result.data ? result.data[type] || [] : [];
+        const filesArray = result.data ? result.data.images || [] : [];
 
         if (filesArray.length > 0) {
-          const icon = type === "image" ? "fa-image" : "fa-music";
-          listDiv.innerHTML = filesArray
-            .map(
-              (file) => `
-            <div style="padding: 12px 15px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; transition: background 0.2s;">
-              <div style="display: flex; align-items: center; overflow: hidden; gap: 12px;">
-                <div style="width: 32px; height: 32px; border-radius: 6px; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: #4a90e2;">
-                  <i class="fa-solid ${icon}"></i>
-                </div>
-                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 450px; font-weight: 500; color: #ddd;" title="${file.name}">${file.name}</span>
+          galleryContainer.innerHTML = filesArray
+            .map((file) => {
+              let mediaContent = `<i class="fa-solid fa-image hs-media-icon"></i>`;
+              if (file.url) {
+                mediaContent = `<img src="${file.url}" class="hs-media-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" /> <i class="fa-solid fa-image hs-media-icon" style="display:none;"></i>`;
+              }
+
+              return `
+              <div class="hs-gallery-item" data-id="${file.id}">
+                <div class="hs-check-badge"><i class="fa-solid fa-check"></i></div>
+                <div class="hs-media-wrapper">${mediaContent}</div>
+                <div class="hs-gallery-name" title="${file.name}">${file.name}</div>
               </div>
-              <button class="silane-btn-copy" title="Copy Path" onclick="navigator.clipboard.writeText('${file.path}'); ui.notifications.info('Path copied!');" style="padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #ccc; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
-                <i class="fa-regular fa-copy"></i>
-              </button>
-            </div>`,
-            )
+            `;
+            })
             .join("");
         } else {
-          listDiv.innerHTML = `<div style="text-align: center; padding: 40px; color: #666;"><i class="fa-solid fa-folder-open" style="font-size: 2em; margin-bottom: 10px; display: block;"></i> No ${type} uploaded yet.</div>`;
+          galleryContainer.innerHTML = `<div style="grid-column: 1 / -1; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color: #52525b; padding-top:40px;"><i class="fa-solid fa-folder-open fa-2x" style="margin-bottom: 12px;"></i> No image assets found.</div>`;
         }
       } else {
-        listDiv.innerHTML = `<div style="text-align: center; padding: 30px; color: #ff6b6b;">Failed to load data.</div>`;
+        galleryContainer.innerHTML = `<div style="grid-column: 1 / -1; color: #ef4444; text-align: center; padding: 20px;">Failed to load data.</div>`;
       }
     } catch (error) {
-      listDiv.innerHTML = `<div style="text-align: center; padding: 30px; color: #ff6b6b;">Error connecting to server.</div>`;
+      galleryContainer.innerHTML = `<div style="grid-column: 1 / -1; color: #ef4444; text-align: center; padding: 20px;">Connection error.</div>`;
     }
   };
 
-  const setActiveTab = (tabName) => {
-    activeTab = tabName;
+  galleryContainer.addEventListener("click", (e) => {
+    if (activeTab !== "images") return;
+    const item = e.target.closest(".hs-gallery-item");
+    if (!item) return;
 
-    if (tabName === "image") {
-      btnImage.style.background = "#4a90e2";
-      btnImage.style.color = "white";
-      btnMusic.style.background = "transparent";
-      btnMusic.style.color = "#888";
-      contentImage.style.display = "block";
-      contentMusic.style.display = "none";
+    const id = item.dataset.id;
+    if (selectedItems.has(id)) {
+      selectedItems.delete(id);
+      item.classList.remove("selected");
     } else {
-      btnMusic.style.background = "#4a90e2";
-      btnMusic.style.color = "white";
-      btnImage.style.background = "transparent";
-      btnImage.style.color = "#888";
-      contentMusic.style.display = "block";
-      contentImage.style.display = "none";
+      selectedItems.add(id);
+      item.classList.add("selected");
     }
+    updateDeleteBtnState();
+  });
 
-    fetchFileList(tabName);
+  const switchTab = (type) => {
+    activeTab = type;
+    Object.values(tabs).forEach((btn) => btn.classList.remove("active"));
+    tabs[type].classList.add("active");
+
+    if (type === "images") {
+      titleText.innerText = "Image Gallery";
+      actionsContainer.style.display = "flex";
+      fetchGalleryData();
+    } else {
+      if (type === "audio") titleText.innerText = "Audio Library";
+      if (type === "visage") titleText.innerText = "Visage Collection";
+
+      actionsContainer.style.display = "none";
+      galleryContainer.innerHTML = `
+        <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #a1a1aa; padding-top:40px;">
+          <i class="fa-solid fa-person-digging fa-3x" style="margin-bottom: 15px; color: #3b82f6;"></i>
+          <h3 style="margin: 0 0 10px 0; color: #f4f4f5;">Work in Progress</h3>
+          <p style="margin: 0; font-size: 0.9em;">This feature is currently under development.</p>
+        </div>
+      `;
+    }
   };
 
-  btnImage.addEventListener("click", () => setActiveTab("image"));
-  btnMusic.addEventListener("click", () => setActiveTab("music"));
+  Object.entries(tabs).forEach(([type, btn]) => {
+    btn.addEventListener("click", () => switchTab(type));
+  });
 
-  document
-    .getElementById("heraldSilane-btnClose")
-    .addEventListener("click", () => {
-      if (heraldSilane_currentDialog) {
-        heraldSilane_currentDialog.close();
-        heraldSilane_currentDialog = null;
+  btnOpenUpload.addEventListener("click", () => {
+    heraldSilane_openUploadModal(activeTab, fetchGalleryData);
+  });
+
+  deleteBtn.addEventListener("click", async () => {
+    if (selectedItems.size === 0) return;
+
+    const idsToDelete = Array.from(selectedItems);
+    ui.notifications?.info(`Deleting ${idsToDelete.length} item(s)...`);
+
+    try {
+      const token = localStorage.getItem("heraldSilane_token");
+      const response = await fetch(`${API_BASE_URL}/api/silane_assets/delete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ids: idsToDelete, type: "images" }),
+      });
+
+      if (response.ok) {
+        ui.notifications?.info(`Delete successful!`);
+        fetchGalleryData();
+      } else {
+        const errData = await response.json();
+        ui.notifications?.error(`Delete failed: ${errData.message}`);
       }
-    });
+    } catch (error) {
+      ui.notifications?.error("Delete error.");
+    }
+  });
 
   document
-    .getElementById("heraldSilane-btnLogout")
+    .getElementById("hs-btn-logout")
     .addEventListener("click", async () => {
       localStorage.removeItem("heraldSilane_token");
       localStorage.removeItem("heraldSilane_user");
@@ -333,60 +349,163 @@ async function heraldSilane_renderMainView() {
       await heraldSilane_renderRouting();
     });
 
-  const handleUploadFile = async (event, type) => {
-    const file = event.target.files[0];
-    if (!file) return;
+  switchTab("images");
+}
 
-    ui.notifications?.info(`Uploading ${file.name}...`);
+function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
+  if (heraldSilane_uploadDialog) {
+    heraldSilane_uploadDialog.close();
+  }
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("type", type);
+  let selectedUploadFile = null;
 
-    try {
-      const token = localStorage.getItem("heraldSilane_token");
-      const response = await fetch(`${API_BASE_URL}/api/herald_silane/upload`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
+  const content = `
+    <div class="silane-upload-wrapper">
+      <div class="silane-form-group" style="gap:5px; margin-top:0;">
+        <label>Name</label>
+        <input type="text" id="hs-upload-name" class="silane-input" style="border-radius:4px;" />
+      </div>
 
-      const data = await response.json();
+      <div class="hs-upload-box" id="hs-upload-box">
+        <div id="hs-upload-placeholder" style="text-align:center; color:#a1a1aa;">
+          <i class="fa-solid fa-image fa-2x" style="margin-bottom:8px;"></i><br>Click to Upload Image
+        </div>
+        <img id="hs-upload-preview" style="display:none;" />
+        <input type="file" id="hs-fileInput" accept="image/*" style="display:none;">
+      </div>
 
-      if (response.ok) {
-        ui.notifications?.info(`Upload successful!`);
-        fetchFileList(type);
-      } else {
-        ui.notifications?.error(
-          `Upload failed: ${data.message || "Unknown error"}`,
+      <button id="hs-btn-confirm-upload" class="silane-btn primary" style="width:100%; border-radius:4px; padding:10px; margin-top:15px;">Confirm Upload</button>
+
+      <details class="hs-advanced-settings" id="hs-advanced-details">
+        <summary>Advanced settings ⚠️</summary>
+        <div class="hs-advanced-content">
+          <div style="display:flex; gap:15px; align-items:center; margin-bottom:10px;">
+            <div style="display:flex; gap:5px; align-items:center;">
+              <label style="margin:0;">Size</label> 
+              <input type="text" id="hs-upload-size" class="silane-input" style="width:70px; padding:4px;" />
+            </div>
+            <div style="display:flex; gap:5px; align-items:center;">
+              <label style="margin:0;">Hide</label> 
+              <input type="checkbox" id="hs-upload-hide" style="margin:0;" />
+            </div>
+          </div>
+          <label style="display:block; margin-bottom:5px;">Dimensions</label>
+          <div style="display:flex; gap:15px; align-items:center;">
+            <div style="display:flex; gap:5px; align-items:center;">
+              <span>| height</span> 
+              <input type="number" id="hs-upload-height" class="silane-input" style="width:70px; padding:4px;" />
+            </div>
+            <div style="display:flex; gap:5px; align-items:center;">
+              <span>_ width</span> 
+              <input type="number" id="hs-upload-width" class="silane-input" style="width:70px; padding:4px;" />
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
+  `;
+
+  heraldSilane_uploadDialog = new Dialog(
+    {
+      title: "Upload Image Asset",
+      content: content,
+      buttons: {},
+      render: (html) => {
+        const parent = html[0];
+        const fileInput = parent.querySelector("#hs-fileInput");
+        const uploadBox = parent.querySelector("#hs-upload-box");
+        const uploadPlaceholder = parent.querySelector(
+          "#hs-upload-placeholder",
         );
-      }
-    } catch (error) {
-      ui.notifications?.error("Failed to connect to the server for upload.");
-    } finally {
-      event.target.value = "";
-    }
-  };
+        const uploadPreview = parent.querySelector("#hs-upload-preview");
+        const nameInput = parent.querySelector("#hs-upload-name");
+        const btnConfirm = parent.querySelector("#hs-btn-confirm-upload");
+        const detailsElem = parent.querySelector("#hs-advanced-details");
 
-  document
-    .getElementById("silane-btnTriggerImage")
-    .addEventListener("click", () =>
-      document.getElementById("silane-imageInput").click(),
-    );
-  document
-    .getElementById("silane-imageInput")
-    .addEventListener("change", (e) => handleUploadFile(e, "image"));
+        // Memaksa window render ulang tinggi saat accordion advanced setting dibuka
+        if (detailsElem) {
+          detailsElem.addEventListener("toggle", () => {
+            if (heraldSilane_uploadDialog) {
+              heraldSilane_uploadDialog.setPosition({ height: "auto" });
+            }
+          });
+        }
 
-  document
-    .getElementById("silane-btnTriggerMusic")
-    .addEventListener("click", () =>
-      document.getElementById("silane-musicInput").click(),
-    );
-  document
-    .getElementById("silane-musicInput")
-    .addEventListener("change", (e) => handleUploadFile(e, "music"));
+        uploadBox.addEventListener("click", () => fileInput.click());
 
-  fetchFileList("image");
+        fileInput.addEventListener("change", (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+
+          if (!file.type.startsWith("image/")) {
+            ui.notifications?.warn("Please select an image file.");
+            fileInput.value = "";
+            return;
+          }
+
+          selectedUploadFile = file;
+          nameInput.value = file.name.split(".")[0];
+          const objectUrl = URL.createObjectURL(file);
+          uploadPreview.src = objectUrl;
+          uploadPreview.style.display = "block";
+          uploadPlaceholder.style.display = "none";
+        });
+
+        btnConfirm.addEventListener("click", async () => {
+          if (!selectedUploadFile) {
+            ui.notifications?.warn("Please select an image file to upload.");
+            return;
+          }
+
+          const customName = nameInput.value.trim();
+          ui.notifications?.info(
+            `Uploading ${customName || selectedUploadFile.name}...`,
+          );
+          btnConfirm.disabled = true;
+          btnConfirm.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+          const formData = new FormData();
+          formData.append("file", selectedUploadFile);
+          formData.append("type", activeTab);
+          if (customName) formData.append("customName", customName);
+
+          try {
+            const token = localStorage.getItem("heraldSilane_token");
+            const response = await fetch(
+              `${API_BASE_URL}/api/silane_assets/upload`,
+              {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData,
+              },
+            );
+
+            if (response.ok) {
+              ui.notifications?.info(`Upload successful!`);
+              heraldSilane_uploadDialog.close();
+              if (onSuccessCallback) onSuccessCallback();
+            } else {
+              const errData = await response.json();
+              ui.notifications?.error(`Upload failed: ${errData.message}`);
+              btnConfirm.disabled = false;
+              btnConfirm.textContent = "Confirm Upload";
+            }
+          } catch (error) {
+            ui.notifications?.error("Upload error.");
+            btnConfirm.disabled = false;
+            btnConfirm.textContent = "Confirm Upload";
+          }
+        });
+      },
+    },
+    {
+      width: 380,
+      height: "auto",
+      classes: ["dialog", "silane-custom-dialog"],
+    },
+  );
+
+  heraldSilane_uploadDialog.render(true);
 }
 
 export { heraldSilane_renderAccessButton };
