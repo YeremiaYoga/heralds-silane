@@ -155,6 +155,7 @@ async function heraldSilane_renderMainView() {
   let userName = "Unknown User";
   let userImage = "icons/svg/mystery-man.svg";
   let selectedItems = new Set();
+  let currentFilesArray = [];
 
   const userDataStr = localStorage.getItem("heraldSilane_user");
   if (userDataStr) {
@@ -176,7 +177,10 @@ async function heraldSilane_renderMainView() {
         <div class="hs-content">
           <div class="hs-header">
             <h2 id="hs-content-title" class="hs-title">Image Gallery</h2>
-            <div class="hs-actions" id="hs-actions-container">
+            
+            <input type="text" id="hs-search-input" class="silane-input" placeholder="Search by name..." style="margin-left: 15px; width: 200px; padding: 5px 10px; border-radius: 4px; border: 1px solid #52525b; background: rgba(0,0,0,0.2); color: #f4f4f5;" />
+            
+            <div class="hs-actions" id="hs-actions-container" style="margin-left: auto;">
               <button id="hs-btn-delete" class="hs-btn hs-btn-danger" disabled title="Delete Selected">
                 <i class="fa-solid fa-trash"></i>
               </button>
@@ -198,7 +202,11 @@ async function heraldSilane_renderMainView() {
           <button id="hs-btn-logout" class="hs-btn-logout">
             <i class="fa-solid fa-arrow-right-from-bracket"></i> Disconnect
           </button>
-          <div style="font-size: 0.7em; color: #52525b; margin-top: 4px;">powered by projectignite.web.id</div>
+        <div style="font-size: 0.7em; margin-top: 4px;">
+            <a href="https://projectignite.web.id" target="_blank" rel="noopener noreferrer" style="color: #52525b; text-decoration: none; transition: color 0.2s ease;" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='#52525b'">
+              powered by projectignite.web.id
+            </a>
+          </div>
         </div>
       </div>
     </div>
@@ -215,15 +223,44 @@ async function heraldSilane_renderMainView() {
   const deleteBtn = document.getElementById("hs-btn-delete");
   const titleText = document.getElementById("hs-content-title");
   const btnOpenUpload = document.getElementById("hs-btn-open-upload");
+  const searchInput = document.getElementById("hs-search-input");
 
   const updateDeleteBtnState = () => {
     deleteBtn.disabled = selectedItems.size === 0;
+  };
+
+  const renderGallery = (filesArray) => {
+    if (filesArray.length > 0) {
+      galleryContainer.innerHTML = filesArray
+        .map((file) => {
+          let mediaContent = `<i class="fa-solid fa-image hs-media-icon"></i>`;
+          if (file.url) {
+            mediaContent = `<img src="${file.url}" class="hs-media-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" /> <i class="fa-solid fa-image hs-media-icon" style="display:none;"></i>`;
+          }
+
+          const isSelected = selectedItems.has(String(file.id))
+            ? "selected"
+            : "";
+
+          return `
+          <div class="hs-gallery-item ${isSelected}" data-id="${file.id}">
+            <div class="hs-check-badge"><i class="fa-solid fa-check"></i></div>
+            <div class="hs-media-wrapper">${mediaContent}</div>
+            <div class="hs-gallery-name" title="${file.name}">${file.name}</div>
+          </div>
+        `;
+        })
+        .join("");
+    } else {
+      galleryContainer.innerHTML = `<div style="grid-column: 1 / -1; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color: #52525b; padding-top:40px;"><i class="fa-solid fa-folder-open fa-2x" style="margin-bottom: 12px;"></i> No image assets found.</div>`;
+    }
   };
 
   const fetchGalleryData = async () => {
     galleryContainer.innerHTML = `<div style="grid-column: 1 / -1; display:flex; align-items:center; justify-content:center; height:100%; color: #a1a1aa; padding-top:40px;"><i class="fa-solid fa-circle-notch fa-spin fa-2x"></i></div>`;
     selectedItems.clear();
     updateDeleteBtnState();
+    searchInput.value = "";
 
     try {
       const token = localStorage.getItem("heraldSilane_token");
@@ -233,28 +270,8 @@ async function heraldSilane_renderMainView() {
 
       if (response.ok) {
         const result = await response.json();
-        const filesArray = result.data ? result.data.images || [] : [];
-
-        if (filesArray.length > 0) {
-          galleryContainer.innerHTML = filesArray
-            .map((file) => {
-              let mediaContent = `<i class="fa-solid fa-image hs-media-icon"></i>`;
-              if (file.url) {
-                mediaContent = `<img src="${file.url}" class="hs-media-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" /> <i class="fa-solid fa-image hs-media-icon" style="display:none;"></i>`;
-              }
-
-              return `
-              <div class="hs-gallery-item" data-id="${file.id}">
-                <div class="hs-check-badge"><i class="fa-solid fa-check"></i></div>
-                <div class="hs-media-wrapper">${mediaContent}</div>
-                <div class="hs-gallery-name" title="${file.name}">${file.name}</div>
-              </div>
-            `;
-            })
-            .join("");
-        } else {
-          galleryContainer.innerHTML = `<div style="grid-column: 1 / -1; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color: #52525b; padding-top:40px;"><i class="fa-solid fa-folder-open fa-2x" style="margin-bottom: 12px;"></i> No image assets found.</div>`;
-        }
+        currentFilesArray = result.data ? result.data.images || [] : [];
+        renderGallery(currentFilesArray);
       } else {
         galleryContainer.innerHTML = `<div style="grid-column: 1 / -1; color: #ef4444; text-align: center; padding: 20px;">Failed to load data.</div>`;
       }
@@ -263,12 +280,20 @@ async function heraldSilane_renderMainView() {
     }
   };
 
+  searchInput.addEventListener("input", (e) => {
+    const query = e.target.value.toLowerCase();
+    const filteredFiles = currentFilesArray.filter((file) =>
+      file.name.toLowerCase().includes(query),
+    );
+    renderGallery(filteredFiles);
+  });
+
   galleryContainer.addEventListener("click", (e) => {
     if (activeTab !== "images") return;
     const item = e.target.closest(".hs-gallery-item");
     if (!item) return;
 
-    const id = item.dataset.id;
+    const id = String(item.dataset.id);
     if (selectedItems.has(id)) {
       selectedItems.delete(id);
       item.classList.remove("selected");
@@ -287,12 +312,14 @@ async function heraldSilane_renderMainView() {
     if (type === "images") {
       titleText.innerText = "Image Gallery";
       actionsContainer.style.display = "flex";
+      searchInput.style.display = "block";
       fetchGalleryData();
     } else {
       if (type === "audio") titleText.innerText = "Audio Library";
       if (type === "visage") titleText.innerText = "Visage Collection";
 
       actionsContainer.style.display = "none";
+      searchInput.style.display = "none";
       galleryContainer.innerHTML = `
         <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #a1a1aa; padding-top:40px;">
           <i class="fa-solid fa-person-digging fa-3x" style="margin-bottom: 15px; color: #3b82f6;"></i>
@@ -358,12 +385,24 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
   }
 
   let selectedUploadFile = null;
+  let activeTags = []; // Array untuk menyimpan tag saat ini
 
   const content = `
     <div class="silane-upload-wrapper">
       <div class="silane-form-group" style="gap:5px; margin-top:0;">
         <label>Name</label>
         <input type="text" id="hs-upload-name" class="silane-input" style="border-radius:4px;" />
+      </div>
+
+      <div class="silane-form-group" style="gap:5px; margin-top:10px; margin-bottom:15px;">
+        <label>Tags</label>
+        <div style="display:flex; gap:5px;">
+          <input type="text" id="hs-upload-tags-input" class="silane-input" placeholder="Type a tag..." style="border-radius:4px; flex-grow: 1;" />
+          <button id="hs-btn-add-tag" class="silane-btn" style="padding: 5px 12px; border-radius: 4px; border: 1px solid #52525b; background: rgba(0,0,0,0.2); color: #f4f4f5; cursor:pointer;" title="Add Tag">
+            <i class="fa-solid fa-plus"></i>
+          </button>
+        </div>
+        <div id="hs-tags-container" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;"></div>
       </div>
 
       <div class="hs-upload-box" id="hs-upload-box">
@@ -419,10 +458,15 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
         );
         const uploadPreview = parent.querySelector("#hs-upload-preview");
         const nameInput = parent.querySelector("#hs-upload-name");
+
+        // Element untuk Tags
+        const tagInputElem = parent.querySelector("#hs-upload-tags-input");
+        const btnAddTag = parent.querySelector("#hs-btn-add-tag");
+        const tagsContainer = parent.querySelector("#hs-tags-container");
+
         const btnConfirm = parent.querySelector("#hs-btn-confirm-upload");
         const detailsElem = parent.querySelector("#hs-advanced-details");
 
-        // Memaksa window render ulang tinggi saat accordion advanced setting dibuka
         if (detailsElem) {
           detailsElem.addEventListener("toggle", () => {
             if (heraldSilane_uploadDialog) {
@@ -430,6 +474,56 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
             }
           });
         }
+
+        // --- Logika Tagging (Pills) ---
+        const renderTags = () => {
+          tagsContainer.innerHTML = activeTags
+            .map(
+              (tag, index) => `
+            <span style="background-color: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.5); padding: 3px 8px; border-radius: 12px; font-size: 0.8em; display: inline-flex; align-items: center; gap: 6px;">
+              ${tag}
+              <i class="fa-solid fa-xmark hs-remove-tag" data-index="${index}" style="cursor: pointer; opacity: 0.7;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'"></i>
+            </span>
+          `,
+            )
+            .join("");
+
+          // Render ulang tinggi dialog jika pills bertambah baris
+          if (heraldSilane_uploadDialog)
+            heraldSilane_uploadDialog.setPosition({ height: "auto" });
+        };
+
+        const addNewTag = () => {
+          const val = tagInputElem.value.trim();
+          if (val && !activeTags.includes(val)) {
+            activeTags.push(val);
+            tagInputElem.value = "";
+            renderTags();
+          }
+        };
+
+        btnAddTag.addEventListener("click", (e) => {
+          e.preventDefault(); // Mencegah reload kalau secara kebetulan berada di form
+          addNewTag();
+        });
+
+        // Tangkap event Enter pada input tag agar otomatis add
+        tagInputElem.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            addNewTag();
+          }
+        });
+
+        // Event delegation untuk hapus tag
+        tagsContainer.addEventListener("click", (e) => {
+          if (e.target.classList.contains("hs-remove-tag")) {
+            const index = e.target.getAttribute("data-index");
+            activeTags.splice(index, 1);
+            renderTags();
+          }
+        });
+        // --- Akhir Logika Tagging ---
 
         uploadBox.addEventListener("click", () => fileInput.click());
 
@@ -458,6 +552,7 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
           }
 
           const customName = nameInput.value.trim();
+
           ui.notifications?.info(
             `Uploading ${customName || selectedUploadFile.name}...`,
           );
@@ -468,6 +563,11 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
           formData.append("file", selectedUploadFile);
           formData.append("type", activeTab);
           if (customName) formData.append("customName", customName);
+
+          // Mengirim activeTags array sebagai stringified JSON
+          if (activeTags.length > 0) {
+            formData.append("tags", JSON.stringify(activeTags));
+          }
 
           try {
             const token = localStorage.getItem("heraldSilane_token");
@@ -499,7 +599,7 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
       },
     },
     {
-      width: 380,
+      width: 400, // Sedikit diperlebar agar input tag dan tombol add punya ruang lega
       height: "auto",
       classes: ["dialog", "silane-custom-dialog"],
     },
