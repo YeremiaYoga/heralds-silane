@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "./helper.js";
-
+import { initVisageTab } from "./visage.js";
 let heraldSilane_currentDialog = null;
 let heraldSilane_uploadDialog = null;
 
@@ -304,7 +304,7 @@ async function heraldSilane_renderMainView() {
     updateDeleteBtnState();
   });
 
-  const switchTab = (type) => {
+const switchTab = (type) => {
     activeTab = type;
     Object.values(tabs).forEach((btn) => btn.classList.remove("active"));
     tabs[type].classList.add("active");
@@ -313,15 +313,28 @@ async function heraldSilane_renderMainView() {
       titleText.innerText = "Image Gallery";
       actionsContainer.style.display = "flex";
       searchInput.style.display = "block";
+
+      galleryContainer.classList.add("hs-gallery"); 
+      
       fetchGalleryData();
+    } else if (type === "visage") {
+      titleText.innerText = "Visage Profiles";
+      actionsContainer.style.display = "none";
+      searchInput.style.display = "none";
+
+      galleryContainer.classList.remove("hs-gallery"); 
+
+      initVisageTab(galleryContainer);
     } else {
       if (type === "audio") titleText.innerText = "Audio Library";
-      if (type === "visage") titleText.innerText = "Visage Collection";
 
       actionsContainer.style.display = "none";
       searchInput.style.display = "none";
+
+      galleryContainer.classList.remove("hs-gallery"); 
+      
       galleryContainer.innerHTML = `
-        <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #a1a1aa; padding-top:40px;">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #a1a1aa; padding-top:40px;">
           <i class="fa-solid fa-person-digging fa-3x" style="margin-bottom: 15px; color: #3b82f6;"></i>
           <h3 style="margin: 0 0 10px 0; color: #f4f4f5;">Work in Progress</h3>
           <p style="margin: 0; font-size: 0.9em;">This feature is currently under development.</p>
