@@ -194,9 +194,14 @@ async function heraldSilane_renderMainView() {
       </div>
       
       <div class="hs-footer">
-        <div class="hs-user-info">
-          <img src="${userImage}" class="hs-user-avatar" />
-          <div class="hs-user-name">Welcome, ${userName}</div>
+        <div class="hs-user-info" style="display: flex; align-items: center; gap: 10px;">
+          <img src="${userImage}" class="hs-user-avatar" style="margin: 0;" />
+          <div style="display: flex; flex-direction: column; justify-content: center;">
+            <div id="hs-storage-usage" style="font-size: 11px; color: #a1a1aa; margin-bottom: 2px; display: flex; align-items: center; gap: 4px;">
+              <i class="fa-solid fa-circle-notch fa-spin"></i> Calculating storage...
+            </div>
+            <div class="hs-user-name" style="line-height: 1.2;">Welcome, ${userName}</div>
+          </div>
         </div>
         <div style="text-align: right;">
           <button id="hs-btn-logout" class="hs-btn-logout">
@@ -224,6 +229,30 @@ async function heraldSilane_renderMainView() {
   const titleText = document.getElementById("hs-content-title");
   const btnOpenUpload = document.getElementById("hs-btn-open-upload");
   const searchInput = document.getElementById("hs-search-input");
+  const storageUsageDiv = document.getElementById("hs-storage-usage");
+
+  // Fungsi untuk mengambil data usage dari backend
+  const fetchStorageUsage = async () => {
+    if (!storageUsageDiv) return;
+    try {
+      const token = localStorage.getItem("heraldSilane_token");
+      const response = await fetch(`${API_BASE_URL}/api/silane_assets/usage`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        storageUsageDiv.innerHTML = `<i class="fa-solid fa-hard-drive"></i> ${result.data.total_mb} MB used`;
+      } else {
+        storageUsageDiv.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Storage info unavailable`;
+      }
+    } catch (error) {
+      storageUsageDiv.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Storage info error`;
+    }
+  };
+
+  // Panggil saat pertama kali render
+  fetchStorageUsage();
 
   const updateDeleteBtnState = () => {
     deleteBtn.disabled = selectedItems.size === 0;
@@ -272,6 +301,8 @@ async function heraldSilane_renderMainView() {
         const result = await response.json();
         currentFilesArray = result.data ? result.data.images || [] : [];
         renderGallery(currentFilesArray);
+        // Refresh usage info setiap kali data berubah
+        fetchStorageUsage();
       } else {
         galleryContainer.innerHTML = `<div style="grid-column: 1 / -1; color: #ef4444; text-align: center; padding: 20px;">Failed to load data.</div>`;
       }
@@ -304,7 +335,7 @@ async function heraldSilane_renderMainView() {
     updateDeleteBtnState();
   });
 
-const switchTab = (type) => {
+  const switchTab = (type) => {
     activeTab = type;
     Object.values(tabs).forEach((btn) => btn.classList.remove("active"));
     tabs[type].classList.add("active");
@@ -314,15 +345,15 @@ const switchTab = (type) => {
       actionsContainer.style.display = "flex";
       searchInput.style.display = "block";
 
-      galleryContainer.classList.add("hs-gallery"); 
-      
+      galleryContainer.classList.add("hs-gallery");
+
       fetchGalleryData();
     } else if (type === "visage") {
       titleText.innerText = "Visage Profiles";
       actionsContainer.style.display = "none";
       searchInput.style.display = "none";
 
-      galleryContainer.classList.remove("hs-gallery"); 
+      galleryContainer.classList.remove("hs-gallery");
 
       initVisageTab(galleryContainer);
     } else {
@@ -331,8 +362,8 @@ const switchTab = (type) => {
       actionsContainer.style.display = "none";
       searchInput.style.display = "none";
 
-      galleryContainer.classList.remove("hs-gallery"); 
-      
+      galleryContainer.classList.remove("hs-gallery");
+
       galleryContainer.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #a1a1aa; padding-top:40px;">
           <i class="fa-solid fa-person-digging fa-3x" style="margin-bottom: 15px; color: #3b82f6;"></i>

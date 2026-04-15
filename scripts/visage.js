@@ -14,6 +14,13 @@ const injectVisageStyles = () => {
   style.innerHTML = `
     .vs-container { display: flex; flex-direction: column; height: 100%; width: 100%; color: #f4f4f5; padding-top: 5px; }
     
+    /* Breadcrumbs Navigation */
+    .vs-breadcrumbs { display: flex; align-items: center; gap: 8px; margin-bottom: 15px; padding: 0 2px; flex-wrap: wrap; user-select: none; }
+    .vs-bc-item { display: flex; align-items: center; gap: 6px; color: #a1a1aa; font-size: 13px; font-weight: 500; cursor: pointer; transition: color 0.2s; padding: 4px 6px; border-radius: 4px; }
+    .vs-bc-item:hover { color: #f4f4f5; background: rgba(255,255,255,0.05); }
+    .vs-bc-item.active { color: #60a5fa; cursor: default; pointer-events: none; background: transparent; }
+    .vs-bc-separator { color: #52525b; font-size: 10px; }
+    
     /* Action Bar */
     .vs-action-bar { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; }
     .vs-search-box { flex: 1; display: flex; align-items: center; background: rgba(0,0,0,0.2); border: 1px solid #3f3f46; border-radius: 6px; padding: 0 15px; height: 40px; transition: border-color 0.2s; }
@@ -32,8 +39,6 @@ const injectVisageStyles = () => {
     /* List Row */
     .vs-list-row { display: flex; align-items: center; padding: 10px 15px; background: rgba(0,0,0,0.15); border: 1px solid transparent; border-radius: 8px; transition: all 0.2s; user-select: none; }
     .vs-list-row.clickable:hover { background: rgba(0,0,0,0.3); border-color: #3f3f46; cursor: pointer; }
-    .vs-list-row.back-btn { background: transparent; border: 1px dashed #3f3f46; color: #a1a1aa; margin-bottom: 10px; }
-    .vs-list-row.back-btn:hover { background: rgba(255,255,255,0.05); color: #f4f4f5; }
     
     /* Icons & Typography */
     .vs-icon-wrapper { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border-radius: 8px; margin-right: 15px; font-size: 16px; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
@@ -103,10 +108,12 @@ function renderVisageUI() {
 
   parentContainer.innerHTML = `
     <div class="vs-container">
+      <div id="vs-breadcrumbs" class="vs-breadcrumbs"></div>
+      
       <div class="vs-action-bar">
         <div class="vs-search-box">
           <i class="fa-solid fa-search" style="color: #71717a;"></i>
-          <input type="text" id="vs-search-input" placeholder="Search disabled temporarily..." />
+          <input type="text" id="vs-search-input" placeholder="Search..." />
         </div>
       
         <button id="vs-btn-add-folder" class="vs-btn-action" title="New Folder"><i class="fa-solid fa-folder-plus"></i></button>
@@ -120,21 +127,38 @@ function renderVisageUI() {
   attachVisageEvents();
 }
 
+function updateBreadcrumbs() {
+  const container = document.getElementById("vs-breadcrumbs");
+  if (!container) return;
+
+  let path = [];
+  let current = visageData.items.find((i) => i.id === currentFolderId);
+
+  // Trace back to root
+  while (current) {
+    path.unshift(current);
+    current = visageData.items.find((i) => i.id === current.parentId);
+  }
+
+  // Build HTML
+  let html = `<div class="vs-bc-item ${!currentFolderId ? "active" : ""}" data-id="root"><i class="fa-solid fa-home"></i> Root</div>`;
+
+  path.forEach((folder) => {
+    html += `<i class="fa-solid fa-chevron-right vs-bc-separator"></i>`;
+    const isActive = folder.id === currentFolderId ? "active" : "";
+    html += `<div class="vs-bc-item ${isActive}" data-id="${folder.id}">${folder.name}</div>`;
+  });
+
+  container.innerHTML = html;
+}
+
 function renderListArea() {
   const listArea = document.getElementById("vs-list-area");
   let html = "";
   const query = searchQuery.toLowerCase();
 
-  // Breadcrumb Back Button
-  if (currentFolderId) {
-    let curr = visageData.items.find((i) => i.id === currentFolderId);
-    html += `
-      <div class="vs-list-row clickable back-btn vs-item-click" data-target="back-folder" data-parent="${curr?.parentId || "root"}">
-        <div class="vs-icon-wrapper" style="background:transparent; box-shadow:none;"><i class="fa-solid fa-level-up-alt fa-flip-horizontal" style="font-size:20px;"></i></div>
-        <div class="vs-text-title" style="font-style:italic;">... Back to parent</div>
-      </div>
-    `;
-  }
+  // Update Breadcrumbs every time list area renders
+  updateBreadcrumbs();
 
   const itemsToDisplay = visageData.items.filter(
     (i) =>
@@ -162,7 +186,7 @@ function renderListArea() {
           <div class="vs-list-row clickable vs-item-click" data-target="folder" data-id="${item.id}">
             <div class="vs-icon-wrapper" style="background: rgba(251, 191, 36, 0.15); box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.4);"><i class="fa-solid fa-folder" style="color: #fbbf24; font-size: 18px;"></i></div>
             <div class="vs-text-container"><div class="vs-text-title">${item.name}</div></div>
-            <div class="vs-row-actions" style="display: none;">
+            <div class="vs-row-actions" >
               <div class="vs-action-icon edit vs-action-edit" data-id="${item.id}" title="Edit Folder"><i class="fa-solid fa-pen" style="pointer-events:none;"></i></div>
               <div class="vs-action-icon delete vs-action-delete" data-id="${item.id}" title="Delete Folder"><i class="fa-solid fa-trash" style="pointer-events:none;"></i></div>
             </div>
@@ -186,7 +210,7 @@ function renderListArea() {
               ${iconContent}
             </div>
             <div class="vs-text-container"><div class="vs-text-title">${item.name}</div></div>
-            <div class="vs-row-actions" style="display: none;">
+            <div class="vs-row-actions" >
               <div class="vs-action-icon edit vs-action-edit" data-id="${item.id}" title="Edit Profile"><i class="fa-solid fa-gear" style="pointer-events:none;" ></i></div>
               <div class="vs-action-icon delete vs-action-delete" data-id="${item.id}" title="Delete Profile"><i class="fa-solid fa-trash" style="pointer-events:none;"></i></div>
             </div>
@@ -200,22 +224,39 @@ function renderListArea() {
 }
 
 function attachVisageEvents() {
-  // Fungsi search didisable untuk saat ini
-  document.getElementById("vs-search-input").addEventListener("input", (e) => {
-    // searchQuery = e.target.value;
-    // renderListArea();
+  let searchTimeout;
+
+  // Breadcrumbs click event
+  document.getElementById("vs-breadcrumbs").addEventListener("click", (e) => {
+    const item = e.target.closest(".vs-bc-item");
+    if (!item || item.classList.contains("active")) return;
+
+    const id = item.dataset.id;
+    currentFolderId = id === "root" ? null : id;
+    renderListArea();
   });
 
+  // Search input
+  document.getElementById("vs-search-input").addEventListener("input", (e) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      searchQuery = e.target.value;
+      renderListArea();
+    }, 1000);
+  });
+
+  // List Area Click Delegation
   document
     .getElementById("vs-list-area")
     .addEventListener("click", async (e) => {
       // Delete dengan Modal Konfirmasi
       if (e.target.closest(".vs-action-delete")) {
         const id = e.target.closest(".vs-action-delete").dataset.id;
-        
+
         Dialog.confirm({
           title: "Confirm Deletion",
-          content: "<p>Are you sure you want to delete this item? This action cannot be undone.</p>",
+          content:
+            "<p>Are you sure you want to delete this item? This action cannot be undone.</p>",
           yes: async () => {
             const idsToDelete = getNestedItemIds(visageData.items, id);
             visageData.items = visageData.items.filter(
@@ -226,7 +267,7 @@ function attachVisageEvents() {
             ui.notifications?.info("Item deleted.");
           },
           no: () => {},
-          defaultYes: false
+          defaultYes: false,
         });
         return;
       }
@@ -252,7 +293,7 @@ function attachVisageEvents() {
         return;
       }
 
-      // Navigation
+      // Navigation (Folders)
       const row = e.target.closest(".vs-item-click");
       if (!row) return;
       const target = row.dataset.target;
@@ -260,17 +301,14 @@ function attachVisageEvents() {
       if (target === "folder") {
         currentFolderId = row.dataset.id;
         renderListArea();
-      } else if (target === "back-folder") {
-        currentFolderId =
-          row.dataset.parent === "root" ? null : row.dataset.parent;
-        renderListArea();
       }
     });
 
+  // Add Folder
   document.getElementById("vs-btn-add-folder").addEventListener("click", () => {
     showFolderForm("Create New Folder", null, async (data) => {
       visageData.items.push({
-        id: foundry.utils.randomID(),
+        id: foundry.utils.randomID(), // Tetap randomID untuk Folder
         type: "folder",
         parentId: currentFolderId,
         name: data.name,
@@ -280,12 +318,13 @@ function attachVisageEvents() {
     });
   });
 
+  // Add Profile
   document
     .getElementById("vs-btn-add-profile")
     .addEventListener("click", () => {
       showProfileForm("Create Profile Asset", null, async (data) => {
         visageData.items.push({
-          id: foundry.utils.randomID(),
+          id: crypto.randomUUID(), // Berubah menggunakan crypto.randomUUID untuk Profile
           type: "profile",
           parentId: currentFolderId,
           ...data,
@@ -445,12 +484,11 @@ function showProfileForm(title, existingData, onConfirm) {
             const saveBtn = html
               .closest(".dialog")
               .find(".dialog-buttons button");
-            saveBtn.prop("disabled", true); // Mencegah double click saat sedang upload
+            saveBtn.prop("disabled", true);
 
             let finalTokenUrl = data.tokenUrl;
             let finalPortraitUrl = data.portraitUrl;
 
-            // Fungsi Helper untuk nembak API Upload
             const uploadMediaToBackend = async (fileObj) => {
               const formData = new FormData();
               formData.append("file", fileObj);
@@ -467,11 +505,10 @@ function showProfileForm(title, existingData, onConfirm) {
 
               if (!res.ok) throw new Error("Upload Failed");
               const result = await res.json();
-              return result.url; // url minio yang asli
+              return result.url;
             };
 
             try {
-              // Upload Jika ada file baru yang dipilih oleh user
               if (selectedTokenFile) {
                 finalTokenUrl = await uploadMediaToBackend(selectedTokenFile);
               }
@@ -480,7 +517,6 @@ function showProfileForm(title, existingData, onConfirm) {
                   await uploadMediaToBackend(selectedPortraitFile);
               }
 
-              // Kembalikan Data Final (Sudah terhubung ke URL asli, bukan blob)
               onConfirm({
                 name: name,
                 tokenUrl: finalTokenUrl,
@@ -503,7 +539,6 @@ function showProfileForm(title, existingData, onConfirm) {
       },
       default: "ok",
       render: (html) => {
-        // Logic Preview Gambar
         const attachImageUpload = (boxId, inputId, imgId, btnId, isToken) => {
           const box = html[0].querySelector(`#${boxId}`);
           const input = html[0].querySelector(`#${inputId}`);
@@ -517,11 +552,9 @@ function showProfileForm(title, existingData, onConfirm) {
           input.addEventListener("change", (e) => {
             const file = e.target.files[0];
             if (file) {
-              // Simpan ke variabel penampung untuk diupload saat tombol Confirm ditekan
               if (isToken) selectedTokenFile = file;
               else selectedPortraitFile = file;
 
-              // Tampilkan preview sementara menggunakan blob
               const objectUrl = URL.createObjectURL(file);
               img.src = objectUrl;
               img.style.display = "block";
