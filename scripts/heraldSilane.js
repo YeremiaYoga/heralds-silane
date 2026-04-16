@@ -1,5 +1,6 @@
 import { API_BASE_URL } from "./helper.js";
 import { initVisageTab } from "./visage.js";
+
 let heraldSilane_currentDialog = null;
 let heraldSilane_uploadDialog = null;
 
@@ -126,11 +127,12 @@ async function heraldSilane_renderLoginView() {
             "heraldSilane_token",
             data.token || "authenticated",
           );
-          if (data.user)
+          if (data.user) {
             localStorage.setItem(
               "heraldSilane_user",
               JSON.stringify(data.user),
             );
+          }
           ui.notifications?.info("Connected to Silane.");
           await heraldSilane_renderRouting();
         } else {
@@ -156,6 +158,8 @@ async function heraldSilane_renderMainView() {
   let userImage = "icons/svg/mystery-man.svg";
   let selectedItems = new Set();
   let currentFilesArray = [];
+  let maxStorageMb = 0;
+  let isStorageUnlimited = false;
 
   const userDataStr = localStorage.getItem("heraldSilane_user");
   if (userDataStr) {
@@ -163,6 +167,12 @@ async function heraldSilane_renderMainView() {
       const userData = JSON.parse(userDataStr);
       userName = userData.username || userName;
       userImage = userData.profile_picture || userImage;
+
+      if (userData.limits === null) {
+        isStorageUnlimited = true;
+      } else if (userData.limits && userData.limits.silane) {
+        maxStorageMb = userData.limits.silane.count || 0;
+      }
     } catch (e) {}
   }
 
@@ -196,9 +206,11 @@ async function heraldSilane_renderMainView() {
       <div class="hs-footer">
         <div class="hs-user-info" style="display: flex; align-items: center; gap: 10px;">
           <img src="${userImage}" class="hs-user-avatar" style="margin: 0;" />
-          <div style="display: flex; flex-direction: column; justify-content: center;">
-            <div id="hs-storage-usage" style="font-size: 11px; color: #a1a1aa; margin-bottom: 2px; display: flex; align-items: center; gap: 4px;">
-              <i class="fa-solid fa-circle-notch fa-spin"></i> Calculating storage...
+          <div style="display: flex; flex-direction: column; justify-content: center; width: 150px;">
+            <div id="hs-storage-usage" style="color: #a1a1aa; margin-bottom: 4px;">
+              <div style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                <i class="fa-solid fa-circle-notch fa-spin"></i> Calculating...
+              </div>
             </div>
             <div class="hs-user-name" style="line-height: 1.2;">Welcome, ${userName}</div>
           </div>
@@ -231,7 +243,6 @@ async function heraldSilane_renderMainView() {
   const searchInput = document.getElementById("hs-search-input");
   const storageUsageDiv = document.getElementById("hs-storage-usage");
 
-  // Fungsi untuk mengambil data usage dari backend
   const fetchStorageUsage = async () => {
     if (!storageUsageDiv) return;
     try {
@@ -242,16 +253,45 @@ async function heraldSilane_renderMainView() {
 
       if (response.ok) {
         const result = await response.json();
-        storageUsageDiv.innerHTML = `<i class="fa-solid fa-hard-drive"></i> ${result.data.total_mb} MB used`;
+        const usedMb = parseFloat(result.data.total_mb) || 0;
+
+        if (isStorageUnlimited) {
+          storageUsageDiv.innerHTML = `
+            <div style="display:flex; justify-content:space-between; font-size:10px; margin-bottom:3px; font-weight: 500;">
+              <span>Storage</span>
+              <span>${usedMb.toFixed(1)} MB / &infin;</span>
+            </div>
+            <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+              <div style="width: 100%; height: 100%; background: #3b82f6;"></div>
+            </div>
+          `;
+        } else {
+          const maxMb = maxStorageMb;
+          let percent = maxMb > 0 ? (usedMb / maxMb) * 100 : 100;
+          if (percent > 100) percent = 100;
+
+          let barColor = "#10b981";
+          if (percent >= 75) barColor = "#f59e0b";
+          if (percent >= 90) barColor = "#ef4444";
+
+          storageUsageDiv.innerHTML = `
+            <div style="display:flex; justify-content:space-between; font-size:10px; margin-bottom:3px; font-weight: 500;">
+              <span>Storage</span>
+              <span>${usedMb.toFixed(1)} MB / ${maxMb} MB</span>
+            </div>
+            <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+              <div style="width: ${percent}%; height: 100%; background: ${barColor}; transition: width 0.4s ease, background-color 0.4s ease;"></div>
+            </div>
+          `;
+        }
       } else {
-        storageUsageDiv.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Storage info unavailable`;
+        storageUsageDiv.innerHTML = `<div style="font-size:11px;"><i class="fa-solid fa-triangle-exclamation"></i> Storage info unavailable</div>`;
       }
     } catch (error) {
-      storageUsageDiv.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Storage info error`;
+      storageUsageDiv.innerHTML = `<div style="font-size:11px;"><i class="fa-solid fa-triangle-exclamation"></i> Storage info error</div>`;
     }
   };
 
-  // Panggil saat pertama kali render
   fetchStorageUsage();
 
   const updateDeleteBtnState = () => {
@@ -301,7 +341,6 @@ async function heraldSilane_renderMainView() {
         const result = await response.json();
         currentFilesArray = result.data ? result.data.images || [] : [];
         renderGallery(currentFilesArray);
-        // Refresh usage info setiap kali data berubah
         fetchStorageUsage();
       } else {
         galleryContainer.innerHTML = `<div style="grid-column: 1 / -1; color: #ef4444; text-align: center; padding: 20px;">Failed to load data.</div>`;
@@ -344,26 +383,19 @@ async function heraldSilane_renderMainView() {
       titleText.innerText = "Image Gallery";
       actionsContainer.style.display = "flex";
       searchInput.style.display = "block";
-
       galleryContainer.classList.add("hs-gallery");
-
       fetchGalleryData();
     } else if (type === "visage") {
       titleText.innerText = "Visage Profiles";
       actionsContainer.style.display = "none";
       searchInput.style.display = "none";
-
       galleryContainer.classList.remove("hs-gallery");
-
       initVisageTab(galleryContainer);
     } else {
       if (type === "audio") titleText.innerText = "Audio Library";
-
       actionsContainer.style.display = "none";
       searchInput.style.display = "none";
-
       galleryContainer.classList.remove("hs-gallery");
-
       galleryContainer.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #a1a1aa; padding-top:40px;">
           <i class="fa-solid fa-person-digging fa-3x" style="margin-bottom: 15px; color: #3b82f6;"></i>
@@ -429,7 +461,7 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
   }
 
   let selectedUploadFile = null;
-  let activeTags = []; // Array untuk menyimpan tag saat ini
+  let activeTags = [];
 
   const content = `
     <div class="silane-upload-wrapper">
@@ -502,12 +534,9 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
         );
         const uploadPreview = parent.querySelector("#hs-upload-preview");
         const nameInput = parent.querySelector("#hs-upload-name");
-
-        // Element untuk Tags
         const tagInputElem = parent.querySelector("#hs-upload-tags-input");
         const btnAddTag = parent.querySelector("#hs-btn-add-tag");
         const tagsContainer = parent.querySelector("#hs-tags-container");
-
         const btnConfirm = parent.querySelector("#hs-btn-confirm-upload");
         const detailsElem = parent.querySelector("#hs-advanced-details");
 
@@ -519,7 +548,6 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
           });
         }
 
-        // --- Logika Tagging (Pills) ---
         const renderTags = () => {
           tagsContainer.innerHTML = activeTags
             .map(
@@ -532,9 +560,9 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
             )
             .join("");
 
-          // Render ulang tinggi dialog jika pills bertambah baris
-          if (heraldSilane_uploadDialog)
+          if (heraldSilane_uploadDialog) {
             heraldSilane_uploadDialog.setPosition({ height: "auto" });
+          }
         };
 
         const addNewTag = () => {
@@ -547,11 +575,10 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
         };
 
         btnAddTag.addEventListener("click", (e) => {
-          e.preventDefault(); // Mencegah reload kalau secara kebetulan berada di form
+          e.preventDefault();
           addNewTag();
         });
 
-        // Tangkap event Enter pada input tag agar otomatis add
         tagInputElem.addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
             e.preventDefault();
@@ -559,7 +586,6 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
           }
         });
 
-        // Event delegation untuk hapus tag
         tagsContainer.addEventListener("click", (e) => {
           if (e.target.classList.contains("hs-remove-tag")) {
             const index = e.target.getAttribute("data-index");
@@ -567,7 +593,6 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
             renderTags();
           }
         });
-        // --- Akhir Logika Tagging ---
 
         uploadBox.addEventListener("click", () => fileInput.click());
 
@@ -608,7 +633,6 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
           formData.append("type", activeTab);
           if (customName) formData.append("customName", customName);
 
-          // Mengirim activeTags array sebagai stringified JSON
           if (activeTags.length > 0) {
             formData.append("tags", JSON.stringify(activeTags));
           }
@@ -643,7 +667,7 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
       },
     },
     {
-      width: 400, // Sedikit diperlebar agar input tag dan tombol add punya ruang lega
+      width: 400,
       height: "auto",
       classes: ["dialog", "silane-custom-dialog"],
     },

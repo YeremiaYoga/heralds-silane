@@ -6,6 +6,17 @@ let currentFolderId = null;
 let parentContainer = null;
 let searchQuery = "";
 
+// 🔥 Helper untuk memaksa URL menjadi absolute HTTPS
+const formatVisageUrl = (link) => {
+  if (!link) return "";
+  if (link.startsWith("http")) return link;
+  let path = link.replace(/^\//, "");
+  if (path.includes("sih4storage.phanneldeliver.my.id")) {
+    return `https://${path}`;
+  }
+  return `https://sih4storage.phanneldeliver.my.id/${path}`;
+};
+
 // Inject CSS Global Visage
 const injectVisageStyles = () => {
   if (document.getElementById("visage-modern-styles")) return;
@@ -197,8 +208,9 @@ function renderListArea() {
           let wrapperPadding = "0";
 
           if (item.tokenUrl) {
+            // 🔥 Menggunakan formatVisageUrl di sini
             iconContent = `
-            <img src="${item.tokenUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+            <img src="${formatVisageUrl(item.tokenUrl)}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
             <i class="fa-solid fa-user-astronaut" style="color: #60a5fa; display:none;"></i>
           `;
             wrapperPadding = "2px";
@@ -413,7 +425,7 @@ function showProfileForm(title, existingData, onConfirm) {
         <div style="flex:1; display:flex; flex-direction:column;">
           <div class="vs-prof-img-box" id="box-token">
             <span style="color: #fb923c;">Token</span>
-            <img id="prev-token" src="${data.tokenUrl}" style="display: ${data.tokenUrl ? "block" : "none"};" />
+            <img id="prev-token" src="${formatVisageUrl(data.tokenUrl)}" style="display: ${data.tokenUrl ? "block" : "none"};" />
             <input type="file" id="file-token" accept="image/*" style="display:none;" />
           </div>
           <button id="btn-upload-token" class="vs-prof-upload-btn">Select Image</button>
@@ -422,7 +434,7 @@ function showProfileForm(title, existingData, onConfirm) {
         <div style="flex:1; display:flex; flex-direction:column;">
           <div class="vs-prof-img-box" id="box-portrait">
             <span style="color: #4ade80;">Portrait</span>
-            <img id="prev-portrait" src="${data.portraitUrl}" style="display: ${data.portraitUrl ? "block" : "none"};" />
+            <img id="prev-portrait" src="${formatVisageUrl(data.portraitUrl)}" style="display: ${data.portraitUrl ? "block" : "none"};" />
             <input type="file" id="file-portrait" accept="image/*" style="display:none;" />
           </div>
           <button id="btn-upload-portrait" class="vs-prof-upload-btn">Select Image</button>
@@ -505,7 +517,8 @@ function showProfileForm(title, existingData, onConfirm) {
 
               if (!res.ok) throw new Error("Upload Failed");
               const result = await res.json();
-              return result.url;
+              // 🔥 Pastikan kembalian dari backend diubah ke HTTPS Absolute
+              return formatVisageUrl(result.url); 
             };
 
             try {
@@ -513,8 +526,7 @@ function showProfileForm(title, existingData, onConfirm) {
                 finalTokenUrl = await uploadMediaToBackend(selectedTokenFile);
               }
               if (selectedPortraitFile) {
-                finalPortraitUrl =
-                  await uploadMediaToBackend(selectedPortraitFile);
+                finalPortraitUrl = await uploadMediaToBackend(selectedPortraitFile);
               }
 
               onConfirm({
