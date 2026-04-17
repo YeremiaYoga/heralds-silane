@@ -66,6 +66,27 @@ const injectVisageStyles = () => {
     /* Empty State */
     .vs-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; color: #71717a; text-align: center; }
     .vs-empty-state i { font-size: 40px; margin-bottom: 15px; opacity: 0.5; }
+
+    /* 🔥 CSS DIALOG PILIH KARAKTER */
+    .vs-actor-grid-wrapper { background: rgba(0, 0, 0, 0.3); border: 1px solid #3f3f46; border-radius: 4px; padding: 10px; max-height: 250px; overflow-y: auto; overflow-x: hidden; }
+    .vs-actor-grid-wrapper::-webkit-scrollbar { width: 6px; }
+    .vs-actor-grid-wrapper::-webkit-scrollbar-thumb { background: #52525b; border-radius: 10px; }
+    
+    .vs-actor-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: 100%; }
+    
+    /* Aspek rasio 1 memaksa kotak jadi persegi sempurna */
+    .vs-actor-item { position: relative; cursor: pointer; border: 2px solid #27272a; border-radius: 4px; background: rgba(0,0,0,0.5); transition: all 0.2s; aspect-ratio: 1; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    .vs-actor-item:hover { border-color: #52525b; }
+    .vs-actor-item.selected { border-color: #60a5fa; background: rgba(96, 165, 250, 0.15); }
+    
+    .vs-actor-item img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; }
+    
+    /* Nama hanya muncul saat hover atau dipilih. Jika panjang akan di-wrap ke bawah */
+    .vs-actor-name { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0, 0, 0, 0.8); color: #f4f4f5; font-size: 10px; padding: 4px 2px; text-align: center; z-index: 2; opacity: 0; transition: opacity 0.2s; white-space: normal; word-wrap: break-word; line-height: 1.1; box-sizing: border-box; }
+    .vs-actor-item:hover .vs-actor-name, .vs-actor-item.selected .vs-actor-name { opacity: 1; }
+    
+    .vs-search-dark { width: 100%; margin-bottom: 10px; background: rgba(0,0,0,0.4) !important; color: #f4f4f5 !important; border: 1px solid #3f3f46 !important; border-radius: 4px; padding: 8px 10px; font-size: 13px; outline: none; }
+    .vs-search-dark:focus { border-color: #60a5fa !important; }
   `;
   document.head.appendChild(style);
 };
@@ -145,13 +166,11 @@ function updateBreadcrumbs() {
   let path = [];
   let current = visageData.items.find((i) => i.id === currentFolderId);
 
-  // Trace back to root
   while (current) {
     path.unshift(current);
     current = visageData.items.find((i) => i.id === current.parentId);
   }
 
-  // Build HTML
   let html = `<div class="vs-bc-item ${!currentFolderId ? "active" : ""}" data-id="root"><i class="fa-solid fa-home"></i> Root</div>`;
 
   path.forEach((folder) => {
@@ -168,7 +187,6 @@ function renderListArea() {
   let html = "";
   const query = searchQuery.toLowerCase();
 
-  // Update Breadcrumbs every time list area renders
   updateBreadcrumbs();
 
   const itemsToDisplay = visageData.items.filter(
@@ -208,7 +226,6 @@ function renderListArea() {
           let wrapperPadding = "0";
 
           if (item.tokenUrl) {
-            // 🔥 Menggunakan formatVisageUrl di sini
             iconContent = `
             <img src="${formatVisageUrl(item.tokenUrl)}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
             <i class="fa-solid fa-user-astronaut" style="color: #60a5fa; display:none;"></i>
@@ -217,7 +234,7 @@ function renderListArea() {
           }
 
           html += `
-          <div class="vs-list-row">
+          <div class="vs-list-row clickable vs-profile-click" data-id="${item.id}">
             <div class="vs-icon-wrapper" style="background: rgba(96, 165, 250, 0.1); box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.3); padding: ${wrapperPadding};">
               ${iconContent}
             </div>
@@ -238,17 +255,14 @@ function renderListArea() {
 function attachVisageEvents() {
   let searchTimeout;
 
-  // Breadcrumbs click event
   document.getElementById("vs-breadcrumbs").addEventListener("click", (e) => {
     const item = e.target.closest(".vs-bc-item");
     if (!item || item.classList.contains("active")) return;
-
     const id = item.dataset.id;
     currentFolderId = id === "root" ? null : id;
     renderListArea();
   });
 
-  // Search input
   document.getElementById("vs-search-input").addEventListener("input", (e) => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
@@ -257,14 +271,11 @@ function attachVisageEvents() {
     }, 1000);
   });
 
-  // List Area Click Delegation
   document
     .getElementById("vs-list-area")
     .addEventListener("click", async (e) => {
-      // Delete dengan Modal Konfirmasi
       if (e.target.closest(".vs-action-delete")) {
         const id = e.target.closest(".vs-action-delete").dataset.id;
-
         Dialog.confirm({
           title: "Confirm Deletion",
           content:
@@ -284,7 +295,6 @@ function attachVisageEvents() {
         return;
       }
 
-      // Edit
       if (e.target.closest(".vs-action-edit")) {
         const id = e.target.closest(".vs-action-edit").dataset.id;
         const item = visageData.items.find((i) => i.id === id);
@@ -305,22 +315,28 @@ function attachVisageEvents() {
         return;
       }
 
-      // Navigation (Folders)
-      const row = e.target.closest(".vs-item-click");
-      if (!row) return;
-      const target = row.dataset.target;
-
-      if (target === "folder") {
-        currentFolderId = row.dataset.id;
+      const folderRow = e.target.closest(".vs-item-click");
+      if (folderRow && folderRow.dataset.target === "folder") {
+        currentFolderId = folderRow.dataset.id;
         renderListArea();
+        return;
+      }
+
+      const profileRow = e.target.closest(".vs-profile-click");
+      if (profileRow) {
+        if (e.target.closest(".vs-action-icon")) return;
+        const id = profileRow.dataset.id;
+        const profile = visageData.items.find((i) => i.id === id);
+        if (profile) {
+          showActorSelectionDialog(profile);
+        }
       }
     });
 
-  // Add Folder
   document.getElementById("vs-btn-add-folder").addEventListener("click", () => {
     showFolderForm("Create New Folder", null, async (data) => {
       visageData.items.push({
-        id: foundry.utils.randomID(), // Tetap randomID untuk Folder
+        id: foundry.utils.randomID(),
         type: "folder",
         parentId: currentFolderId,
         name: data.name,
@@ -330,13 +346,12 @@ function attachVisageEvents() {
     });
   });
 
-  // Add Profile
   document
     .getElementById("vs-btn-add-profile")
     .addEventListener("click", () => {
       showProfileForm("Create Profile Asset", null, async (data) => {
         visageData.items.push({
-          id: crypto.randomUUID(), // Berubah menggunakan crypto.randomUUID untuk Profile
+          id: crypto.randomUUID(),
           type: "profile",
           parentId: currentFolderId,
           ...data,
@@ -354,6 +369,135 @@ function getNestedItemIds(items, targetId) {
     ids = ids.concat(getNestedItemIds(items, child.id));
   });
   return ids;
+}
+
+// 🔥 FUNGSI DIALOG PILIH KARAKTER
+async function showActorSelectionDialog(profile) {
+  let selectedActorId = null;
+  const actors = game.actors.filter(
+    (a) => a.ownership[game.user.id] >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER,
+  );
+
+  const actorGridHtml = actors
+    .map(
+      (a) => `
+    <div class="vs-actor-item" data-id="${a.id}" data-name="${a.name.toLowerCase()}">
+      <img src="${a.img}" onerror="this.style.display='none'">
+      <div class="vs-actor-name">${a.name}</div>
+    </div>`,
+    )
+    .join("");
+
+  const content = `
+    <div style="color:#f4f4f5; padding-bottom: 5px;">
+      <div style="font-size: 13px; margin-bottom: 8px; color: #a1a1aa;">
+        <b style="color:white;">Profile Name:</b> &nbsp;&nbsp;&nbsp;&nbsp;${profile.name}
+      </div>
+      <div style="font-size: 13px; margin-bottom: 12px; color: #a1a1aa;">
+        <b style="color:white;">Select a Character:</b>
+      </div>
+      
+      <input type="text" id="vs-actor-filter" class="vs-search-dark" placeholder="Search character...">
+      
+      <div class="vs-actor-grid-wrapper">
+        <div class="vs-actor-grid" id="vs-actor-grid">${actorGridHtml}</div>
+      </div>
+    </div>
+  `;
+
+  new Dialog(
+    {
+      title: `Upload Assets`,
+      content: content,
+      buttons: {
+        apply: {
+          label: "Confirm",
+          callback: async (html) => {
+            // if (!selectedActorId) return;
+            // const actor = game.actors.get(selectedActorId);
+            // if (!actor) return;
+
+            // const newImageUrl =
+            //   profile.portraitUrl || profile.tokenUrl || actor.img;
+            // const newProxyUrl =
+            //   profile.tokenUrl ||
+            //   (actor.prototypeToken
+            //     ? actor.prototypeToken.texture.src
+            //     : actor.img);
+
+            // await actor.update({
+            //   img: newImageUrl,
+            //   prototypeToken: {
+            //     texture: { src: newProxyUrl },
+            //   },
+            // });
+
+            // for (const token of actor.getActiveTokens()) {
+            //   await token.document.update({
+            //     texture: { src: newProxyUrl },
+            //   });
+            // }
+
+            // ui.notifications?.info(`Actor ${actor.name} image updated.`);
+          },
+        },
+        cancel: { label: "Cancel" },
+      },
+      default: "apply",
+      render: (html) => {
+        // 1. Membuang Background Default Foundry (Menghitamkan Dialog)
+        const dialogElement = html.closest(".app")[0];
+        const contentElement = dialogElement.querySelector(".window-content");
+        if (contentElement) {
+          contentElement.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
+          contentElement.style.color = "white";
+          contentElement.style.backgroundImage = "none";
+          contentElement.style.backgroundSize = "cover";
+          contentElement.style.backgroundRepeat = "no-repeat";
+          contentElement.style.backgroundPosition = "center";
+        }
+
+        // 2. Disable Button Confirm di awal
+        const applyBtn = html
+          .closest(".dialog")
+          .find(".dialog-buttons button.apply");
+        applyBtn.prop("disabled", true);
+        applyBtn.css({ opacity: "0.5", cursor: "not-allowed" });
+
+        // Styling tombol mirip Herald Flip
+        html.closest(".dialog").find(".dialog-buttons button").css({
+          color: "white",
+          border: "1px solid white",
+          background: "transparent",
+          borderRadius: "4px",
+        });
+
+        // 3. Logika Klik Karakter (Grid Selection)
+        html.find(".vs-actor-item").on("click", function () {
+          html.find(".vs-actor-item").removeClass("selected");
+          $(this).addClass("selected");
+          selectedActorId = $(this).data("id");
+
+          // Enable tombol Confirm setelah memilih
+          applyBtn.prop("disabled", false);
+          applyBtn.css({ opacity: "1", cursor: "pointer" });
+        });
+
+        // 4. Logika Debounce Search (Jeda 1 Detik)
+        let searchTimeout;
+        html.find("#vs-actor-filter").on("input", function () {
+          const query = $(this).val().toLowerCase();
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(() => {
+            html.find(".vs-actor-item").each(function () {
+              $(this).toggle($(this).data("name").includes(query));
+            });
+          }, 1000); // <-- Delay 1000ms (1 Detik)
+        });
+      },
+    },
+    { width: 420 },
+  ).render(true);
 }
 
 // === FORM BUILDERS ===
@@ -398,7 +542,6 @@ function showProfileForm(title, existingData, onConfirm) {
     width: "",
   };
 
-  // Variabel penampung file fisik (bukan URL preview)
   let selectedTokenFile = null;
   let selectedPortraitFile = null;
 
@@ -517,8 +660,7 @@ function showProfileForm(title, existingData, onConfirm) {
 
               if (!res.ok) throw new Error("Upload Failed");
               const result = await res.json();
-              // 🔥 Pastikan kembalian dari backend diubah ke HTTPS Absolute
-              return formatVisageUrl(result.url); 
+              return formatVisageUrl(result.url);
             };
 
             try {
@@ -526,7 +668,8 @@ function showProfileForm(title, existingData, onConfirm) {
                 finalTokenUrl = await uploadMediaToBackend(selectedTokenFile);
               }
               if (selectedPortraitFile) {
-                finalPortraitUrl = await uploadMediaToBackend(selectedPortraitFile);
+                finalPortraitUrl =
+                  await uploadMediaToBackend(selectedPortraitFile);
               }
 
               onConfirm({

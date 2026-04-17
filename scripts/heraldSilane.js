@@ -42,7 +42,7 @@ async function heraldSilane_showDialog() {
   const dialogContent = `<div id="heraldSilane-dialogContainer"></div>`;
   const dialogOptions = {
     width: 900,
-    height: "auto",
+    height: 600,
     resizable: true,
     classes: ["dialog", "silane-custom-dialog"],
   };
