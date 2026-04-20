@@ -413,32 +413,32 @@ async function showActorSelectionDialog(profile) {
         apply: {
           label: "Confirm",
           callback: async (html) => {
-            // if (!selectedActorId) return;
-            // const actor = game.actors.get(selectedActorId);
-            // if (!actor) return;
+            if (!selectedActorId) return;
+            const actor = game.actors.get(selectedActorId);
+            if (!actor) return;
 
-            // const newImageUrl =
-            //   profile.portraitUrl || profile.tokenUrl || actor.img;
-            // const newProxyUrl =
-            //   profile.tokenUrl ||
-            //   (actor.prototypeToken
-            //     ? actor.prototypeToken.texture.src
-            //     : actor.img);
+            const newImageUrl =
+              profile.portraitUrl || profile.tokenUrl || actor.img;
+            const newProxyUrl =
+              profile.tokenUrl ||
+              (actor.prototypeToken
+                ? actor.prototypeToken.texture.src
+                : actor.img);
 
-            // await actor.update({
-            //   img: newImageUrl,
-            //   prototypeToken: {
-            //     texture: { src: newProxyUrl },
-            //   },
-            // });
+            await actor.update({
+              img: newImageUrl,
+              prototypeToken: {
+                texture: { src: newProxyUrl },
+              },
+            });
 
-            // for (const token of actor.getActiveTokens()) {
-            //   await token.document.update({
-            //     texture: { src: newProxyUrl },
-            //   });
-            // }
+            for (const token of actor.getActiveTokens()) {
+              await token.document.update({
+                texture: { src: newProxyUrl },
+              });
+            }
 
-            // ui.notifications?.info(`Actor ${actor.name} image updated.`);
+            ui.notifications?.info(`Actor ${actor.name} image updated.`);
           },
         },
         cancel: { label: "Cancel" },
