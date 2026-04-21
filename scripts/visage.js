@@ -25,7 +25,6 @@ const injectVisageStyles = () => {
   style.innerHTML = `
     .vs-container { display: flex; flex-direction: column; height: 100%; width: 100%; color: #f4f4f5; padding-top: 5px; }
     
-    /* Breadcrumbs Navigation */
     .vs-breadcrumbs { display: flex; align-items: center; gap: 8px; margin-bottom: 15px; padding: 0 2px; flex-wrap: wrap; user-select: none; }
     .vs-bc-item { display: flex; align-items: center; gap: 6px; color: #a1a1aa; font-size: 13px; font-weight: 500; cursor: pointer; transition: color 0.2s; padding: 4px 6px; border-radius: 4px; }
     .vs-bc-item:hover { color: #f4f4f5; background: rgba(255,255,255,0.05); }
@@ -38,36 +37,29 @@ const injectVisageStyles = () => {
     .vs-search-box:focus-within { border-color: #60a5fa; }
     .vs-search-box input { background: transparent; border: none; color: #f4f4f5; width: 100%; margin-left: 10px; outline: none; font-size: 14px; }
     
-    /* Buttons */
+
     .vs-btn-action { background: rgba(0,0,0,0.2); border: 1px solid #3f3f46; color: #d4d4d8; border-radius: 6px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 15px; }
     .vs-btn-action:hover { background: rgba(255,255,255,0.05); color: #fff; border-color: #71717a; transform: translateY(-1px); }
     
-    /* List Area */
     .vs-list-area { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 5px; }
     .vs-list-area::-webkit-scrollbar { width: 6px; }
     .vs-list-area::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
-    
-    /* List Row */
     .vs-list-row { display: flex; align-items: center; padding: 10px 15px; background: rgba(0,0,0,0.15); border: 1px solid transparent; border-radius: 8px; transition: all 0.2s; user-select: none; }
     .vs-list-row.clickable:hover { background: rgba(0,0,0,0.3); border-color: #3f3f46; cursor: pointer; }
     
-    /* Icons & Typography */
     .vs-icon-wrapper { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border-radius: 8px; margin-right: 15px; font-size: 16px; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
     .vs-text-container { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
     .vs-text-title { font-weight: 500; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.3px; }
     
-    /* Action Icons (Edit/Delete) */
     .vs-row-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; }
     .vs-list-row:hover .vs-row-actions { opacity: 1; }
     .vs-action-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; transition: all 0.2s; color: #a1a1aa; }
     .vs-action-icon.edit:hover { background: rgba(234, 179, 8, 0.15); color: #facc15; }
     .vs-action-icon.delete:hover { background: rgba(239, 68, 68, 0.15); color: #f87171; }
     
-    /* Empty State */
     .vs-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; color: #71717a; text-align: center; }
     .vs-empty-state i { font-size: 40px; margin-bottom: 15px; opacity: 0.5; }
 
-    /* 🔥 CSS DIALOG PILIH KARAKTER */
     .vs-actor-grid-wrapper { background: rgba(0, 0, 0, 0.3); border: 1px solid #3f3f46; border-radius: 4px; padding: 10px; max-height: 250px; overflow-y: auto; overflow-x: hidden; }
     .vs-actor-grid-wrapper::-webkit-scrollbar { width: 6px; }
     .vs-actor-grid-wrapper::-webkit-scrollbar-thumb { background: #52525b; border-radius: 10px; }
@@ -81,7 +73,6 @@ const injectVisageStyles = () => {
     
     .vs-actor-item img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; }
     
-    /* Nama hanya muncul saat hover atau dipilih. Jika panjang akan di-wrap ke bawah */
     .vs-actor-name { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0, 0, 0, 0.8); color: #f4f4f5; font-size: 10px; padding: 4px 2px; text-align: center; z-index: 2; opacity: 0; transition: opacity 0.2s; white-space: normal; word-wrap: break-word; line-height: 1.1; box-sizing: border-box; }
     .vs-actor-item:hover .vs-actor-name, .vs-actor-item.selected .vs-actor-name { opacity: 1; }
     
@@ -371,7 +362,6 @@ function getNestedItemIds(items, targetId) {
   return ids;
 }
 
-// 🔥 FUNGSI DIALOG PILIH KARAKTER
 async function showActorSelectionDialog(profile) {
   let selectedActorId = null;
   const actors = game.actors.filter(
@@ -545,154 +535,97 @@ function showProfileForm(title, existingData, onConfirm) {
   let selectedTokenFile = null;
   let selectedPortraitFile = null;
 
+  // 1. Bungkus dengan silane-upload-wrapper agar background sama
   const content = `
-    <style>
-      .vs-prof-input { width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; border-radius: 6px; padding: 10px 12px; color: #f4f4f5; font-family: inherit; transition: border-color 0.2s; outline: none; }
-      .vs-prof-input:focus { border-color: #60a5fa; }
-      .vs-prof-img-box { flex: 1; aspect-ratio: 1; border: 2px dashed #52525b; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-direction: column; background: rgba(0,0,0,0.2); position: relative; overflow: hidden; cursor: pointer; transition: all 0.2s; }
-      .vs-prof-img-box:hover { border-color: #71717a; background: rgba(0,0,0,0.4); }
-      .vs-prof-img-box img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; }
-      .vs-prof-img-box span { font-weight: 600; font-size: 14px; z-index: 2; pointer-events: none; text-shadow: 0px 1px 4px rgba(0,0,0,0.9); }
-      .vs-prof-upload-btn { background: #27272a; border: 1px solid #3f3f46; color: #d4d4d8; padding: 6px; border-radius: 4px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; width: 100%; margin-top: 8px; }
-      .vs-prof-upload-btn:hover { background: #3f3f46; color: #fff; border-color: #52525b; }
-      .vs-prof-label { color: #a1a1aa; font-size: 12px; font-weight: 500; margin-bottom: 6px; display: block; }
-    </style>
+    <div class="silane-upload-wrapper">
+      <style>
+        .vs-prof-input { width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; border-radius: 6px; padding: 10px 12px; color: #f4f4f5; font-family: inherit; transition: border-color 0.2s; outline: none; }
+        .vs-prof-input:focus { border-color: #60a5fa; }
+        .vs-prof-img-box { flex: 1; aspect-ratio: 1; border: 2px dashed #52525b; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-direction: column; background: rgba(0,0,0,0.2); position: relative; overflow: hidden; cursor: pointer; transition: all 0.2s; }
+        .vs-prof-img-box:hover { border-color: #71717a; background: rgba(0,0,0,0.4); }
+        .vs-prof-img-box img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; }
+        .vs-prof-img-box span { font-weight: 600; font-size: 14px; z-index: 2; pointer-events: none; text-shadow: 0px 1px 4px rgba(0,0,0,0.9); }
+        .vs-prof-upload-btn { background: #27272a; border: 1px solid #3f3f46; color: #d4d4d8; padding: 6px; border-radius: 4px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; width: 100%; margin-top: 8px; }
+        .vs-prof-upload-btn:hover { background: #3f3f46; color: #fff; border-color: #52525b; }
+        .vs-prof-label { color: #a1a1aa; font-size: 12px; font-weight: 500; margin-bottom: 6px; display: block; }
+      </style>
 
-    <div style="padding: 5px 0 15px 0; display:flex; flex-direction:column; gap:16px;">
-      <div>
-        <label class="vs-prof-label">Name</label>
-        <input type="text" id="vs-prof-name" value="${data.name}" class="vs-prof-input" placeholder="Name..." />
-      </div>
-
-      <div style="display:flex; gap:15px;">
-        <div style="flex:1; display:flex; flex-direction:column;">
-          <div class="vs-prof-img-box" id="box-token">
-            <span style="color: #fb923c;">Token</span>
-            <img id="prev-token" src="${formatVisageUrl(data.tokenUrl)}" style="display: ${data.tokenUrl ? "block" : "none"};" />
-            <input type="file" id="file-token" accept="image/*" style="display:none;" />
-          </div>
-          <button id="btn-upload-token" class="vs-prof-upload-btn">Select Image</button>
+      <div style="padding: 5px 0 15px 0; display:flex; flex-direction:column; gap:16px;">
+        <div>
+          <label class="vs-prof-label">Name</label>
+          <input type="text" id="vs-prof-name" value="${data.name}" class="vs-prof-input" placeholder="Name..." />
         </div>
-        
-        <div style="flex:1; display:flex; flex-direction:column;">
-          <div class="vs-prof-img-box" id="box-portrait">
-            <span style="color: #4ade80;">Portrait</span>
-            <img id="prev-portrait" src="${formatVisageUrl(data.portraitUrl)}" style="display: ${data.portraitUrl ? "block" : "none"};" />
-            <input type="file" id="file-portrait" accept="image/*" style="display:none;" />
-          </div>
-          <button id="btn-upload-portrait" class="vs-prof-upload-btn">Select Image</button>
-        </div>
-      </div>
 
-      <details style="border-top: 1px solid #3f3f46; padding-top: 12px;">
-        <summary style=" cursor:pointer; font-size:13px; font-weight:600; outline:none; display:flex; align-items:center; gap:5px;">
-          Advanced settings <i class="fa-solid fa-triangle-exclamation" style="font-size:11px;"></i>
-        </summary>
-        <div style="display:flex; flex-direction:column; gap:12px; margin-top:12px; background: rgba(0,0,0,0.15); padding: 12px; border-radius: 6px; border: 1px solid #27272a;">
+        <div style="display:flex; gap:15px;">
+          <div style="flex:1; display:flex; flex-direction:column;">
+            <div class="vs-prof-img-box" id="box-token">
+              <span style="color: #fb923c;">Token</span>
+              <img id="prev-token" src="${formatVisageUrl(data.tokenUrl)}" style="display: ${data.tokenUrl ? "block" : "none"};" />
+              <input type="file" id="file-token" accept="image/*" style="display:none;" />
+            </div>
+            <button id="btn-upload-token" class="vs-prof-upload-btn">Select Image</button>
+          </div>
           
-          <div style="display:flex; gap:20px; align-items:center;">
-            <div style="display:flex; gap:8px; align-items:center;">
-              <label style="color: #a1a1aa; font-size: 13px; font-weight:500; margin:0;">Size</label>
-              <input type="text" id="vs-prof-size" value="${data.size}" style="width: 70px; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; border-radius: 4px; padding: 6px; color: #f4f4f5; outline:none;" />
+          <div style="flex:1; display:flex; flex-direction:column;">
+            <div class="vs-prof-img-box" id="box-portrait">
+              <span style="color: #4ade80;">Portrait</span>
+              <img id="prev-portrait" src="${formatVisageUrl(data.portraitUrl)}" style="display: ${data.portraitUrl ? "block" : "none"};" />
+              <input type="file" id="file-portrait" accept="image/*" style="display:none;" />
             </div>
-            <div style="display:flex; gap:8px; align-items:center;">
-              <label style="color: #a1a1aa; font-size: 13px; font-weight:500; margin:0;">Hide</label>
-              <div style="background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; border-radius: 4px; padding: 4px; display:flex; align-items:center;">
-                 <input type="checkbox" id="vs-prof-hide" ${data.hide ? "checked" : ""} style="margin:0; width:16px; height:16px; cursor:pointer;" />
-              </div>
-            </div>
+            <button id="btn-upload-portrait" class="vs-prof-upload-btn">Select Image</button>
           </div>
-
-          <div>
-            <label style="color: #a1a1aa; font-size: 13px; font-weight:500; margin-bottom: 6px; display: block;">Dimensions</label>
-            <div style="display:flex; gap:15px; align-items:center;">
-              <div style="display:flex; gap:8px; align-items:center;">
-                <i class="fa-solid fa-text-height" style="color:#52525b; font-size:12px;"></i>
-                <input type="number" id="vs-prof-height" value="${data.height}" placeholder="Height" style="width: 75px; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; border-radius: 4px; padding: 6px; color: #f4f4f5; outline:none;" />
-              </div>
-              <div style="display:flex; gap:8px; align-items:center;">
-                <i class="fa-solid fa-text-width" style="color:#52525b; font-size:12px;"></i>
-                <input type="number" id="vs-prof-width" value="${data.width}" placeholder="Width" style="width: 75px; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; border-radius: 4px; padding: 6px; color: #f4f4f5; outline:none;" />
-              </div>
-            </div>
-          </div>
-
         </div>
-      </details>
+
+        <details style="border-top: 1px solid #3f3f46; padding-top: 12px;">
+          <summary style=" cursor:pointer; font-size:13px; font-weight:600; outline:none; display:flex; align-items:center; gap:5px;">
+            Advanced settings <i class="fa-solid fa-triangle-exclamation" style="font-size:11px;"></i>
+          </summary>
+          <div style="display:flex; flex-direction:column; gap:12px; margin-top:12px; background: rgba(0,0,0,0.15); padding: 12px; border-radius: 6px; border: 1px solid #27272a;">
+            
+            <div style="display:flex; gap:20px; align-items:center;">
+              <div style="display:flex; gap:8px; align-items:center;">
+                <label style="color: #a1a1aa; font-size: 13px; font-weight:500; margin:0;">Size</label>
+                <input type="text" id="vs-prof-size" value="${data.size}" style="width: 70px; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; border-radius: 4px; padding: 6px; color: #f4f4f5; outline:none;" />
+              </div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <label style="color: #a1a1aa; font-size: 13px; font-weight:500; margin:0;">Hide</label>
+                <div style="background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; border-radius: 4px; padding: 4px; display:flex; align-items:center;">
+                   <input type="checkbox" id="vs-prof-hide" ${data.hide ? "checked" : ""} style="margin:0; width:16px; height:16px; cursor:pointer;" />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label style="color: #a1a1aa; font-size: 13px; font-weight:500; margin-bottom: 6px; display: block;">Dimensions</label>
+              <div style="display:flex; gap:15px; align-items:center;">
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <i class="fa-solid fa-text-height" style="color:#52525b; font-size:12px;"></i>
+                  <input type="number" id="vs-prof-height" value="${data.height}" placeholder="Height" style="width: 75px; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; border-radius: 4px; padding: 6px; color: #f4f4f5; outline:none;" />
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <i class="fa-solid fa-text-width" style="color:#52525b; font-size:12px;"></i>
+                  <input type="number" id="vs-prof-width" value="${data.width}" placeholder="Width" style="width: 75px; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; border-radius: 4px; padding: 6px; color: #f4f4f5; outline:none;" />
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </details>
+        
+        <div style="display:flex; gap: 10px; margin-top: 10px;">
+          <button id="vs-btn-cancel-profile" class="silane-btn" style="flex:1; border-radius:4px; padding:10px; background: rgba(0,0,0,0.3); color:#f4f4f5; border:1px solid #3f3f46; cursor:pointer;">Cancel</button>
+          <button id="vs-btn-confirm-profile" class="silane-btn primary" style="flex:1; border-radius:4px; padding:10px; cursor:pointer;"><i class="fas fa-save"></i> Confirm & Save</button>
+        </div>
+      </div>
     </div>
   `;
 
-  new Dialog(
+  // Simpan instance dialog ke dalam variabel agar kita bisa memanggil .close() secara manual
+  let profileDialog = new Dialog(
     {
       title: title,
       content: content,
-      buttons: {
-        ok: {
-          label: "Confirm & Save",
-          icon: '<i class="fas fa-save"></i>',
-          callback: async (html) => {
-            const name = html.find("#vs-prof-name").val().trim();
-            if (!name)
-              return ui.notifications?.warn("Profile Name cannot be empty.");
-
-            ui.notifications?.info("Saving profile and processing media...");
-            const saveBtn = html
-              .closest(".dialog")
-              .find(".dialog-buttons button");
-            saveBtn.prop("disabled", true);
-
-            let finalTokenUrl = data.tokenUrl;
-            let finalPortraitUrl = data.portraitUrl;
-
-            const uploadMediaToBackend = async (fileObj) => {
-              const formData = new FormData();
-              formData.append("file", fileObj);
-
-              const token = localStorage.getItem("heraldSilane_token");
-              const res = await fetch(
-                `${API_BASE_URL}/api/silane_assets/upload_visage`,
-                {
-                  method: "POST",
-                  headers: { Authorization: `Bearer ${token}` },
-                  body: formData,
-                },
-              );
-
-              if (!res.ok) throw new Error("Upload Failed");
-              const result = await res.json();
-              return formatVisageUrl(result.url);
-            };
-
-            try {
-              if (selectedTokenFile) {
-                finalTokenUrl = await uploadMediaToBackend(selectedTokenFile);
-              }
-              if (selectedPortraitFile) {
-                finalPortraitUrl =
-                  await uploadMediaToBackend(selectedPortraitFile);
-              }
-
-              onConfirm({
-                name: name,
-                tokenUrl: finalTokenUrl,
-                portraitUrl: finalPortraitUrl,
-                size: html.find("#vs-prof-size").val().trim(),
-                hide: html.find("#vs-prof-hide").is(":checked"),
-                height: html.find("#vs-prof-height").val(),
-                width: html.find("#vs-prof-width").val(),
-              });
-            } catch (err) {
-              ui.notifications?.error(
-                "Failed to upload image. Please try again.",
-              );
-              console.error(err);
-              saveBtn.prop("disabled", false);
-            }
-          },
-        },
-        cancel: { label: "Cancel" },
-      },
-      default: "ok",
+      buttons: {}, // Kosongkan ini agar tidak auto-close
       render: (html) => {
         const attachImageUpload = (boxId, inputId, imgId, btnId, isToken) => {
           const box = html[0].querySelector(`#${boxId}`);
@@ -717,22 +650,91 @@ function showProfileForm(title, existingData, onConfirm) {
           });
         };
 
-        attachImageUpload(
-          "box-token",
-          "file-token",
-          "prev-token",
-          "btn-upload-token",
-          true,
-        );
-        attachImageUpload(
-          "box-portrait",
-          "file-portrait",
-          "prev-portrait",
-          "btn-upload-portrait",
-          false,
-        );
+        attachImageUpload("box-token", "file-token", "prev-token", "btn-upload-token", true);
+        attachImageUpload("box-portrait", "file-portrait", "prev-portrait", "btn-upload-portrait", false);
+
+        // Ambil referensi tombol custom kita
+        const btnConfirm = html[0].querySelector("#vs-btn-confirm-profile");
+        const btnCancel = html[0].querySelector("#vs-btn-cancel-profile");
+
+        // Event listener Cancel
+        btnCancel.addEventListener("click", () => {
+          profileDialog.close();
+        });
+
+        // Event listener Confirm
+        btnConfirm.addEventListener("click", async () => {
+          const nameInput = html[0].querySelector("#vs-prof-name");
+          const name = nameInput.value.trim();
+          
+          // MENCEGAH CLOSE: Cukup return. Karena kita tidak menggunakan default button Foundry, 
+          // dialog akan diam dan tetap terbuka saat return dieksekusi.
+          if (!name) {
+            ui.notifications?.warn("Profile Name cannot be empty.");
+            return; 
+          }
+
+          ui.notifications?.info("Saving profile and processing media...");
+          btnConfirm.disabled = true;
+          btnConfirm.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+          let finalTokenUrl = data.tokenUrl;
+          let finalPortraitUrl = data.portraitUrl;
+
+          const uploadMediaToBackend = async (fileObj) => {
+            const formData = new FormData();
+            formData.append("file", fileObj);
+
+            const token = localStorage.getItem("heraldSilane_token");
+            const res = await fetch(
+              `${API_BASE_URL}/api/silane_assets/upload_visage`,
+              {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData,
+              },
+            );
+
+            if (!res.ok) throw new Error("Upload Failed");
+            const result = await res.json();
+            return formatVisageUrl(result.url);
+          };
+
+          try {
+            if (selectedTokenFile) {
+              finalTokenUrl = await uploadMediaToBackend(selectedTokenFile);
+            }
+            if (selectedPortraitFile) {
+              finalPortraitUrl = await uploadMediaToBackend(selectedPortraitFile);
+            }
+
+            onConfirm({
+              name: name,
+              tokenUrl: finalTokenUrl,
+              portraitUrl: finalPortraitUrl,
+              size: html[0].querySelector("#vs-prof-size").value.trim(),
+              hide: html[0].querySelector("#vs-prof-hide").checked,
+              height: html[0].querySelector("#vs-prof-height").value,
+              width: html[0].querySelector("#vs-prof-width").value,
+            });
+
+            // BERHASIL: Tutup manual dialognya
+            profileDialog.close();
+
+          } catch (err) {
+            ui.notifications?.error("Failed to upload image. Please try again.");
+            console.error(err);
+            btnConfirm.disabled = false;
+            btnConfirm.innerHTML = '<i class="fas fa-save"></i> Confirm & Save';
+          }
+        });
       },
     },
-    { width: 420 },
-  ).render(true);
+    { 
+      width: 420,
+      classes: ["dialog", "silane-custom-dialog"] // 3. Tambahkan class ini agar UI / background sama dengan upload media
+    }
+  );
+  
+  profileDialog.render(true);
 }

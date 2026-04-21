@@ -191,6 +191,10 @@ async function heraldSilane_renderMainView() {
             <input type="text" id="hs-search-input" class="silane-input" placeholder="Search by name..." style="margin-left: 15px; width: 200px; padding: 5px 10px; border-radius: 4px; border: 1px solid #52525b; background: rgba(0,0,0,0.2); color: #f4f4f5;" />
             
             <div class="hs-actions" id="hs-actions-container" style="margin-left: auto;">
+              <button id="hs-btn-share-chat" class="hs-btn" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.5);" disabled title="Show in Chat">
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+              
               <button id="hs-btn-delete" class="hs-btn hs-btn-danger" disabled title="Delete Selected">
                 <i class="fa-solid fa-trash"></i>
               </button>
@@ -238,6 +242,7 @@ async function heraldSilane_renderMainView() {
   const galleryContainer = document.getElementById("hs-gallery-container");
   const actionsContainer = document.getElementById("hs-actions-container");
   const deleteBtn = document.getElementById("hs-btn-delete");
+  const shareChatBtn = document.getElementById("hs-btn-share-chat"); // Ambil elemen Share
   const titleText = document.getElementById("hs-content-title");
   const btnOpenUpload = document.getElementById("hs-btn-open-upload");
   const searchInput = document.getElementById("hs-search-input");
@@ -294,8 +299,11 @@ async function heraldSilane_renderMainView() {
 
   fetchStorageUsage();
 
+  // UPDATE: Ikut atur status disable tombol share
   const updateDeleteBtnState = () => {
-    deleteBtn.disabled = selectedItems.size === 0;
+    const hasSelection = selectedItems.size > 0;
+    deleteBtn.disabled = !hasSelection;
+    if (shareChatBtn) shareChatBtn.disabled = !hasSelection;
   };
 
   const renderGallery = (filesArray) => {
@@ -413,6 +421,41 @@ async function heraldSilane_renderMainView() {
   btnOpenUpload.addEventListener("click", () => {
     heraldSilane_openUploadModal(activeTab, fetchGalleryData);
   });
+
+  // FUNGSI SHARE CHAT BARU
+  if (shareChatBtn) {
+    shareChatBtn.addEventListener("click", () => {
+      if (selectedItems.size === 0) return;
+
+      // Ambil data file yang di-select
+      const selectedFiles = currentFilesArray.filter((file) =>
+        selectedItems.has(String(file.id)),
+      );
+
+      // Buat HTML untuk isi chat (TANPA JUDUL)
+      let chatContent = `<div class="silane-chat-images" style="display:flex; flex-direction:column; gap:8px;">`;
+      selectedFiles.forEach((file) => {
+        if (file.url) {
+          chatContent += `
+            <div style="background: rgba(0,0,0,0.2); padding: 5px; border-radius: 4px; border: 1px solid #3f3f46;">
+              <img src="${file.url}" alt="Shared Image" style="border-radius: 4px; max-width: 100%; height: auto; display: block;" />
+            </div>
+          `;
+        }
+      });
+      chatContent += `</div>`;
+
+      // Buat Chat Message di Foundry
+      ChatMessage.create({
+        speaker: ChatMessage.getSpeaker(),
+        content: chatContent,
+      });
+
+      ui.notifications?.info(
+        `Shared ${selectedFiles.length} image(s) to chat.`,
+      );
+    });
+  }
 
   deleteBtn.addEventListener("click", async () => {
     if (selectedItems.size === 0) return;
