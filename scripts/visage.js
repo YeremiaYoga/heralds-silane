@@ -37,7 +37,6 @@ const injectVisageStyles = () => {
     .vs-search-box:focus-within { border-color: #60a5fa; }
     .vs-search-box input { background: transparent; border: none; color: #f4f4f5; width: 100%; margin-left: 10px; outline: none; font-size: 14px; }
     
-
     .vs-btn-action { background: rgba(0,0,0,0.2); border: 1px solid #3f3f46; color: #d4d4d8; border-radius: 6px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 15px; }
     .vs-btn-action:hover { background: rgba(255,255,255,0.05); color: #fff; border-color: #71717a; transform: translateY(-1px); }
     
@@ -46,6 +45,9 @@ const injectVisageStyles = () => {
     .vs-list-area::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
     .vs-list-row { display: flex; align-items: center; padding: 10px 15px; background: rgba(0,0,0,0.15); border: 1px solid transparent; border-radius: 8px; transition: all 0.2s; user-select: none; }
     .vs-list-row.clickable:hover { background: rgba(0,0,0,0.3); border-color: #3f3f46; cursor: pointer; }
+    
+    /* 🔥 Efek Drag Over */
+    .vs-list-row.drag-over { background: rgba(96, 165, 250, 0.25) !important; border-color: #60a5fa !important; }
     
     .vs-icon-wrapper { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border-radius: 8px; margin-right: 15px; font-size: 16px; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
     .vs-text-container { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
@@ -66,7 +68,6 @@ const injectVisageStyles = () => {
     
     .vs-actor-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: 100%; }
     
-    /* Aspek rasio 1 memaksa kotak jadi persegi sempurna */
     .vs-actor-item { position: relative; cursor: pointer; border: 2px solid #27272a; border-radius: 4px; background: rgba(0,0,0,0.5); transition: all 0.2s; aspect-ratio: 1; overflow: hidden; display: flex; align-items: center; justify-content: center; }
     .vs-actor-item:hover { border-color: #52525b; }
     .vs-actor-item.selected { border-color: #60a5fa; background: rgba(96, 165, 250, 0.15); }
@@ -202,8 +203,9 @@ function renderListArea() {
       })
       .forEach((item) => {
         if (item.type === "folder") {
+          // 🔥 Folder ditambahkan draggable="true"
           html += `
-          <div class="vs-list-row clickable vs-item-click" data-target="folder" data-id="${item.id}">
+          <div class="vs-list-row clickable vs-item-click" draggable="true" data-target="folder" data-id="${item.id}">
             <div class="vs-icon-wrapper" style="background: rgba(251, 191, 36, 0.15); box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.4);"><i class="fa-solid fa-folder" style="color: #fbbf24; font-size: 18px;"></i></div>
             <div class="vs-text-container"><div class="vs-text-title">${item.name}</div></div>
             <div class="vs-row-actions" >
@@ -224,8 +226,9 @@ function renderListArea() {
             wrapperPadding = "2px";
           }
 
+          // 🔥 Profile ditambahkan draggable="true"
           html += `
-          <div class="vs-list-row clickable vs-profile-click" data-id="${item.id}">
+          <div class="vs-list-row clickable vs-profile-click" draggable="true" data-id="${item.id}">
             <div class="vs-icon-wrapper" style="background: rgba(96, 165, 250, 0.1); box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.3); padding: ${wrapperPadding};">
               ${iconContent}
             </div>
@@ -246,6 +249,7 @@ function renderListArea() {
 function attachVisageEvents() {
   let searchTimeout;
 
+  // Breadcrumbs click event
   document.getElementById("vs-breadcrumbs").addEventListener("click", (e) => {
     const item = e.target.closest(".vs-bc-item");
     if (!item || item.classList.contains("active")) return;
@@ -254,6 +258,7 @@ function attachVisageEvents() {
     renderListArea();
   });
 
+  // Search input event
   document.getElementById("vs-search-input").addEventListener("input", (e) => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
@@ -262,9 +267,9 @@ function attachVisageEvents() {
     }, 1000);
   });
 
-  document
-    .getElementById("vs-list-area")
-    .addEventListener("click", async (e) => {
+  // Main List Area click events
+  document.getElementById("vs-list-area").addEventListener("click", async (e) => {
+      // Delete Button
       if (e.target.closest(".vs-action-delete")) {
         const id = e.target.closest(".vs-action-delete").dataset.id;
         Dialog.confirm({
@@ -286,6 +291,7 @@ function attachVisageEvents() {
         return;
       }
 
+      // Edit Button
       if (e.target.closest(".vs-action-edit")) {
         const id = e.target.closest(".vs-action-edit").dataset.id;
         const item = visageData.items.find((i) => i.id === id);
@@ -306,6 +312,7 @@ function attachVisageEvents() {
         return;
       }
 
+      // Folder Click
       const folderRow = e.target.closest(".vs-item-click");
       if (folderRow && folderRow.dataset.target === "folder") {
         currentFolderId = folderRow.dataset.id;
@@ -313,6 +320,7 @@ function attachVisageEvents() {
         return;
       }
 
+      // Profile Click
       const profileRow = e.target.closest(".vs-profile-click");
       if (profileRow) {
         if (e.target.closest(".vs-action-icon")) return;
@@ -324,6 +332,7 @@ function attachVisageEvents() {
       }
     });
 
+  // Add buttons
   document.getElementById("vs-btn-add-folder").addEventListener("click", () => {
     showFolderForm("Create New Folder", null, async (data) => {
       visageData.items.push({
@@ -337,9 +346,7 @@ function attachVisageEvents() {
     });
   });
 
-  document
-    .getElementById("vs-btn-add-profile")
-    .addEventListener("click", () => {
+  document.getElementById("vs-btn-add-profile").addEventListener("click", () => {
       showProfileForm("Create Profile Asset", null, async (data) => {
         visageData.items.push({
           id: crypto.randomUUID(),
@@ -351,6 +358,109 @@ function attachVisageEvents() {
         await saveVisageData();
       });
     });
+
+  // === 🔥 DRAG AND DROP LOGIC ===
+  const listArea = document.getElementById("vs-list-area");
+  const breadcrumbs = document.getElementById("vs-breadcrumbs");
+  let draggedItemId = null;
+
+  // 1. Saat item mulai di-drag
+  listArea.addEventListener("dragstart", (e) => {
+    const row = e.target.closest(".vs-list-row");
+    if (!row) return;
+    draggedItemId = row.dataset.id;
+    e.dataTransfer.effectAllowed = "move";
+    row.style.opacity = "0.5"; 
+  });
+
+  // 2. Saat item selesai di-drag
+  listArea.addEventListener("dragend", (e) => {
+    const row = e.target.closest(".vs-list-row");
+    if (row) row.style.opacity = "1";
+    draggedItemId = null;
+    document.querySelectorAll('.vs-list-row').forEach(el => el.classList.remove('drag-over'));
+  });
+
+  // 3. Saat item melayang di atas area list
+  listArea.addEventListener("dragover", (e) => {
+    e.preventDefault(); 
+    const targetRow = e.target.closest(".vs-list-row[data-target='folder']");
+    
+    if (targetRow && targetRow.dataset.id !== draggedItemId) {
+      targetRow.classList.add("drag-over");
+    }
+  });
+
+  // 4. Saat item keluar dari area folder
+  listArea.addEventListener("dragleave", (e) => {
+    const targetRow = e.target.closest(".vs-list-row[data-target='folder']");
+    if (targetRow) {
+      targetRow.classList.remove("drag-over");
+    }
+  });
+
+  // 5. Eksekusi perpindahan data saat di-DROP ke folder
+  listArea.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    document.querySelectorAll('.vs-list-row').forEach(el => el.classList.remove('drag-over'));
+    const targetRow = e.target.closest(".vs-list-row[data-target='folder']");
+
+    if (targetRow && draggedItemId && targetRow.dataset.id !== draggedItemId) {
+      const targetFolderId = targetRow.dataset.id;
+      const itemToMove = visageData.items.find(i => i.id === draggedItemId);
+      
+      if (itemToMove) {
+        // Cegah folder dimasukkan ke dalam sub-foldernya sendiri (Infinite Loop)
+        if (itemToMove.type === "folder") {
+          const nestedIds = getNestedItemIds(visageData.items, draggedItemId);
+          if (nestedIds.includes(targetFolderId)) {
+            ui.notifications?.warn("Cannot move a folder into its own subfolder.");
+            return;
+          }
+        }
+
+        itemToMove.parentId = targetFolderId;
+        renderListArea();
+        await saveVisageData();
+        ui.notifications?.info(`Item moved successfully.`);
+      }
+    }
+  });
+
+  // 6. Dukungan DROP ke Breadcrumbs
+  breadcrumbs.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    const bcItem = e.target.closest(".vs-bc-item:not(.active)");
+    if (bcItem) bcItem.style.background = "rgba(255,255,255,0.1)"; 
+  });
+
+  breadcrumbs.addEventListener("dragleave", (e) => {
+    const bcItem = e.target.closest(".vs-bc-item:not(.active)");
+    if (bcItem) bcItem.style.background = "";
+  });
+
+  breadcrumbs.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    const bcItem = e.target.closest(".vs-bc-item:not(.active)");
+    if (bcItem) bcItem.style.background = "";
+
+    if (bcItem && draggedItemId) {
+      const targetFolderId = bcItem.dataset.id === "root" ? null : bcItem.dataset.id;
+      const itemToMove = visageData.items.find(i => i.id === draggedItemId);
+
+      if (itemToMove && itemToMove.parentId !== targetFolderId) {
+        if (itemToMove.type === "folder") {
+          const nestedIds = getNestedItemIds(visageData.items, draggedItemId);
+          if (nestedIds.includes(targetFolderId)) return;
+        }
+
+        itemToMove.parentId = targetFolderId;
+        renderListArea();
+        await saveVisageData();
+        ui.notifications?.info(`Item moved successfully.`);
+      }
+    }
+  });
 }
 
 function getNestedItemIds(items, targetId) {
@@ -435,7 +545,6 @@ async function showActorSelectionDialog(profile) {
       },
       default: "apply",
       render: (html) => {
-        // 1. Membuang Background Default Foundry (Menghitamkan Dialog)
         const dialogElement = html.closest(".app")[0];
         const contentElement = dialogElement.querySelector(".window-content");
         if (contentElement) {
@@ -447,14 +556,12 @@ async function showActorSelectionDialog(profile) {
           contentElement.style.backgroundPosition = "center";
         }
 
-        // 2. Disable Button Confirm di awal
         const applyBtn = html
           .closest(".dialog")
           .find(".dialog-buttons button.apply");
         applyBtn.prop("disabled", true);
         applyBtn.css({ opacity: "0.5", cursor: "not-allowed" });
 
-        // Styling tombol mirip Herald Flip
         html.closest(".dialog").find(".dialog-buttons button").css({
           color: "white",
           border: "1px solid white",
@@ -462,18 +569,15 @@ async function showActorSelectionDialog(profile) {
           borderRadius: "4px",
         });
 
-        // 3. Logika Klik Karakter (Grid Selection)
         html.find(".vs-actor-item").on("click", function () {
           html.find(".vs-actor-item").removeClass("selected");
           $(this).addClass("selected");
           selectedActorId = $(this).data("id");
 
-          // Enable tombol Confirm setelah memilih
           applyBtn.prop("disabled", false);
           applyBtn.css({ opacity: "1", cursor: "pointer" });
         });
 
-        // 4. Logika Debounce Search (Jeda 1 Detik)
         let searchTimeout;
         html.find("#vs-actor-filter").on("input", function () {
           const query = $(this).val().toLowerCase();
@@ -482,7 +586,7 @@ async function showActorSelectionDialog(profile) {
             html.find(".vs-actor-item").each(function () {
               $(this).toggle($(this).data("name").includes(query));
             });
-          }, 1000); // <-- Delay 1000ms (1 Detik)
+          }, 1000); 
         });
       },
     },
@@ -535,7 +639,6 @@ function showProfileForm(title, existingData, onConfirm) {
   let selectedTokenFile = null;
   let selectedPortraitFile = null;
 
-  // 1. Bungkus dengan silane-upload-wrapper agar background sama
   const content = `
     <div class="silane-upload-wrapper">
       <style>
@@ -620,12 +723,11 @@ function showProfileForm(title, existingData, onConfirm) {
     </div>
   `;
 
-  // Simpan instance dialog ke dalam variabel agar kita bisa memanggil .close() secara manual
   let profileDialog = new Dialog(
     {
       title: title,
       content: content,
-      buttons: {}, // Kosongkan ini agar tidak auto-close
+      buttons: {}, 
       render: (html) => {
         const attachImageUpload = (boxId, inputId, imgId, btnId, isToken) => {
           const box = html[0].querySelector(`#${boxId}`);
@@ -653,22 +755,17 @@ function showProfileForm(title, existingData, onConfirm) {
         attachImageUpload("box-token", "file-token", "prev-token", "btn-upload-token", true);
         attachImageUpload("box-portrait", "file-portrait", "prev-portrait", "btn-upload-portrait", false);
 
-        // Ambil referensi tombol custom kita
         const btnConfirm = html[0].querySelector("#vs-btn-confirm-profile");
         const btnCancel = html[0].querySelector("#vs-btn-cancel-profile");
 
-        // Event listener Cancel
         btnCancel.addEventListener("click", () => {
           profileDialog.close();
         });
 
-        // Event listener Confirm
         btnConfirm.addEventListener("click", async () => {
           const nameInput = html[0].querySelector("#vs-prof-name");
           const name = nameInput.value.trim();
           
-          // MENCEGAH CLOSE: Cukup return. Karena kita tidak menggunakan default button Foundry, 
-          // dialog akan diam dan tetap terbuka saat return dieksekusi.
           if (!name) {
             ui.notifications?.warn("Profile Name cannot be empty.");
             return; 
@@ -718,7 +815,6 @@ function showProfileForm(title, existingData, onConfirm) {
               width: html[0].querySelector("#vs-prof-width").value,
             });
 
-            // BERHASIL: Tutup manual dialognya
             profileDialog.close();
 
           } catch (err) {
@@ -732,7 +828,7 @@ function showProfileForm(title, existingData, onConfirm) {
     },
     { 
       width: 420,
-      classes: ["dialog", "silane-custom-dialog"] // 3. Tambahkan class ini agar UI / background sama dengan upload media
+      classes: ["dialog", "silane-custom-dialog"] 
     }
   );
   

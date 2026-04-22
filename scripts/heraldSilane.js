@@ -1,5 +1,7 @@
 import { API_BASE_URL } from "./helper.js";
 import { initVisageTab } from "./visage.js";
+// 🔥 Import modul character baru
+import { initCharacterTab } from "./character.js";
 
 let heraldSilane_currentDialog = null;
 let heraldSilane_uploadDialog = null;
@@ -183,6 +185,7 @@ async function heraldSilane_renderMainView() {
           <button id="hs-tab-images" class="hs-circle-btn active" title="Images"><i class="fa-solid fa-image"></i></button>
           <button id="hs-tab-audio" class="hs-circle-btn" title="Audio"><i class="fa-solid fa-music"></i></button>
           <button id="hs-tab-visage" class="hs-circle-btn" title="Visage"><i class="fa-solid fa-masks-theater"></i></button>
+          <button id="hs-tab-character" class="hs-circle-btn" title="Character"><i class="fa-solid fa-users"></i></button>
         </div>
         <div class="hs-content">
           <div class="hs-header">
@@ -237,12 +240,14 @@ async function heraldSilane_renderMainView() {
     images: document.getElementById("hs-tab-images"),
     audio: document.getElementById("hs-tab-audio"),
     visage: document.getElementById("hs-tab-visage"),
+    // 🔥 Daftarkan tab character
+    character: document.getElementById("hs-tab-character"),
   };
 
   const galleryContainer = document.getElementById("hs-gallery-container");
   const actionsContainer = document.getElementById("hs-actions-container");
   const deleteBtn = document.getElementById("hs-btn-delete");
-  const shareChatBtn = document.getElementById("hs-btn-share-chat"); // Ambil elemen Share
+  const shareChatBtn = document.getElementById("hs-btn-share-chat");
   const titleText = document.getElementById("hs-content-title");
   const btnOpenUpload = document.getElementById("hs-btn-open-upload");
   const searchInput = document.getElementById("hs-search-input");
@@ -299,7 +304,6 @@ async function heraldSilane_renderMainView() {
 
   fetchStorageUsage();
 
-  // UPDATE: Ikut atur status disable tombol share
   const updateDeleteBtnState = () => {
     const hasSelection = selectedItems.size > 0;
     deleteBtn.disabled = !hasSelection;
@@ -399,6 +403,13 @@ async function heraldSilane_renderMainView() {
       searchInput.style.display = "none";
       galleryContainer.classList.remove("hs-gallery");
       initVisageTab(galleryContainer);
+      // 🔥 Logika ketika tab Character ditekan
+    } else if (type === "character") {
+      titleText.innerText = "Character Roster";
+      actionsContainer.style.display = "none";
+      searchInput.style.display = "none";
+      galleryContainer.classList.remove("hs-gallery");
+      initCharacterTab(galleryContainer);
     } else {
       if (type === "audio") titleText.innerText = "Audio Library";
       actionsContainer.style.display = "none";
@@ -422,17 +433,14 @@ async function heraldSilane_renderMainView() {
     heraldSilane_openUploadModal(activeTab, fetchGalleryData);
   });
 
-  // FUNGSI SHARE CHAT BARU
   if (shareChatBtn) {
     shareChatBtn.addEventListener("click", () => {
       if (selectedItems.size === 0) return;
 
-      // Ambil data file yang di-select
       const selectedFiles = currentFilesArray.filter((file) =>
         selectedItems.has(String(file.id)),
       );
 
-      // Buat HTML untuk isi chat (TANPA JUDUL)
       let chatContent = `<div class="silane-chat-images" style="display:flex; flex-direction:column; gap:8px;">`;
       selectedFiles.forEach((file) => {
         if (file.url) {
@@ -445,7 +453,6 @@ async function heraldSilane_renderMainView() {
       });
       chatContent += `</div>`;
 
-      // Buat Chat Message di Foundry
       ChatMessage.create({
         speaker: ChatMessage.getSpeaker(),
         content: chatContent,
@@ -697,7 +704,13 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
               if (onSuccessCallback) onSuccessCallback();
             } else {
               const errData = await response.json();
-              ui.notifications?.error(`Upload failed: ${errData.message}`);
+
+              if (errData.message && errData.message.includes("over 3mb")) {
+                ui.notifications?.warn(`⚠️ Warning: ${errData.message}`);
+              } else {
+                ui.notifications?.error(`Upload failed: ${errData.message}`);
+              }
+
               btnConfirm.disabled = false;
               btnConfirm.textContent = "Confirm Upload";
             }
