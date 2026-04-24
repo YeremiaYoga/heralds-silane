@@ -37,7 +37,6 @@ const formatExportDate = (val) => {
 
 // 🔥 URL Cerdas: Tangani null, string kosong, dan path relatif Foundry
 const formatCharacterUrl = (link) => {
-  // 1. Tangani jika nilai kosong, undefined, atau string "null"
   if (
     !link ||
     link === "null" ||
@@ -47,23 +46,16 @@ const formatCharacterUrl = (link) => {
     return "icons/svg/mystery-man.svg";
   }
 
-  // 2. Jika link adalah eksternal web absolut atau base64 data
   if (link.startsWith("http") || link.startsWith("data:")) {
     return link;
   }
 
-  // 3. Jika link adalah penyimpanan cloud R2 kamu
   if (link.includes("sih4storage.phanneldeliver.my.id")) {
     return link.startsWith("https://") ? link : `https://${link}`;
   }
 
-  // 4. 🔥 Jika link adalah path lokal (seperti "systems/dnd5e/tokens/..." atau "Herald's-Flip/...")
-  // Hilangkan garis miring di depan jika ada, lalu gabungkan dengan asal domain (localhost:30000)
   let cleanLink = link.startsWith("/") ? link.slice(1) : link;
-
-  // Encode URI untuk aman dari spasi dan karakter aneh
   cleanLink = encodeURI(cleanLink).replace(/'/g, "%27");
-
   return `${window.location.origin}/${cleanLink}`;
 };
 
@@ -85,46 +77,45 @@ const injectCharacterStyles = () => {
     .ch-search-box:focus-within { border-color: #10b981; }
     .ch-search-box input { background: transparent; border: none; color: #f4f4f5; width: 100%; margin-left: 10px; outline: none; font-size: 14px; }
     
-    .ch-btn-upload-char { display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; color: #10b981; padding: 0 16px; height: 40px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+    .ch-btn-upload-char { display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; color: #10b981; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
     .ch-btn-upload-char:hover { background: #10b981; color: #000; }
     
-    .ch-btn-select-actor { display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(59, 130, 246, 0.1); border: 1px solid #3b82f6; color: #3b82f6; padding: 0 16px; height: 40px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+    .ch-btn-select-actor { display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(59, 130, 246, 0.1); border: 1px solid #3b82f6; color: #3b82f6; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
     .ch-btn-select-actor:hover { background: #3b82f6; color: #fff; }
 
-    .ch-btn-folder { background: rgba(251, 191, 36, 0.1); border: 1px solid #fbbf24; color: #fbbf24; width: 40px; height: 40px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 16px; }
+    .ch-btn-folder { background: rgba(251, 191, 36, 0.1); border: 1px solid #fbbf24; color: #fbbf24; width: 36px; height: 36px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 14px; }
     .ch-btn-folder:hover { background: #fbbf24; color: #000; }
 
-    .ch-list-area { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px; }
+    .ch-list-area { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 5px; }
     .ch-list-area::-webkit-scrollbar { width: 6px; }
     .ch-list-area::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
     
-    .ch-row-card { display: flex; align-items: center; padding: 12px 16px; background: rgba(0, 0, 0, 0.3); border: 1px solid #3f3f46; border-radius: 8px; transition: all 0.2s; user-select: none; gap: 15px; }
+    /* UKURAN DIPERKECIL DI SINI */
+    .ch-row-card { display: flex; align-items: center; padding: 8px 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid #3f3f46; border-radius: 8px; transition: all 0.2s; user-select: none; gap: 12px; }
     .ch-row-card.clickable:hover { background: rgba(0, 0, 0, 0.5); border-color: #52525b; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
     .ch-row-card.drag-over { border-color: #10b981 !important; background: rgba(16, 185, 129, 0.05) !important; }
     
-    .ch-card-avatar { width: 64px; height: 64px; border-radius: 6px; border: 1px solid #52525b; overflow: hidden; background: #18181b; flex-shrink: 0; display: flex; align-items:center; justify-content:center;}
+    .ch-card-avatar { width: 48px; height: 48px; border-radius: 4px; border: 1px solid #52525b; overflow: hidden; background: #18181b; flex-shrink: 0; display: flex; align-items:center; justify-content:center;}
     .ch-card-avatar img { width: 100%; height: 100%; object-fit: cover; }
     
     .ch-card-info { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
-    .ch-card-name { font-size: 17px; font-weight: 700; color: #f4f4f5; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.5px;}
-    .ch-card-detail { font-size: 12px; color: #a1a1aa; display: flex; align-items: center; gap: 6px; margin-bottom: 2px; font-family: monospace; }
+    .ch-card-name { font-size: 15px; font-weight: 700; color: #f4f4f5; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.5px;}
+    .ch-card-detail { font-size: 11px; color: #a1a1aa; display: flex; align-items: center; gap: 6px; margin-bottom: 2px; font-family: monospace; }
     
-    .ch-card-meta { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-width: 120px; text-align: right; border-right: 1px solid #3f3f46; padding-right: 15px;}
-    .ch-meta-top { font-size: 14px; margin-bottom: 4px; display:flex; gap: 4px; align-items: center;}
+    .ch-card-meta { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-width: 100px; text-align: right; border-right: 1px solid #3f3f46; padding-right: 12px;}
+    .ch-meta-top { font-size: 12px; margin-bottom: 2px; display:flex; gap: 4px; align-items: center;}
     .ch-meta-sys { color: #fbcfe8; font-weight: 700; } 
     .ch-meta-ver { color: #fde047; font-weight: 700; } 
-    .ch-meta-bot { font-size: 12px; color: #fdba74; font-weight: 600;} 
+    .ch-meta-bot { font-size: 11px; color: #fdba74; font-weight: 600;} 
+    .ch-meta-size { font-size: 10px; color: #a1a1aa; margin-top: 2px; font-style: italic; } /* CSS untuk Size JSON */
     
-    .ch-card-actions { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
-    .ch-btn-action-box { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: all 0.2s; opacity: 0.8; background: transparent; border: none; padding: 0;}
-    .ch-btn-action-box:hover { opacity: 1; transform: translateY(-2px); }
-    .ch-icon-sq { width: 34px; height: 34px; border: 1px solid; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; background: rgba(0,0,0,0.2);}
-    .ch-lbl-sq { font-size: 10px; font-weight: 700; }
+    .ch-card-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+    .ch-btn-action-box { display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; opacity: 0.7; background: transparent; border: none; padding: 0;}
+    .ch-btn-action-box:hover { opacity: 1; transform: scale(1.05); }
+    .ch-icon-sq { width: 28px; height: 28px; border: 1px solid; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; background: rgba(0,0,0,0.2);}
     
     .ch-dl .ch-icon-sq { border-color: #0ea5e9; color: #0ea5e9; }
-    .ch-dl .ch-lbl-sq { color: #0ea5e9; }
     .ch-del .ch-icon-sq { border-color: #ef4444; color: #ef4444; }
-    .ch-del .ch-lbl-sq { color: #ef4444; }
 
     .ch-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; color: #71717a; text-align: center; }
     .ch-empty-state i { font-size: 40px; margin-bottom: 15px; opacity: 0.5; }
@@ -205,14 +196,16 @@ function renderCharacterUI() {
         </div>
       
         <div style="display:flex; gap:12px;">
-          <button id="ch-btn-add-folder" class="ch-btn-folder" title="New Folder"><i class="fa-solid fa-folder-plus"></i></button>
-          
-          <button id="ch-btn-select-actor" class="ch-btn-select-actor" title="Select from World">
-            <i class="fa-solid fa-user-check"></i> Select Character
+          <button id="ch-btn-add-folder" class="ch-btn-folder" title="New Folder">
+            <i class="fa-solid fa-folder-plus"></i>
           </button>
 
-          <button id="ch-btn-add-profile" class="ch-btn-upload-char">
-            <i class="fa-solid fa-file-import"></i> Upload Character
+          <button id="ch-btn-add-profile" class="ch-btn-upload-char" style="font-size: 12px; padding: 0 12px; height: 36px; white-space: nowrap;">
+            <i class="fa-solid fa-file-import" style="font-size: 14px;"></i> Upload JSON
+          </button>
+
+          <button id="ch-btn-select-actor" class="ch-btn-select-actor" title="Select from World" style="font-size: 12px; padding: 0 12px; height: 36px; white-space: nowrap;">
+            <i class="fa-solid fa-user-check" style="font-size: 14px;"></i> Select Character
           </button>
         </div>
       </div>
@@ -281,7 +274,7 @@ function renderListArea() {
         if (item.type === "folder") {
           html += `
           <div class="ch-row-card clickable ch-item-click" draggable="true" data-target="folder" data-id="${item.id}">
-            <div class="ch-card-avatar" style="border-color:#fbbf24;"><i class="fa-solid fa-folder" style="color: #fbbf24; font-size: 28px;"></i></div>
+            <div class="ch-card-avatar" style="border-color:#fbbf24;"><i class="fa-solid fa-folder" style="color: #fbbf24; font-size: 24px;"></i></div>
             
             <div class="ch-card-info">
               <div class="ch-card-name">${item.name}</div>
@@ -292,7 +285,6 @@ function renderListArea() {
             <div class="ch-card-actions">
               <button class="ch-btn-action-box ch-del ch-action-delete" data-id="${item.id}" title="Delete Folder">
                 <div class="ch-icon-sq"><i class="fa-solid fa-trash"></i></div>
-                <div class="ch-lbl-sq">Delete</div>
               </button>
             </div>
           </div>
@@ -302,7 +294,6 @@ function renderListArea() {
           const stats = fvtt._stats || {};
           const exportSource = stats.exportSource || {};
 
-          // Deteksi gambar token otomatis (mendukung local path atau absolutes)
           const tokenImgSrc =
             item.tokenUrl ||
             fvtt.img ||
@@ -331,6 +322,19 @@ function renderListArea() {
             exportSource.coreVersion ||
             "";
 
+          // 🔥 Menghitung Ukuran JSON Karakter
+          let jsonSizeStr = "Unknown Size";
+          try {
+            const sizeBytes = new Blob([JSON.stringify(fvtt)]).size;
+            if (sizeBytes > 1024 * 1024) {
+              jsonSizeStr = (sizeBytes / (1024 * 1024)).toFixed(2) + " MB";
+            } else {
+              jsonSizeStr = (sizeBytes / 1024).toFixed(2) + " KB";
+            }
+          } catch (e) {
+            console.warn("Failed to calculate size", e);
+          }
+
           html += `
           <div class="ch-row-card clickable ch-profile-click" draggable="true" data-id="${item.id}">
             
@@ -350,16 +354,15 @@ function renderListArea() {
                   ${sysVer ? `<span class="ch-meta-ver">(${sysVer})</span>` : ""}
                </div>
                <div class="ch-meta-bot">coreVersion ${coreVer}</div>
+               <div class="ch-meta-size">${jsonSizeStr}</div>
             </div>
             
             <div class="ch-card-actions">
-              <button class="ch-btn-action-box ch-dl ch-action-download" data-id="${item.id}">
+              <button class="ch-btn-action-box ch-dl ch-action-download" data-id="${item.id}" title="Import Character to World">
                 <div class="ch-icon-sq"><i class="fa-solid fa-download"></i></div>
-                <div class="ch-lbl-sq">Import</div>
               </button>
-              <button class="ch-btn-action-box ch-del ch-action-delete" data-id="${item.id}">
+              <button class="ch-btn-action-box ch-del ch-action-delete" data-id="${item.id}" title="Delete Character">
                 <div class="ch-icon-sq"><i class="fa-solid fa-trash"></i></div>
-                <div class="ch-lbl-sq">Delete</div>
               </button>
             </div>
             
@@ -484,26 +487,22 @@ function attachCharacterEvents() {
       });
     });
 
-  // 🔥 Event Select Actor: SEKARANG MEMASUKKAN export_time dan world_id
   document
     .getElementById("ch-btn-select-actor")
     .addEventListener("click", () => {
       showActorSelectorDialog(async (actor) => {
-        // Ambil data murni JSON lalu bersihkan id agar tidak conflict
         const actorDataSnapshot = foundry.utils.deepClone(actor.toObject());
         delete actorDataSnapshot._id;
 
-        // Push ke characterData dengan seluruh field yang dibutuhkan
         characterData.items.push({
           id: generateUUID(),
           type: "character",
           parentId: currentFolderId,
           name: actor.name,
           fvtt_data: actorDataSnapshot,
-          export_time: Date.now(), // 🔥 Diperbaiki
-          world_id: game.world.id, // 🔥 Diperbaiki
+          export_time: Date.now(),
+          world_id: game.world.id,
           metadata: {
-            // 🔥 Tambahan opsional namun direkomendasikan
             system: game.system.id,
             systemVersion: game.system.version,
             core_version: game.version,
@@ -627,7 +626,6 @@ function getNestedItemIds(items, targetId) {
   return ids;
 }
 
-// Dialog Selector Actor dengan Background Hitam
 function showActorSelectorDialog(onConfirm) {
   const actors = game.actors.contents;
   if (actors.length === 0) return ui.notifications?.warn("No actors in world.");
@@ -669,7 +667,6 @@ function showActorSelectorDialog(onConfirm) {
         cancel: { label: "Cancel" },
       },
       render: (html) => {
-        // Membuat Latar Belakang Custom Hitam
         const dialogElement = html.closest(".app")[0];
         const contentElement = dialogElement.querySelector(".window-content");
         if (contentElement) {
@@ -714,22 +711,57 @@ function showFolderForm(title, existingData, onConfirm) {
     </div>
   `;
 
-  new Dialog({
-    title: title,
-    content: content,
-    buttons: {
-      ok: {
-        label: "Confirm",
-        callback: (html) => {
-          const name = html.find("#ch-modal-name").val().trim();
-          if (!name) return ui.notifications?.warn("Name empty.");
-          onConfirm({ name });
+  new Dialog(
+    {
+      title: title,
+      content: content,
+      buttons: {
+        ok: {
+          label: "Confirm",
+          callback: (html) => {
+            const name = html.find("#ch-modal-name").val().trim();
+            if (!name) return ui.notifications?.warn("Name empty.");
+            onConfirm({ name });
+          },
         },
+        cancel: { label: "Cancel" },
       },
-      cancel: { label: "Cancel" },
+      default: "ok",
+      render: (html) => {
+        // 🔥 INI BAGIAN YANG DITAMBAHKAN UNTUK BACKGROUND HITAM 🔥
+        const dialogElement = html.closest(".app")[0];
+        const contentElement = dialogElement.querySelector(".window-content");
+        
+        if (contentElement) {
+          contentElement.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
+          contentElement.style.color = "white";
+          contentElement.style.backgroundImage = "none";
+          contentElement.style.backgroundSize = "cover";
+          contentElement.style.backgroundRepeat = "no-repeat";
+          contentElement.style.backgroundPosition = "center";
+        }
+
+        // Style the buttons for consistency
+        html.closest(".dialog").find(".dialog-buttons button").css({
+          color: "white",
+          border: "1px solid #3f3f46", // Border halus agar menyatu
+          background: "rgba(0,0,0,0.4)",
+          borderRadius: "4px",
+          transition: "all 0.2s"
+        });
+
+        // Optional: Hover effect for buttons (bisa dihapus kalau tidak perlu)
+        html.closest(".dialog").find(".dialog-buttons button").hover(
+          function() { $(this).css("background", "rgba(16, 185, 129, 0.2)"); }, // Warna hijau tipis saat hover
+          function() { $(this).css("background", "rgba(0,0,0,0.4)"); }
+        );
+      },
     },
-    default: "ok",
-  }).render(true);
+    { 
+      width: 350,
+      classes: ["dialog", "silane-custom-dialog"] 
+    }
+  ).render(true);
 }
 
 function showProfileForm(title, existingData, onConfirm) {

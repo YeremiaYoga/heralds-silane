@@ -603,6 +603,8 @@ async function showActorSelectionDialog(profile) {
 
 // === FORM BUILDERS ===
 
+// === FORM BUILDERS ===
+
 function showFolderForm(title, existingData, onConfirm) {
   const data = existingData || { name: "" };
   const content = `
@@ -612,24 +614,59 @@ function showFolderForm(title, existingData, onConfirm) {
     </div>
   `;
 
-  new Dialog({
-    title: title,
-    content: content,
-    buttons: {
-      ok: {
-        label: "Confirm",
-        icon: '<i class="fas fa-check"></i>',
-        callback: (html) => {
-          const name = html.find("#vs-modal-name").val().trim();
-          if (!name)
-            return ui.notifications?.warn("Folder Name cannot be empty.");
-          onConfirm({ name });
+  new Dialog(
+    {
+      title: title,
+      content: content,
+      buttons: {
+        ok: {
+          label: "Confirm",
+          icon: '<i class="fas fa-check"></i>',
+          callback: (html) => {
+            const name = html.find("#vs-modal-name").val().trim();
+            if (!name)
+              return ui.notifications?.warn("Folder Name cannot be empty.");
+            onConfirm({ name });
+          },
         },
+        cancel: { label: "Cancel" },
       },
-      cancel: { label: "Cancel" },
+      default: "ok",
+      render: (html) => {
+        // 🔥 INI BAGIAN YANG DITAMBAHKAN UNTUK BACKGROUND HITAM DI VISAGE 🔥
+        const dialogElement = html.closest(".app")[0];
+        const contentElement = dialogElement.querySelector(".window-content");
+        
+        if (contentElement) {
+          contentElement.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
+          contentElement.style.color = "white";
+          contentElement.style.backgroundImage = "none";
+          contentElement.style.backgroundSize = "cover";
+          contentElement.style.backgroundRepeat = "no-repeat";
+          contentElement.style.backgroundPosition = "center";
+        }
+
+        // Menyelaraskan style tombol dialog
+        html.closest(".dialog").find(".dialog-buttons button").css({
+          color: "white",
+          border: "1px solid #3f3f46",
+          background: "rgba(0,0,0,0.4)",
+          borderRadius: "4px",
+          transition: "all 0.2s"
+        });
+
+        // Efek hover untuk tombol (warna biru khas Visage)
+        html.closest(".dialog").find(".dialog-buttons button").hover(
+          function() { $(this).css("background", "rgba(96, 165, 250, 0.2)"); },
+          function() { $(this).css("background", "rgba(0,0,0,0.4)"); }
+        );
+      },
     },
-    default: "ok",
-  }).render(true);
+    { 
+      width: 350, 
+      classes: ["dialog", "silane-custom-dialog"] 
+    }
+  ).render(true);
 }
 
 function showProfileForm(title, existingData, onConfirm) {
