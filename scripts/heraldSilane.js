@@ -44,8 +44,8 @@ async function heraldSilane_showDialog() {
   const dialogContent = `<div id="heraldSilane-dialogContainer"></div>`;
   const dialogOptions = {
     width: 900,
-    height: 600,
-    resizable: true,
+    height: 580,
+    resizable: false,
     classes: ["dialog", "silane-custom-dialog"],
   };
   const dialog = new Dialog(
@@ -240,7 +240,6 @@ async function heraldSilane_renderMainView() {
     images: document.getElementById("hs-tab-images"),
     audio: document.getElementById("hs-tab-audio"),
     visage: document.getElementById("hs-tab-visage"),
-    // 🔥 Daftarkan tab character
     character: document.getElementById("hs-tab-character"),
   };
 

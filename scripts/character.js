@@ -218,10 +218,16 @@ function renderListArea() {
 
   updateBreadcrumbs();
 
-  const itemsToDisplay = characterData.items.filter(
-    (i) =>
-      i.parentId === currentFolderId && i.name.toLowerCase().includes(query),
-  );
+  // 🔥 Logika Filter Diperbarui untuk Global Search
+  const itemsToDisplay = characterData.items.filter((i) => {
+    if (query) {
+      // Jika sedang mencari, tampilkan semua yang cocok secara menyeluruh
+      return i.name.toLowerCase().includes(query);
+    } else {
+      // Jika tidak mencari, tampilkan hanya item di dalam folder saat ini
+      return i.parentId === currentFolderId;
+    }
+  });
 
   if (characterData.items.length === 0) {
     html = `
@@ -231,7 +237,7 @@ function renderListArea() {
         <div style="font-size:13px; margin-top:5px;">Create a Folder or Import a JSON to begin.</div>
       </div>`;
   } else if (itemsToDisplay.length === 0) {
-    html += `<div class="ch-empty-state"><div style="font-size:15px;">No items found here.</div></div>`;
+    html += `<div class="ch-empty-state"><div style="font-size:15px;">No items found.</div></div>`;
   } else {
     itemsToDisplay
       .sort((a, b) => {

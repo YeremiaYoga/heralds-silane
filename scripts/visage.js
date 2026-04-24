@@ -181,10 +181,16 @@ function renderListArea() {
 
   updateBreadcrumbs();
 
-  const itemsToDisplay = visageData.items.filter(
-    (i) =>
-      i.parentId === currentFolderId && i.name.toLowerCase().includes(query),
-  );
+  // 🔥 Logika Filter Diperbarui untuk Global Search
+  const itemsToDisplay = visageData.items.filter((i) => {
+    if (query) {
+      // Jika ada teks di kotak pencarian, cari secara global (mengabaikan folder)
+      return i.name.toLowerCase().includes(query);
+    } else {
+      // Jika kotak pencarian kosong, tampilkan item sesuai folder yang aktif
+      return i.parentId === currentFolderId;
+    }
+  });
 
   if (visageData.items.length === 0) {
     html = `
@@ -194,7 +200,8 @@ function renderListArea() {
         <div style="font-size:13px; margin-top:5px;">Create a Folder or add a Profile asset to begin.</div>
       </div>`;
   } else if (itemsToDisplay.length === 0) {
-    html += `<div class="vs-empty-state"><div style="font-size:15px;">No items found here.</div></div>`;
+    // Teks diubah sedikit agar lebih masuk akal saat global search
+    html += `<div class="vs-empty-state"><div style="font-size:15px;">No items found.</div></div>`;
   } else {
     itemsToDisplay
       .sort((a, b) => {
