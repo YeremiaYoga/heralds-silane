@@ -35,20 +35,36 @@ const formatExportDate = (val) => {
   return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
 };
 
-// 🔥 URL Cerdas: Deteksi Localhost/Foundry Path vs Eksternal Web
+// 🔥 URL Cerdas: Tangani null, string kosong, dan path relatif Foundry
 const formatCharacterUrl = (link) => {
-  if (!link) return "icons/svg/mystery-man.svg";
-  // Jika link adalah eksternal web atau base64 data, langsung pakai
-  if (link.startsWith("http") || link.startsWith("data:")) return link;
+  // 1. Tangani jika nilai kosong, undefined, atau string "null"
+  if (
+    !link ||
+    link === "null" ||
+    link === "undefined" ||
+    String(link).trim() === ""
+  ) {
+    return "icons/svg/mystery-man.svg";
+  }
 
-  // Jika link mengandung domain R2 sebelumnya
+  // 2. Jika link adalah eksternal web absolut atau base64 data
+  if (link.startsWith("http") || link.startsWith("data:")) {
+    return link;
+  }
+
+  // 3. Jika link adalah penyimpanan cloud R2 kamu
   if (link.includes("sih4storage.phanneldeliver.my.id")) {
     return link.startsWith("https://") ? link : `https://${link}`;
   }
 
-  // Jika link adalah file lokal Foundry (cth: "Herald's-Flip/..." atau "icons/..."),
-  // tambahkan '/' di depan agar browser otomatis meresolve ke domain/localhost Foundry saat ini.
-  return link.startsWith("/") ? link : `/${link}`;
+  // 4. 🔥 Jika link adalah path lokal (seperti "systems/dnd5e/tokens/..." atau "Herald's-Flip/...")
+  // Hilangkan garis miring di depan jika ada, lalu gabungkan dengan asal domain (localhost:30000)
+  let cleanLink = link.startsWith("/") ? link.slice(1) : link;
+
+  // Encode URI untuk aman dari spasi dan karakter aneh
+  cleanLink = encodeURI(cleanLink).replace(/'/g, "%27");
+
+  return `${window.location.origin}/${cleanLink}`;
 };
 
 const injectCharacterStyles = () => {
@@ -72,6 +88,9 @@ const injectCharacterStyles = () => {
     .ch-btn-upload-char { display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; color: #10b981; padding: 0 16px; height: 40px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
     .ch-btn-upload-char:hover { background: #10b981; color: #000; }
     
+    .ch-btn-select-actor { display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(59, 130, 246, 0.1); border: 1px solid #3b82f6; color: #3b82f6; padding: 0 16px; height: 40px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+    .ch-btn-select-actor:hover { background: #3b82f6; color: #fff; }
+
     .ch-btn-folder { background: rgba(251, 191, 36, 0.1); border: 1px solid #fbbf24; color: #fbbf24; width: 40px; height: 40px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 16px; }
     .ch-btn-folder:hover { background: #fbbf24; color: #000; }
 
@@ -112,6 +131,18 @@ const injectCharacterStyles = () => {
 
     .ch-json-upload-box { flex: 1; border: 2px dashed #52525b; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-direction: column; background: rgba(0,0,0,0.2); position: relative; overflow: hidden; cursor: pointer; transition: all 0.2s; padding: 25px 10px; text-align: center; }
     .ch-json-upload-box:hover { border-color: #10b981; background: rgba(16, 185, 129, 0.1); }
+
+    .vs-actor-grid-wrapper { background: rgba(0, 0, 0, 0.3); border: 1px solid #3f3f46; border-radius: 4px; padding: 10px; max-height: 250px; overflow-y: auto; }
+    .vs-actor-grid-wrapper::-webkit-scrollbar { width: 6px; }
+    .vs-actor-grid-wrapper::-webkit-scrollbar-thumb { background: #52525b; border-radius: 10px; }
+    .vs-actor-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: 100%; }
+    .vs-actor-item { position: relative; cursor: pointer; border: 2px solid #27272a; border-radius: 4px; aspect-ratio: 1; overflow: hidden; background: rgba(0,0,0,0.5); transition: all 0.2s;}
+    .vs-actor-item:hover { border-color: #52525b; }
+    .vs-actor-item.selected { border-color: #60a5fa; background: rgba(96, 165, 250, 0.15); }
+    .vs-actor-item img { width: 100%; height: 100%; object-fit: cover; }
+    
+    .vs-actor-name { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8); color: #f4f4f5; font-size: 10px; padding: 4px 2px; text-align: center; box-sizing: border-box; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+    .vs-actor-item:hover .vs-actor-name, .vs-actor-item.selected .vs-actor-name { opacity: 1; }
   `;
   document.head.appendChild(style);
 };
@@ -175,6 +206,11 @@ function renderCharacterUI() {
       
         <div style="display:flex; gap:12px;">
           <button id="ch-btn-add-folder" class="ch-btn-folder" title="New Folder"><i class="fa-solid fa-folder-plus"></i></button>
+          
+          <button id="ch-btn-select-actor" class="ch-btn-select-actor" title="Select from World">
+            <i class="fa-solid fa-user-check"></i> Select Character
+          </button>
+
           <button id="ch-btn-add-profile" class="ch-btn-upload-char">
             <i class="fa-solid fa-file-import"></i> Upload Character
           </button>
@@ -218,13 +254,10 @@ function renderListArea() {
 
   updateBreadcrumbs();
 
-  // 🔥 Logika Filter Diperbarui untuk Global Search
   const itemsToDisplay = characterData.items.filter((i) => {
     if (query) {
-      // Jika sedang mencari, tampilkan semua yang cocok secara menyeluruh
       return i.name.toLowerCase().includes(query);
     } else {
-      // Jika tidak mencari, tampilkan hanya item di dalam folder saat ini
       return i.parentId === currentFolderId;
     }
   });
@@ -269,7 +302,7 @@ function renderListArea() {
           const stats = fvtt._stats || {};
           const exportSource = stats.exportSource || {};
 
-          // Image Cerdas (Local Foundry vs Web Absolut)
+          // Deteksi gambar token otomatis (mendukung local path atau absolutes)
           const tokenImgSrc =
             item.tokenUrl ||
             fvtt.img ||
@@ -322,7 +355,7 @@ function renderListArea() {
             <div class="ch-card-actions">
               <button class="ch-btn-action-box ch-dl ch-action-download" data-id="${item.id}">
                 <div class="ch-icon-sq"><i class="fa-solid fa-download"></i></div>
-                <div class="ch-lbl-sq">Download</div>
+                <div class="ch-lbl-sq">Import</div>
               </button>
               <button class="ch-btn-action-box ch-del ch-action-delete" data-id="${item.id}">
                 <div class="ch-icon-sq"><i class="fa-solid fa-trash"></i></div>
@@ -339,7 +372,6 @@ function renderListArea() {
   listArea.innerHTML = html;
 }
 
-// IMPORT KE FOUNDRY
 async function importCharacterToFoundry(characterItem) {
   if (!characterItem || !characterItem.fvtt_data) {
     ui.notifications?.warn("No JSON data found for this character.");
@@ -347,20 +379,12 @@ async function importCharacterToFoundry(characterItem) {
   }
 
   const actorData = characterItem.fvtt_data;
-
-  if (!Actor) {
-    ui.notifications?.error("Foundry VTT Actor class is not available.");
-    return;
-  }
-
   try {
     ui.notifications?.info(`Importing ${actorData.name} into Foundry...`);
-
     const dataToImport = foundry.utils.deepClone(actorData);
     delete dataToImport._id;
 
     const newActor = await Actor.create(dataToImport);
-
     if (newActor) {
       ui.notifications?.info(
         `Success! Actor [${newActor.name}] has been created.`,
@@ -424,21 +448,6 @@ function attachCharacterEvents() {
         return;
       }
 
-      // Edit Folder
-      if (e.target.closest(".ch-action-edit")) {
-        const id = e.target.closest(".ch-action-edit").dataset.id;
-        const item = characterData.items.find((i) => i.id === id);
-
-        if (item.type === "folder") {
-          showFolderForm("Edit Folder", item, async (data) => {
-            Object.assign(item, data);
-            renderListArea();
-            await saveCharacterData();
-          });
-        }
-        return;
-      }
-
       const folderRow = e.target.closest(".ch-item-click");
       if (folderRow && folderRow.dataset.target === "folder") {
         currentFolderId = folderRow.dataset.id;
@@ -475,14 +484,45 @@ function attachCharacterEvents() {
       });
     });
 
-  // === DRAG AND DROP ===
+  // 🔥 Event Select Actor: SEKARANG MEMASUKKAN export_time dan world_id
+  document
+    .getElementById("ch-btn-select-actor")
+    .addEventListener("click", () => {
+      showActorSelectorDialog(async (actor) => {
+        // Ambil data murni JSON lalu bersihkan id agar tidak conflict
+        const actorDataSnapshot = foundry.utils.deepClone(actor.toObject());
+        delete actorDataSnapshot._id;
+
+        // Push ke characterData dengan seluruh field yang dibutuhkan
+        characterData.items.push({
+          id: generateUUID(),
+          type: "character",
+          parentId: currentFolderId,
+          name: actor.name,
+          fvtt_data: actorDataSnapshot,
+          export_time: Date.now(), // 🔥 Diperbaiki
+          world_id: game.world.id, // 🔥 Diperbaiki
+          metadata: {
+            // 🔥 Tambahan opsional namun direkomendasikan
+            system: game.system.id,
+            systemVersion: game.system.version,
+            core_version: game.version,
+          },
+        });
+
+        renderListArea();
+        await saveCharacterData();
+        ui.notifications?.info(`Character ${actor.name} saved to Silane.`);
+      });
+    });
+
+  // DRAG AND DROP
   const listArea = document.getElementById("ch-list-area");
   const breadcrumbs = document.getElementById("ch-breadcrumbs");
   let draggedItemId = null;
 
   listArea.addEventListener("dragstart", (e) => {
-    const row =
-      e.target.closest(".ch-list-row") || e.target.closest(".ch-row-card");
+    const row = e.target.closest(".ch-row-card");
     if (!row) return;
     draggedItemId = row.dataset.id;
     e.dataTransfer.effectAllowed = "move";
@@ -490,8 +530,7 @@ function attachCharacterEvents() {
   });
 
   listArea.addEventListener("dragend", (e) => {
-    const row =
-      e.target.closest(".ch-list-row") || e.target.closest(".ch-row-card");
+    const row = e.target.closest(".ch-row-card");
     if (row) row.style.opacity = "1";
     draggedItemId = null;
     document
@@ -533,7 +572,6 @@ function attachCharacterEvents() {
           );
           if (nestedIds.includes(targetFolderId)) return;
         }
-
         itemToMove.parentId = targetFolderId;
         renderListArea();
         await saveCharacterData();
@@ -572,7 +610,6 @@ function attachCharacterEvents() {
           );
           if (nestedIds.includes(targetFolderId)) return;
         }
-
         itemToMove.parentId = targetFolderId;
         renderListArea();
         await saveCharacterData();
@@ -590,7 +627,84 @@ function getNestedItemIds(items, targetId) {
   return ids;
 }
 
-// FORM BUILDER FOLDER
+// Dialog Selector Actor dengan Background Hitam
+function showActorSelectorDialog(onConfirm) {
+  const actors = game.actors.contents;
+  if (actors.length === 0) return ui.notifications?.warn("No actors in world.");
+
+  const actorGridHtml = actors
+    .map(
+      (a) => `
+    <div class="vs-actor-item" data-id="${a.id}" data-name="${a.name.toLowerCase()}">
+      <img src="${a.img}" onerror="this.src='icons/svg/mystery-man.svg'">
+      <div class="vs-actor-name">${a.name}</div>
+    </div>`,
+    )
+    .join("");
+
+  const content = `
+    <div style="color:#f4f4f5; padding-bottom: 5px;">
+      <div style="font-size: 13px; margin-bottom: 12px; color: #a1a1aa;">Select Actor to Snapshot:</div>
+      <input type="text" id="vs-actor-filter" style="width:100%; margin-bottom:10px; background:rgba(0,0,0,0.4); border:1px solid #3f3f46; color:white; padding:8px; border-radius:4px; outline:none;" placeholder="Search character...">
+      <div class="vs-actor-grid-wrapper">
+        <div class="vs-actor-grid" id="vs-actor-grid">${actorGridHtml}</div>
+      </div>
+    </div>
+  `;
+
+  let selectedId = null;
+  new Dialog(
+    {
+      title: "Select World Character",
+      content: content,
+      buttons: {
+        confirm: {
+          label: "Confirm",
+          callback: (html) => {
+            if (!selectedId) return;
+            const actor = game.actors.get(selectedId);
+            if (actor) onConfirm(actor);
+          },
+        },
+        cancel: { label: "Cancel" },
+      },
+      render: (html) => {
+        // Membuat Latar Belakang Custom Hitam
+        const dialogElement = html.closest(".app")[0];
+        const contentElement = dialogElement.querySelector(".window-content");
+        if (contentElement) {
+          contentElement.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
+          contentElement.style.color = "white";
+          contentElement.style.backgroundImage = "none";
+          contentElement.style.backgroundSize = "cover";
+          contentElement.style.backgroundRepeat = "no-repeat";
+          contentElement.style.backgroundPosition = "center";
+        }
+
+        html.closest(".dialog").find(".dialog-buttons button").css({
+          color: "white",
+          border: "1px solid white",
+          background: "transparent",
+          borderRadius: "4px",
+        });
+
+        html.find(".vs-actor-item").on("click", function () {
+          html.find(".vs-actor-item").removeClass("selected");
+          $(this).addClass("selected");
+          selectedId = $(this).data("id");
+        });
+        html.find("#vs-actor-filter").on("input", function () {
+          const query = $(this).val().toLowerCase();
+          html.find(".vs-actor-item").each(function () {
+            $(this).toggle($(this).data("name").includes(query));
+          });
+        });
+      },
+    },
+    { width: 420 },
+  ).render(true);
+}
+
 function showFolderForm(title, existingData, onConfirm) {
   const data = existingData || { name: "" };
   const content = `
@@ -606,11 +720,9 @@ function showFolderForm(title, existingData, onConfirm) {
     buttons: {
       ok: {
         label: "Confirm",
-        icon: '<i class="fas fa-check"></i>',
         callback: (html) => {
           const name = html.find("#ch-modal-name").val().trim();
-          if (!name)
-            return ui.notifications?.warn("Folder Name cannot be empty.");
+          if (!name) return ui.notifications?.warn("Name empty.");
           onConfirm({ name });
         },
       },
@@ -620,7 +732,6 @@ function showFolderForm(title, existingData, onConfirm) {
   }).render(true);
 }
 
-// 🔥 FORM UPLOAD JSON DENGAN MANAJEMEN TOMBOL YANG LOGIS
 function showProfileForm(title, existingData, onConfirm) {
   const data = existingData || { name: "", fvtt_data: null };
   let selectedJsonData = data.fvtt_data || null;
@@ -628,13 +739,12 @@ function showProfileForm(title, existingData, onConfirm) {
   const content = `
     <div class="silane-upload-wrapper">
       <div style="padding: 5px 0 15px 0; display:flex; flex-direction:column; gap:16px;">
-        
         <div class="ch-json-upload-box" id="box-upload-json">
-          <div class="ch-json-default" id="ui-json-default" style="display: ${selectedJsonData ? "none" : "flex"}; color: #a1a1aa; flex-direction: column; align-items: center;">
+          <div id="ui-json-default" style="display: ${selectedJsonData ? "none" : "flex"}; color: #a1a1aa; flex-direction: column; align-items: center;">
             <i class="fa-solid fa-file-code fa-2x" style="margin-bottom:8px;"></i>
             <span style="font-size:13px; font-weight:500;">Click to select JSON File</span>
           </div>
-          <div class="ch-json-success" id="ui-json-success" style="display: ${selectedJsonData ? "flex" : "none"}; color: #10b981; flex-direction: column; align-items: center;">
+          <div id="ui-json-success" style="display: ${selectedJsonData ? "flex" : "none"}; color: #10b981; flex-direction: column; align-items: center;">
             <i class="fa-solid fa-circle-check fa-2x" style="margin-bottom:8px;"></i>
             <span style="font-size:13px; font-weight:500;">JSON Loaded Successfully</span>
           </div>
@@ -647,10 +757,8 @@ function showProfileForm(title, existingData, onConfirm) {
         </div>
         
         <div style="display:flex; gap: 10px; margin-top: 10px;">
-          <button id="ch-btn-cancel-profile" class="silane-btn" style="flex:1; border-radius:4px; padding:10px; background: rgba(0,0,0,0.3); color:#f4f4f5; border:1px solid #3f3f46; cursor:pointer;">Cancel</button>
-          
-          <button id="ch-btn-confirm-profile" class="silane-btn primary" style="flex:1; border-radius:4px; padding:10px; transition:all 0.2s;">
-            </button>
+          <button id="ch-btn-cancel-profile" class="silane-btn" style="flex:1; border-radius:4px; padding:10px; background:rgba(0,0,0,0.3); color:#f4f4f5; border:1px solid #3f3f46; cursor:pointer;">Cancel</button>
+          <button id="ch-btn-confirm-profile" class="silane-btn primary" style="flex:1; border-radius:4px; padding:10px; transition:all 0.2s;"></button>
         </div>
       </div>
     </div>
@@ -664,40 +772,22 @@ function showProfileForm(title, existingData, onConfirm) {
       render: (html) => {
         const box = html[0].querySelector(`#box-upload-json`);
         const input = html[0].querySelector(`#file-character-json`);
-        const uiDefault = html[0].querySelector(`#ui-json-default`);
-        const uiSuccess = html[0].querySelector(`#ui-json-success`);
         const nameInput = html[0].querySelector(`#ch-prof-name`);
         const btnConfirm = html[0].querySelector("#ch-btn-confirm-profile");
-        const btnCancel = html[0].querySelector("#ch-btn-cancel-profile");
 
-        // 🔥 FUNGSI KONTROL STATE TOMBOL
         const setButtonState = (state) => {
           if (state === "need_json") {
             btnConfirm.disabled = true;
-            btnConfirm.style.opacity = "0.5";
-            btnConfirm.style.cursor = "not-allowed";
             btnConfirm.style.background = "#3f3f46";
-            btnConfirm.innerHTML =
-              '<i class="fa-solid fa-file-import"></i> Upload JSON First';
+            btnConfirm.innerHTML = "Upload JSON First";
           } else if (state === "ready") {
             btnConfirm.disabled = false;
-            btnConfirm.style.opacity = "1";
-            btnConfirm.style.cursor = "pointer";
-            btnConfirm.style.background = "#3b82f6"; // Warna biru
-            btnConfirm.innerHTML = '<i class="fas fa-save"></i> Save';
-          } else if (state === "progress") {
-            btnConfirm.disabled = true;
-            btnConfirm.style.opacity = "0.5";
-            btnConfirm.style.cursor = "not-allowed";
-            btnConfirm.style.background = "#3f3f46";
-            btnConfirm.innerHTML =
-              '<i class="fa-solid fa-person-digging"></i> In Progress...';
+            btnConfirm.style.background = "#3b82f6";
+            btnConfirm.innerHTML = "Save";
           }
         };
 
-        // State Awal
         setButtonState(selectedJsonData ? "ready" : "need_json");
-
         box.addEventListener("click", () => input.click());
 
         input.addEventListener("change", (e) => {
@@ -708,45 +798,29 @@ function showProfileForm(title, existingData, onConfirm) {
               try {
                 const parsed = JSON.parse(ev.target.result);
                 selectedJsonData = parsed;
-
-                uiDefault.style.display = "none";
-                uiSuccess.style.display = "flex";
-
-                if (!nameInput.value && parsed.name) {
+                html[0].querySelector("#ui-json-default").style.display =
+                  "none";
+                html[0].querySelector("#ui-json-success").style.display =
+                  "flex";
+                if (!nameInput.value && parsed.name)
                   nameInput.value = parsed.name;
-                }
-
-                // Setelah JSON berhasil di-upload, buka kunci tombol
                 setButtonState("ready");
-                ui.notifications?.info("JSON Loaded. You can save now!");
               } catch (err) {
-                ui.notifications?.error("Invalid JSON file.");
-                setButtonState("need_json");
+                ui.notifications?.error("Invalid JSON.");
               }
             };
             reader.readAsText(file);
           }
         });
 
-        btnCancel.addEventListener("click", () => profileDialog.close());
-
+        html[0]
+          .querySelector("#ch-btn-cancel-profile")
+          .addEventListener("click", () => profileDialog.close());
         btnConfirm.addEventListener("click", async () => {
           const name = nameInput.value.trim();
-          if (!name) return ui.notifications?.warn("Name cannot be empty.");
-          if (!selectedJsonData)
-            return ui.notifications?.warn("Please select a JSON file first.");
-
-          // Kunci tombol menjadi in progress!
-          setButtonState("progress");
-
-          // 🔥 TIMPA NAMA JSON DENGAN INPUTAN TERBARU USER
+          if (!name || !selectedJsonData) return;
           selectedJsonData.name = name;
-
-          onConfirm({
-            name: name,
-            fvtt_data: selectedJsonData,
-          });
-
+          onConfirm({ name, fvtt_data: selectedJsonData });
           profileDialog.close();
         });
       },
