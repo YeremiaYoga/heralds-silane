@@ -1,11 +1,16 @@
-import { API_BASE_URL } from "./helper.js";
+import { API_BASE_URL, heraldSilane_getWindowDimensions } from "./helper.js";
 import { initVisageTab } from "./visage.js";
-// 🔥 Import modul character baru
 import { initCharacterTab } from "./character.js";
 
+// ==========================================
+// STATE VARIABLES
+// ==========================================
 let heraldSilane_currentDialog = null;
 let heraldSilane_uploadDialog = null;
 
+// ==========================================
+// FUNGSI UTAMA
+// ==========================================
 async function heraldSilane_renderAccessButton() {
   const existingButton = document.getElementById(
     "heraldSilane-accessButtonContainer",
@@ -41,11 +46,12 @@ async function heraldSilane_renderAccessButton() {
 }
 
 async function heraldSilane_showDialog() {
-  const dialogContent = `<div id="heraldSilane-dialogContainer"></div>`;
+  const dims = heraldSilane_getWindowDimensions(); // Diambil dari helper.js
+  const dialogContent = `<div id="heraldSilane-dialogContainer" ></div>`;
   const dialogOptions = {
-    width: 900,
-    height: 580,
-    resizable: false,
+    width: dims.width,
+    height: dims.height,
+    resizable: true,
     classes: ["dialog", "silane-custom-dialog"],
   };
   const dialog = new Dialog(
@@ -57,6 +63,16 @@ async function heraldSilane_showDialog() {
 
   Hooks.once("renderDialog", async (app) => {
     if (app instanceof Dialog && app.title === "Silane Assets") {
+      // 🔥 INJEKSI STYLE LANGSUNG KE WINDOW CONTENT FOUNDRY AGAR HEIGHT SELALU PAS 🔥
+      const contentEl = app.element[0].querySelector(".window-content");
+      if (contentEl) {
+        contentEl.style.padding = "0";
+        contentEl.style.background = "#18181b";
+        contentEl.style.overflow = "hidden";
+        contentEl.style.display = "flex";
+        contentEl.style.flexDirection = "column";
+        contentEl.style.height = "100%";
+      }
       await heraldSilane_renderRouting();
     }
   });
@@ -72,8 +88,10 @@ async function heraldSilane_renderLoginView() {
   const container = document.getElementById("heraldSilane-dialogContainer");
   if (!container) return;
 
+  const dims = heraldSilane_getWindowDimensions();
+
   container.innerHTML = `
-    <div class="hs-layout-override">
+    <div class="hs-layout-override" style="height: ${dims.overrideHeight}px; flex: 1; display: flex; flex-direction: column; min-height: 0;">
       <div class="silane-dialog-wrapper">
         <div class="silane-dialog-middle">
           <h2 class="silane-title">Silane Authentication</h2>
@@ -155,6 +173,8 @@ async function heraldSilane_renderMainView() {
   const container = document.getElementById("heraldSilane-dialogContainer");
   if (!container) return;
 
+  const dims = heraldSilane_getWindowDimensions(); // 🔥 Ambil dimensi untuk Main View
+
   let activeTab = "images";
   let userName = "Unknown User";
   let userImage = "icons/svg/mystery-man.svg";
@@ -179,7 +199,7 @@ async function heraldSilane_renderMainView() {
   }
 
   container.innerHTML = `
-    <div class="hs-layout-override">
+    <div class="hs-layout-override" style="height: ${dims.overrideHeight}px; flex: 1; display: flex; flex-direction: column; min-height: 0;">
       <div class="hs-main">
         <div class="hs-sidebar">
           <button id="hs-tab-images" class="hs-circle-btn active" title="Images"><i class="fa-solid fa-image"></i></button>
@@ -223,10 +243,15 @@ async function heraldSilane_renderMainView() {
           </div>
         </div>
         <div style="text-align: right;">
-          <button id="hs-btn-logout" class="hs-btn-logout">
-            <i class="fa-solid fa-arrow-right-from-bracket"></i> Disconnect
-          </button>
-        <div style="font-size: 0.7em; margin-top: 4px;">
+          <div style="display: flex; gap: 14px; justify-content: flex-end; align-items: center;">
+            <button id="hs-btn-settings" style="background: transparent; border: none; color: #a1a1aa; cursor: pointer; font-size: 18px; padding: 0; outline: none; transition: color 0.2s;" title="Settings" onmouseover="this.style.color='#f4f4f5'" onmouseout="this.style.color='#a1a1aa'">
+              <i class="fa-solid fa-gear"></i>
+            </button>
+            <button id="hs-btn-logout" style="background: transparent; border: none; color: #a1a1aa; cursor: pointer; font-size: 18px; padding: 0; outline: none; transition: color 0.2s;" title="Disconnect" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#a1a1aa'">
+              <i class="fa-solid fa-door-open"></i>
+            </button>
+          </div>
+          <div style="font-size: 0.7em; margin-top: 6px;">
             <a href="https://projectignite.web.id" target="_blank" rel="noopener noreferrer" style="color: #52525b; text-decoration: none; transition: color 0.2s ease;" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='#52525b'">
               powered by projectignite.web.id
             </a>
@@ -402,7 +427,6 @@ async function heraldSilane_renderMainView() {
       searchInput.style.display = "none";
       galleryContainer.classList.remove("hs-gallery");
       initVisageTab(galleryContainer);
-      // 🔥 Logika ketika tab Character ditekan
     } else if (type === "character") {
       titleText.innerText = "Character Roster";
       actionsContainer.style.display = "none";
@@ -430,6 +454,10 @@ async function heraldSilane_renderMainView() {
 
   btnOpenUpload.addEventListener("click", () => {
     heraldSilane_openUploadModal(activeTab, fetchGalleryData);
+  });
+
+  document.getElementById("hs-btn-settings").addEventListener("click", () => {
+    heraldSilane_openSettingsModal();
   });
 
   if (shareChatBtn) {
@@ -504,6 +532,99 @@ async function heraldSilane_renderMainView() {
   switchTab("images");
 }
 
+// ==========================================
+// FUNGSI MODAL SETTINGS
+// ==========================================
+function heraldSilane_openSettingsModal() {
+  const currentSize = game.settings.get("herald-silane", "windowSize");
+  const currentDetail = game.settings.get(
+    "herald-silane",
+    "characterDetailMode",
+  );
+
+  const content = `
+    <div class="silane-settings-wrapper" style="padding: 10px; color: #f4f4f5;">
+      <div class="silane-form-group" style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: white;">Window Size</label>
+        <select id="hs-setting-windowSize" class="silane-input" style="width: 100%; padding: 5px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b;">
+          <option value="small" style="background: #18181b; color: white;" ${currentSize === "small" ? "selected" : ""}>Small</option>
+          <option value="medium" style="background: #18181b; color: white;" ${currentSize === "medium" ? "selected" : ""}>Medium</option>
+          <option value="large" style="background: #18181b; color: white;" ${currentSize === "large" ? "selected" : ""}>Large (Default)</option>
+          <option value="xlarge" style="background: #18181b; color: white;" ${currentSize === "xlarge" ? "selected" : ""}>Extra Large</option>
+          <option value="xxlarge" style="background: #18181b; color: white;" ${currentSize === "xxlarge" ? "selected" : ""}>XL</option>
+        </select>
+      </div>
+
+      <div class="silane-form-group" style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: white;">Character Detail Information</label>
+        <select id="hs-setting-characterDetail" class="silane-input" style="width: 100%; padding: 5px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b;">
+          <option value="all" style="background: #18181b; color: white;" ${currentDetail === "all" ? "selected" : ""}>All (Show Everything)</option>
+          <option value="nameOnly" style="background: #18181b; color: white;" ${currentDetail === "nameOnly" ? "selected" : ""}>Name Only (Minimalist)</option>
+        </select>
+      </div>
+    </div>
+  `;
+
+  new Dialog(
+    {
+      title: "Herald Silane Settings",
+      content: content,
+      buttons: {
+        save: {
+          label: '<i class="fa-solid fa-save"></i> Save Changes',
+          callback: async (html) => {
+            const newSize = html.find("#hs-setting-windowSize").val();
+            const newDetail = html.find("#hs-setting-characterDetail").val();
+
+            await game.settings.set("herald-silane", "windowSize", newSize);
+            await game.settings.set(
+              "herald-silane",
+              "characterDetailMode",
+              newDetail,
+            );
+
+            if (heraldSilane_currentDialog) {
+              const dims = heraldSilane_getWindowDimensions();
+              heraldSilane_currentDialog.setPosition({
+                width: dims.width,
+                height: dims.height,
+              });
+            }
+            await heraldSilane_renderRouting();
+
+            ui.notifications?.info("Silane Settings Saved.");
+          },
+        },
+        cancel: {
+          label: "Cancel",
+        },
+      },
+      default: "save",
+      render: (html) => {
+        // 🔥 Perbaikan untuk Tema Window Bawaan Dialog 🔥
+        const dialogElement = html.closest(".app")[0];
+        const contentElement = dialogElement.querySelector(".window-content");
+        if (contentElement) {
+          contentElement.style.backgroundColor = "#18181b";
+          contentElement.style.color = "white";
+          contentElement.style.backgroundImage = "none";
+        }
+
+        // Style untuk Tombol Cancel dan Save Changes
+        html.closest(".dialog").find(".dialog-buttons button").css({
+          color: "white",
+          border: "1px solid #3f3f46",
+          background: "rgba(0,0,0,0.4)",
+        });
+      },
+    },
+    { width: 400, classes: ["dialog", "silane-custom-dialog"] },
+  ).render(true);
+}
+
+// ==========================================
+// FUNGSI MODAL UPLOAD
+// ==========================================
 function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
   if (heraldSilane_uploadDialog) {
     heraldSilane_uploadDialog.close();

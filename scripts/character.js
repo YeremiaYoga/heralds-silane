@@ -35,7 +35,7 @@ const formatExportDate = (val) => {
   return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
 };
 
-// 🔥 URL Cerdas: Tangani null, string kosong, dan path relatif Foundry
+// URL Cerdas: Tangani null, string kosong, dan path relatif Foundry
 const formatCharacterUrl = (link) => {
   if (
     !link ||
@@ -90,7 +90,7 @@ const injectCharacterStyles = () => {
     .ch-list-area::-webkit-scrollbar { width: 6px; }
     .ch-list-area::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
     
-    /* UKURAN DIPERKECIL DI SINI */
+    /* UKURAN DEFAULT CARD */
     .ch-row-card { display: flex; align-items: center; padding: 8px 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid #3f3f46; border-radius: 8px; transition: all 0.2s; user-select: none; gap: 12px; }
     .ch-row-card.clickable:hover { background: rgba(0, 0, 0, 0.5); border-color: #52525b; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
     .ch-row-card.drag-over { border-color: #10b981 !important; background: rgba(16, 185, 129, 0.05) !important; }
@@ -107,7 +107,7 @@ const injectCharacterStyles = () => {
     .ch-meta-sys { color: #fbcfe8; font-weight: 700; } 
     .ch-meta-ver { color: #fde047; font-weight: 700; } 
     .ch-meta-bot { font-size: 11px; color: #fdba74; font-weight: 600;} 
-    .ch-meta-size { font-size: 10px; color: #a1a1aa; margin-top: 2px; font-style: italic; } /* CSS untuk Size JSON */
+    .ch-meta-size { font-size: 10px; color: #a1a1aa; margin-top: 2px; font-style: italic; }
     
     .ch-card-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
     .ch-btn-action-box { display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; opacity: 0.7; background: transparent; border: none; padding: 0;}
@@ -134,6 +134,25 @@ const injectCharacterStyles = () => {
     
     .vs-actor-name { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8); color: #f4f4f5; font-size: 10px; padding: 4px 2px; text-align: center; box-sizing: border-box; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
     .vs-actor-item:hover .vs-actor-name, .vs-actor-item.selected .vs-actor-name { opacity: 1; }
+
+    /* 🔥 CSS KHUSUS MODE "NAME ONLY" (DIBUAT SETIPIS MUNGKIN TAPI ADA VERSI) 🔥 */
+    .hs-character-name-only-mode .ch-row-card { padding: 4px 8px; gap: 10px; min-height: 36px; border-radius: 4px; }
+    .hs-character-name-only-mode .ch-card-avatar { width: 28px; height: 28px; border-radius: 3px; }
+    .hs-character-name-only-mode .ch-row-card[data-target="folder"] .ch-card-avatar i { font-size: 14px !important; }
+    
+    /* Sembunyikan Info Jam dan Size JSON */
+    .hs-character-name-only-mode .ch-card-detail { display: none !important; }
+    .hs-character-name-only-mode .ch-meta-size { display: none !important; }
+    
+    .hs-character-name-only-mode .ch-card-name { font-size: 14px; font-weight: 500; margin: 0; line-height: 1.2; }
+    
+    /* Modifikasi Meta Data agar Horizontal dan Tipis */
+    .hs-character-name-only-mode .ch-card-meta { flex-direction: row; gap: 8px; align-items: center; border-right: 1px solid #3f3f46; padding-right: 10px; min-width: auto; justify-content: flex-end;}
+    .hs-character-name-only-mode .ch-meta-top { margin: 0; font-size: 11px; }
+    .hs-character-name-only-mode .ch-meta-bot { font-size: 10px; margin: 0; }
+    
+    .hs-character-name-only-mode .ch-btn-action-box { transform: scale(0.85); padding: 0; }
+    .hs-character-name-only-mode .ch-icon-sq { width: 26px; height: 26px; font-size: 11px; border-radius: 4px;}
   `;
   document.head.appendChild(style);
 };
@@ -247,6 +266,15 @@ function renderListArea() {
 
   updateBreadcrumbs();
 
+  // 🔥 BACA SETTING UNTUK MENGAKTIFKAN MODE NAME ONLY 🔥
+  const detailMode =
+    game.settings.get("herald-silane", "characterDetailMode") || "all";
+  if (detailMode === "nameOnly") {
+    listArea.classList.add("hs-character-name-only-mode");
+  } else {
+    listArea.classList.remove("hs-character-name-only-mode");
+  }
+
   const itemsToDisplay = characterData.items.filter((i) => {
     if (query) {
       return i.name.toLowerCase().includes(query);
@@ -322,7 +350,7 @@ function renderListArea() {
             exportSource.coreVersion ||
             "";
 
-          // 🔥 Menghitung Ukuran JSON Karakter
+          // Menghitung Ukuran JSON Karakter
           let jsonSizeStr = "Unknown Size";
           try {
             const sizeBytes = new Blob([JSON.stringify(fvtt)]).size;
@@ -728,10 +756,9 @@ function showFolderForm(title, existingData, onConfirm) {
       },
       default: "ok",
       render: (html) => {
-        // 🔥 INI BAGIAN YANG DITAMBAHKAN UNTUK BACKGROUND HITAM 🔥
         const dialogElement = html.closest(".app")[0];
         const contentElement = dialogElement.querySelector(".window-content");
-        
+
         if (contentElement) {
           contentElement.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
           contentElement.style.color = "white";
@@ -741,26 +768,31 @@ function showFolderForm(title, existingData, onConfirm) {
           contentElement.style.backgroundPosition = "center";
         }
 
-        // Style the buttons for consistency
         html.closest(".dialog").find(".dialog-buttons button").css({
           color: "white",
-          border: "1px solid #3f3f46", // Border halus agar menyatu
+          border: "1px solid #3f3f46",
           background: "rgba(0,0,0,0.4)",
           borderRadius: "4px",
-          transition: "all 0.2s"
+          transition: "all 0.2s",
         });
 
-        // Optional: Hover effect for buttons (bisa dihapus kalau tidak perlu)
-        html.closest(".dialog").find(".dialog-buttons button").hover(
-          function() { $(this).css("background", "rgba(16, 185, 129, 0.2)"); }, // Warna hijau tipis saat hover
-          function() { $(this).css("background", "rgba(0,0,0,0.4)"); }
-        );
+        html
+          .closest(".dialog")
+          .find(".dialog-buttons button")
+          .hover(
+            function () {
+              $(this).css("background", "rgba(16, 185, 129, 0.2)");
+            },
+            function () {
+              $(this).css("background", "rgba(0,0,0,0.4)");
+            },
+          );
       },
     },
-    { 
+    {
       width: 350,
-      classes: ["dialog", "silane-custom-dialog"] 
-    }
+      classes: ["dialog", "silane-custom-dialog"],
+    },
   ).render(true);
 }
 
