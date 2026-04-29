@@ -175,7 +175,7 @@ async function heraldSilane_renderMainView() {
 
   const dims = heraldSilane_getWindowDimensions(); // 🔥 Ambil dimensi untuk Main View
 
-  let activeTab = "images";
+  let activeTab = "visage";
   let userName = "Unknown User";
   let userImage = "icons/svg/mystery-man.svg";
   let selectedItems = new Set();
@@ -201,10 +201,10 @@ async function heraldSilane_renderMainView() {
   container.innerHTML = `
     <div class="hs-layout-override" style="height: ${dims.overrideHeight}px; flex: 1; display: flex; flex-direction: column; min-height: 0;">
       <div class="hs-main">
-        <div class="hs-sidebar">
-          <button id="hs-tab-images" class="hs-circle-btn active" title="Images"><i class="fa-solid fa-image"></i></button>
+     <div class="hs-sidebar">
+          <button id="hs-tab-visage" class="hs-circle-btn active" title="Visage"><i class="fa-solid fa-masks-theater"></i></button>
           <button id="hs-tab-audio" class="hs-circle-btn" title="Audio"><i class="fa-solid fa-music"></i></button>
-          <button id="hs-tab-visage" class="hs-circle-btn" title="Visage"><i class="fa-solid fa-masks-theater"></i></button>
+          <button id="hs-tab-images" class="hs-circle-btn" title="Images"><i class="fa-solid fa-image"></i></button>
           <button id="hs-tab-character" class="hs-circle-btn" title="Character"><i class="fa-solid fa-users"></i></button>
         </div>
         <div class="hs-content">
@@ -529,7 +529,7 @@ async function heraldSilane_renderMainView() {
       await heraldSilane_renderRouting();
     });
 
-  switchTab("images");
+  switchTab("visage");
 }
 
 // ==========================================

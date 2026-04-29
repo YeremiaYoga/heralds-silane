@@ -6,7 +6,6 @@ let currentFolderId = null;
 let parentContainer = null;
 let searchQuery = "";
 
-// 🔥 FUNGSI BARU: Pembuat UUID yang aman untuk Localhost / IP Lokal (HTTP)
 const generateSafeUUID = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -18,7 +17,6 @@ const generateSafeUUID = () => {
   });
 };
 
-// 🔥 Helper untuk memaksa URL menjadi absolute HTTPS
 const formatVisageUrl = (link) => {
   if (!link) return "";
   if (link.startsWith("http")) return link;
@@ -29,7 +27,6 @@ const formatVisageUrl = (link) => {
   return `https://sih4storage.phanneldeliver.my.id/${path}`;
 };
 
-// Inject CSS Global Visage
 const injectVisageStyles = () => {
   if (document.getElementById("visage-modern-styles")) return;
   const style = document.createElement("style");
