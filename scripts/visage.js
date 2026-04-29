@@ -6,6 +6,18 @@ let currentFolderId = null;
 let parentContainer = null;
 let searchQuery = "";
 
+// 🔥 FUNGSI BARU: Pembuat UUID yang aman untuk Localhost / IP Lokal (HTTP)
+const generateSafeUUID = () => {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 // 🔥 Helper untuk memaksa URL menjadi absolute HTTPS
 const formatVisageUrl = (link) => {
   if (!link) return "";
@@ -275,7 +287,9 @@ function attachVisageEvents() {
   });
 
   // Main List Area click events
-  document.getElementById("vs-list-area").addEventListener("click", async (e) => {
+  document
+    .getElementById("vs-list-area")
+    .addEventListener("click", async (e) => {
       // Delete Button
       if (e.target.closest(".vs-action-delete")) {
         const id = e.target.closest(".vs-action-delete").dataset.id;
@@ -343,7 +357,7 @@ function attachVisageEvents() {
   document.getElementById("vs-btn-add-folder").addEventListener("click", () => {
     showFolderForm("Create New Folder", null, async (data) => {
       visageData.items.push({
-        id: foundry.utils.randomID(),
+        id: foundry.utils.randomID(), // Fungsi Foundry asli tetap digunakan karena aman
         type: "folder",
         parentId: currentFolderId,
         name: data.name,
@@ -353,10 +367,12 @@ function attachVisageEvents() {
     });
   });
 
-  document.getElementById("vs-btn-add-profile").addEventListener("click", () => {
+  document
+    .getElementById("vs-btn-add-profile")
+    .addEventListener("click", () => {
       showProfileForm("Create Profile Asset", null, async (data) => {
         visageData.items.push({
-          id: crypto.randomUUID(),
+          id: generateSafeUUID(), // 🔥 MENGGUNAKAN FALLBACK AGAR BISA DI IP LOKAL
           type: "profile",
           parentId: currentFolderId,
           ...data,
@@ -377,7 +393,7 @@ function attachVisageEvents() {
     if (!row) return;
     draggedItemId = row.dataset.id;
     e.dataTransfer.effectAllowed = "move";
-    row.style.opacity = "0.5"; 
+    row.style.opacity = "0.5";
   });
 
   // 2. Saat item selesai di-drag
@@ -385,14 +401,16 @@ function attachVisageEvents() {
     const row = e.target.closest(".vs-list-row");
     if (row) row.style.opacity = "1";
     draggedItemId = null;
-    document.querySelectorAll('.vs-list-row').forEach(el => el.classList.remove('drag-over'));
+    document
+      .querySelectorAll(".vs-list-row")
+      .forEach((el) => el.classList.remove("drag-over"));
   });
 
   // 3. Saat item melayang di atas area list
   listArea.addEventListener("dragover", (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
     const targetRow = e.target.closest(".vs-list-row[data-target='folder']");
-    
+
     if (targetRow && targetRow.dataset.id !== draggedItemId) {
       targetRow.classList.add("drag-over");
     }
@@ -409,19 +427,23 @@ function attachVisageEvents() {
   // 5. Eksekusi perpindahan data saat di-DROP ke folder
   listArea.addEventListener("drop", async (e) => {
     e.preventDefault();
-    document.querySelectorAll('.vs-list-row').forEach(el => el.classList.remove('drag-over'));
+    document
+      .querySelectorAll(".vs-list-row")
+      .forEach((el) => el.classList.remove("drag-over"));
     const targetRow = e.target.closest(".vs-list-row[data-target='folder']");
 
     if (targetRow && draggedItemId && targetRow.dataset.id !== draggedItemId) {
       const targetFolderId = targetRow.dataset.id;
-      const itemToMove = visageData.items.find(i => i.id === draggedItemId);
-      
+      const itemToMove = visageData.items.find((i) => i.id === draggedItemId);
+
       if (itemToMove) {
         // Cegah folder dimasukkan ke dalam sub-foldernya sendiri (Infinite Loop)
         if (itemToMove.type === "folder") {
           const nestedIds = getNestedItemIds(visageData.items, draggedItemId);
           if (nestedIds.includes(targetFolderId)) {
-            ui.notifications?.warn("Cannot move a folder into its own subfolder.");
+            ui.notifications?.warn(
+              "Cannot move a folder into its own subfolder.",
+            );
             return;
           }
         }
@@ -438,7 +460,7 @@ function attachVisageEvents() {
   breadcrumbs.addEventListener("dragover", (e) => {
     e.preventDefault();
     const bcItem = e.target.closest(".vs-bc-item:not(.active)");
-    if (bcItem) bcItem.style.background = "rgba(255,255,255,0.1)"; 
+    if (bcItem) bcItem.style.background = "rgba(255,255,255,0.1)";
   });
 
   breadcrumbs.addEventListener("dragleave", (e) => {
@@ -452,8 +474,9 @@ function attachVisageEvents() {
     if (bcItem) bcItem.style.background = "";
 
     if (bcItem && draggedItemId) {
-      const targetFolderId = bcItem.dataset.id === "root" ? null : bcItem.dataset.id;
-      const itemToMove = visageData.items.find(i => i.id === draggedItemId);
+      const targetFolderId =
+        bcItem.dataset.id === "root" ? null : bcItem.dataset.id;
+      const itemToMove = visageData.items.find((i) => i.id === draggedItemId);
 
       if (itemToMove && itemToMove.parentId !== targetFolderId) {
         if (itemToMove.type === "folder") {
@@ -593,15 +616,13 @@ async function showActorSelectionDialog(profile) {
             html.find(".vs-actor-item").each(function () {
               $(this).toggle($(this).data("name").includes(query));
             });
-          }, 1000); 
+          }, 1000);
         });
       },
     },
     { width: 420 },
   ).render(true);
 }
-
-// === FORM BUILDERS ===
 
 // === FORM BUILDERS ===
 
@@ -636,7 +657,7 @@ function showFolderForm(title, existingData, onConfirm) {
         // 🔥 INI BAGIAN YANG DITAMBAHKAN UNTUK BACKGROUND HITAM DI VISAGE 🔥
         const dialogElement = html.closest(".app")[0];
         const contentElement = dialogElement.querySelector(".window-content");
-        
+
         if (contentElement) {
           contentElement.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
           contentElement.style.color = "white";
@@ -652,20 +673,27 @@ function showFolderForm(title, existingData, onConfirm) {
           border: "1px solid #3f3f46",
           background: "rgba(0,0,0,0.4)",
           borderRadius: "4px",
-          transition: "all 0.2s"
+          transition: "all 0.2s",
         });
 
         // Efek hover untuk tombol (warna biru khas Visage)
-        html.closest(".dialog").find(".dialog-buttons button").hover(
-          function() { $(this).css("background", "rgba(96, 165, 250, 0.2)"); },
-          function() { $(this).css("background", "rgba(0,0,0,0.4)"); }
-        );
+        html
+          .closest(".dialog")
+          .find(".dialog-buttons button")
+          .hover(
+            function () {
+              $(this).css("background", "rgba(96, 165, 250, 0.2)");
+            },
+            function () {
+              $(this).css("background", "rgba(0,0,0,0.4)");
+            },
+          );
       },
     },
-    { 
-      width: 350, 
-      classes: ["dialog", "silane-custom-dialog"] 
-    }
+    {
+      width: 350,
+      classes: ["dialog", "silane-custom-dialog"],
+    },
   ).render(true);
 }
 
@@ -771,7 +799,7 @@ function showProfileForm(title, existingData, onConfirm) {
     {
       title: title,
       content: content,
-      buttons: {}, 
+      buttons: {},
       render: (html) => {
         const attachImageUpload = (boxId, inputId, imgId, btnId, isToken) => {
           const box = html[0].querySelector(`#${boxId}`);
@@ -796,8 +824,20 @@ function showProfileForm(title, existingData, onConfirm) {
           });
         };
 
-        attachImageUpload("box-token", "file-token", "prev-token", "btn-upload-token", true);
-        attachImageUpload("box-portrait", "file-portrait", "prev-portrait", "btn-upload-portrait", false);
+        attachImageUpload(
+          "box-token",
+          "file-token",
+          "prev-token",
+          "btn-upload-token",
+          true,
+        );
+        attachImageUpload(
+          "box-portrait",
+          "file-portrait",
+          "prev-portrait",
+          "btn-upload-portrait",
+          false,
+        );
 
         const btnConfirm = html[0].querySelector("#vs-btn-confirm-profile");
         const btnCancel = html[0].querySelector("#vs-btn-cancel-profile");
@@ -809,15 +849,16 @@ function showProfileForm(title, existingData, onConfirm) {
         btnConfirm.addEventListener("click", async () => {
           const nameInput = html[0].querySelector("#vs-prof-name");
           const name = nameInput.value.trim();
-          
+
           if (!name) {
             ui.notifications?.warn("Profile Name cannot be empty.");
-            return; 
+            return;
           }
 
           ui.notifications?.info("Saving profile and processing media...");
           btnConfirm.disabled = true;
-          btnConfirm.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+          btnConfirm.innerHTML =
+            '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
           let finalTokenUrl = data.tokenUrl;
           let finalPortraitUrl = data.portraitUrl;
@@ -846,7 +887,8 @@ function showProfileForm(title, existingData, onConfirm) {
               finalTokenUrl = await uploadMediaToBackend(selectedTokenFile);
             }
             if (selectedPortraitFile) {
-              finalPortraitUrl = await uploadMediaToBackend(selectedPortraitFile);
+              finalPortraitUrl =
+                await uploadMediaToBackend(selectedPortraitFile);
             }
 
             onConfirm({
@@ -860,9 +902,10 @@ function showProfileForm(title, existingData, onConfirm) {
             });
 
             profileDialog.close();
-
           } catch (err) {
-            ui.notifications?.error("Failed to upload image. Please try again.");
+            ui.notifications?.error(
+              "Failed to upload image. Please try again.",
+            );
             console.error(err);
             btnConfirm.disabled = false;
             btnConfirm.innerHTML = '<i class="fas fa-save"></i> Confirm & Save';
@@ -870,11 +913,11 @@ function showProfileForm(title, existingData, onConfirm) {
         });
       },
     },
-    { 
+    {
       width: 420,
-      classes: ["dialog", "silane-custom-dialog"] 
-    }
+      classes: ["dialog", "silane-custom-dialog"],
+    },
   );
-  
+
   profileDialog.render(true);
 }
