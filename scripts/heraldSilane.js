@@ -537,10 +537,11 @@ async function heraldSilane_renderMainView() {
 // ==========================================
 function heraldSilane_openSettingsModal() {
   const currentSize = game.settings.get("herald-silane", "windowSize");
-  const currentDetail = game.settings.get(
-    "herald-silane",
-    "characterDetailMode",
-  );
+  const currentDetail = game.settings.get("herald-silane", "characterDetailMode");
+  
+  // 🔥 AMBIL DATA DUA WARNA
+  const currentFolderColor = game.settings.get("herald-silane", "folderColor") || "#fbbf24";
+  const currentBorderColor = game.settings.get("herald-silane", "borderColor") || "#fbbf24";
 
   const content = `
     <div class="silane-settings-wrapper" style="padding: 10px; color: #f4f4f5;">
@@ -562,6 +563,22 @@ function heraldSilane_openSettingsModal() {
           <option value="nameOnly" style="background: #18181b; color: white;" ${currentDetail === "nameOnly" ? "selected" : ""}>Name Only (Minimalist)</option>
         </select>
       </div>
+
+      <div class="silane-form-group" style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: white;">Folder Color</label>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <input type="color" id="hs-setting-folderColor" value="${currentFolderColor}" style="width: 40px; height: 32px; padding: 0; border: 1px solid #52525b; background: rgba(0,0,0,0.5); cursor: pointer;" />
+          <input type="text" id="hs-setting-folderColorText" value="${currentFolderColor}" class="silane-input" style="flex: 1; padding: 5px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b;" />
+        </div>
+      </div>
+
+      <div class="silane-form-group" style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: white;">Border Color</label>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <input type="color" id="hs-setting-borderColor" value="${currentBorderColor}" style="width: 40px; height: 32px; padding: 0; border: 1px solid #52525b; background: rgba(0,0,0,0.5); cursor: pointer;" />
+          <input type="text" id="hs-setting-borderColorText" value="${currentBorderColor}" class="silane-input" style="flex: 1; padding: 5px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b;" />
+        </div>
+      </div>
     </div>
   `;
 
@@ -575,13 +592,13 @@ function heraldSilane_openSettingsModal() {
           callback: async (html) => {
             const newSize = html.find("#hs-setting-windowSize").val();
             const newDetail = html.find("#hs-setting-characterDetail").val();
+            const newFolderColor = html.find("#hs-setting-folderColor").val(); 
+            const newBorderColor = html.find("#hs-setting-borderColor").val(); 
 
             await game.settings.set("herald-silane", "windowSize", newSize);
-            await game.settings.set(
-              "herald-silane",
-              "characterDetailMode",
-              newDetail,
-            );
+            await game.settings.set("herald-silane", "characterDetailMode", newDetail);
+            await game.settings.set("herald-silane", "folderColor", newFolderColor); 
+            await game.settings.set("herald-silane", "borderColor", newBorderColor); 
 
             if (heraldSilane_currentDialog) {
               const dims = heraldSilane_getWindowDimensions();
@@ -591,7 +608,6 @@ function heraldSilane_openSettingsModal() {
               });
             }
             await heraldSilane_renderRouting();
-
             ui.notifications?.info("Silane Settings Saved.");
           },
         },
@@ -601,7 +617,6 @@ function heraldSilane_openSettingsModal() {
       },
       default: "save",
       render: (html) => {
-        // 🔥 Perbaikan untuk Tema Window Bawaan Dialog 🔥
         const dialogElement = html.closest(".app")[0];
         const contentElement = dialogElement.querySelector(".window-content");
         if (contentElement) {
@@ -610,11 +625,25 @@ function heraldSilane_openSettingsModal() {
           contentElement.style.backgroundImage = "none";
         }
 
-        // Style untuk Tombol Cancel dan Save Changes
         html.closest(".dialog").find(".dialog-buttons button").css({
           color: "white",
           border: "1px solid #3f3f46",
           background: "rgba(0,0,0,0.4)",
+        });
+
+        // 🔥 LOGIKA SINKRONISASI UNTUK KEDUA WARNA 🔥
+        html.find("#hs-setting-folderColor").on("input", function () {
+          html.find("#hs-setting-folderColorText").val($(this).val());
+        });
+        html.find("#hs-setting-folderColorText").on("input", function () {
+          html.find("#hs-setting-folderColor").val($(this).val());
+        });
+
+        html.find("#hs-setting-borderColor").on("input", function () {
+          html.find("#hs-setting-borderColorText").val($(this).val());
+        });
+        html.find("#hs-setting-borderColorText").on("input", function () {
+          html.find("#hs-setting-borderColor").val($(this).val());
         });
       },
     },

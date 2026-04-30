@@ -188,6 +188,12 @@ function renderListArea() {
   let html = "";
   const query = searchQuery.toLowerCase();
 
+  // 🔥 AMBIL KEDUA SETTING WARNA
+  const folderColor =
+    game.settings.get("herald-silane", "folderColor") || "#fbbf24";
+  const borderColor =
+    game.settings.get("herald-silane", "borderColor") || "#fbbf24";
+
   updateBreadcrumbs();
 
   // 🔥 Logika Filter Diperbarui untuk Global Search
@@ -222,7 +228,7 @@ function renderListArea() {
           // 🔥 Folder ditambahkan draggable="true"
           html += `
           <div class="vs-list-row clickable vs-item-click" draggable="true" data-target="folder" data-id="${item.id}">
-            <div class="vs-icon-wrapper" style="background: rgba(251, 191, 36, 0.15); box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.4);"><i class="fa-solid fa-folder" style="color: #fbbf24; font-size: 18px;"></i></div>
+            <div class="vs-icon-wrapper" style="background: rgba(${folderColor}, 0.15); box-shadow: inset 0 0 0 1px rgba(${borderColor}, 0.4);"><i class="fa-solid fa-folder" style="color: ${folderColor}; font-size: 18px;"></i></div>
             <div class="vs-text-container"><div class="vs-text-title">${item.name}</div></div>
             <div class="vs-row-actions" >
               <div class="vs-action-icon edit vs-action-edit" data-id="${item.id}" title="Edit Folder"><i class="fa-solid fa-pen" style="pointer-events:none;"></i></div>
@@ -245,7 +251,7 @@ function renderListArea() {
           // 🔥 Profile ditambahkan draggable="true"
           html += `
           <div class="vs-list-row clickable vs-profile-click" draggable="true" data-id="${item.id}">
-            <div class="vs-icon-wrapper" style="background: rgba(96, 165, 250, 0.1); box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.3); padding: ${wrapperPadding};">
+            <div class="vs-icon-wrapper" style="background: rgba(96, 165, 250, 0.1); box-shadow: inset 0 0 0 1px rgba(${borderColor}; padding: ${wrapperPadding};">
               ${iconContent}
             </div>
             <div class="vs-text-container"><div class="vs-text-title">${item.name}</div></div>

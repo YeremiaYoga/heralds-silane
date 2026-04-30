@@ -23,4 +23,22 @@ Hooks.once("init", () => {
     type: String,
     default: "all",
   });
+
+  game.settings.register("herald-silane", "folderColor", {
+    name: "Folder Color",
+    scope: "client",
+    config: false, 
+    type: String,
+    default: "#fbbf24", 
+  });
+
+  // 🔥 SETTING UNTUK BORDER COLOR
+  game.settings.register("herald-silane", "borderColor", {
+    name: "Border Color",
+    scope: "client",
+    config: false, 
+    type: String,
+    default: "#fbbf24", 
+  });
 });
+

@@ -264,6 +264,12 @@ function renderListArea() {
   let html = "";
   const query = searchQuery.toLowerCase();
 
+  // 🔥 AMBIL KEDUA SETTING WARNA
+  const folderColor =
+    game.settings.get("herald-silane", "folderColor") || "#fbbf24";
+  const borderColor =
+    game.settings.get("herald-silane", "borderColor") || "#fbbf24";
+
   updateBreadcrumbs();
 
   // 🔥 BACA SETTING UNTUK MENGAKTIFKAN MODE NAME ONLY 🔥
@@ -302,7 +308,7 @@ function renderListArea() {
         if (item.type === "folder") {
           html += `
           <div class="ch-row-card clickable ch-item-click" draggable="true" data-target="folder" data-id="${item.id}">
-            <div class="ch-card-avatar" style="border-color:#fbbf24;"><i class="fa-solid fa-folder" style="color: #fbbf24; font-size: 24px;"></i></div>
+            <div class="ch-card-avatar" style="border-color:${borderColor};"><i class="fa-solid fa-folder" style="color: ${folderColor}; font-size: 24px;"></i></div>
             
             <div class="ch-card-info">
               <div class="ch-card-name">${item.name}</div>
