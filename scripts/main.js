@@ -40,5 +40,13 @@ Hooks.once("init", () => {
     type: String,
     default: "#fbbf24", 
   });
+
+  game.settings.register("herald-silane", "syncColors", {
+    name: "Sync Colors",
+    scope: "client",
+    config: false, 
+    type: Boolean,
+    default: true, 
+  });
 });
 
