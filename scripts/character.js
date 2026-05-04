@@ -264,15 +264,8 @@ function renderListArea() {
   let html = "";
   const query = searchQuery.toLowerCase();
 
-  // 🔥 AMBIL KEDUA SETTING WARNA
-  const folderColor =
-    game.settings.get("herald-silane", "folderColor") || "#fbbf24";
-  const borderColor =
-    game.settings.get("herald-silane", "borderColor") || "#fbbf24";
-
   updateBreadcrumbs();
 
-  // 🔥 BACA SETTING UNTUK MENGAKTIFKAN MODE NAME ONLY 🔥
   const detailMode =
     game.settings.get("herald-silane", "characterDetailMode") || "all";
   if (detailMode === "nameOnly") {
@@ -306,17 +299,18 @@ function renderListArea() {
       })
       .forEach((item) => {
         if (item.type === "folder") {
+          const fColor = item.folderColor || "#fbbf24";
+          const bColor = item.borderColor || "#fbbf24";
+
           html += `
           <div class="ch-row-card clickable ch-item-click" draggable="true" data-target="folder" data-id="${item.id}">
-            <div class="ch-card-avatar" style="border-color:${borderColor};"><i class="fa-solid fa-folder" style="color: ${folderColor}; font-size: 24px;"></i></div>
-            
-            <div class="ch-card-info">
-              <div class="ch-card-name">${item.name}</div>
-            </div>
-            
+            <div class="ch-card-avatar" style="border-color:${bColor};"><i class="fa-solid fa-folder" style="color: ${fColor}; font-size: 24px;"></i></div>
+            <div class="ch-card-info"><div class="ch-card-name">${item.name}</div></div>
             <div class="ch-card-meta" style="border:none;"></div>
-            
             <div class="ch-card-actions">
+              <button class="ch-btn-action-box ch-edit ch-action-edit" data-id="${item.id}" title="Edit Folder">
+                <div class="ch-icon-sq"><i class="fa-solid fa-pen"></i></div>
+              </button>
               <button class="ch-btn-action-box ch-del ch-action-delete" data-id="${item.id}" title="Delete Folder">
                 <div class="ch-icon-sq"><i class="fa-solid fa-trash"></i></div>
               </button>
@@ -327,19 +321,16 @@ function renderListArea() {
           const fvtt = item.fvtt_data || {};
           const stats = fvtt._stats || {};
           const exportSource = stats.exportSource || {};
-
           const tokenImgSrc =
             item.tokenUrl ||
             fvtt.img ||
             fvtt.prototypeToken?.texture?.src ||
             "";
-
           const exportTimeRaw =
             item.export_time || stats.createdTime || stats.modifiedTime;
           const exportTime = formatExportDate(exportTimeRaw);
           const worldId =
             item.world_id || exportSource.worldId || "Unknown World";
-
           const system =
             item.metadata?.system ||
             stats.systemId ||
@@ -356,42 +347,31 @@ function renderListArea() {
             exportSource.coreVersion ||
             "";
 
-          // Menghitung Ukuran JSON Karakter
           let jsonSizeStr = "Unknown Size";
           try {
             const sizeBytes = new Blob([JSON.stringify(fvtt)]).size;
-            if (sizeBytes > 1024 * 1024) {
+            if (sizeBytes > 1024 * 1024)
               jsonSizeStr = (sizeBytes / (1024 * 1024)).toFixed(2) + " MB";
-            } else {
-              jsonSizeStr = (sizeBytes / 1024).toFixed(2) + " KB";
-            }
-          } catch (e) {
-            console.warn("Failed to calculate size", e);
-          }
+            else jsonSizeStr = (sizeBytes / 1024).toFixed(2) + " KB";
+          } catch (e) {}
 
           html += `
           <div class="ch-row-card clickable ch-profile-click" draggable="true" data-id="${item.id}">
-            
-            <div class="ch-card-avatar">
-              <img src="${formatCharacterUrl(tokenImgSrc)}" onerror="this.src='icons/svg/mystery-man.svg'" />
-            </div>
-            
+            <div class="ch-card-avatar"><img src="${formatCharacterUrl(tokenImgSrc)}" onerror="this.src='icons/svg/mystery-man.svg'" /></div>
             <div class="ch-card-info">
                <div class="ch-card-name">${item.name}</div>
                <div class="ch-card-detail"><i class="fa-regular fa-clock"></i> ${exportTime}</div>
                <div class="ch-card-detail"><i class="fa-solid fa-globe"></i> ${worldId}</div>
             </div>
-            
             <div class="ch-card-meta">
-               <div class="ch-meta-top">
-                  <span class="ch-meta-sys">${system}</span> 
-                  ${sysVer ? `<span class="ch-meta-ver">(${sysVer})</span>` : ""}
-               </div>
+               <div class="ch-meta-top"><span class="ch-meta-sys">${system}</span> ${sysVer ? `<span class="ch-meta-ver">(${sysVer})</span>` : ""}</div>
                <div class="ch-meta-bot">coreVersion ${coreVer}</div>
                <div class="ch-meta-size">${jsonSizeStr}</div>
             </div>
-            
             <div class="ch-card-actions">
+              <button class="ch-btn-action-box ch-edit ch-action-edit" data-id="${item.id}" title="Edit Profile">
+                <div class="ch-icon-sq"><i class="fa-solid fa-pen"></i></div>
+              </button>
               <button class="ch-btn-action-box ch-dl ch-action-download" data-id="${item.id}" title="Import Character to World">
                 <div class="ch-icon-sq"><i class="fa-solid fa-download"></i></div>
               </button>
@@ -399,13 +379,11 @@ function renderListArea() {
                 <div class="ch-icon-sq"><i class="fa-solid fa-trash"></i></div>
               </button>
             </div>
-            
           </div>
         `;
         }
       });
   }
-
   listArea.innerHTML = html;
 }
 
@@ -456,6 +434,28 @@ function attachCharacterEvents() {
   document
     .getElementById("ch-list-area")
     .addEventListener("click", async (e) => {
+      // Tombol Edit
+      if (e.target.closest(".ch-action-edit")) {
+        const id = e.target.closest(".ch-action-edit").dataset.id;
+        const item = characterData.items.find((i) => i.id === id);
+
+        if (item.type === "folder") {
+          showFolderForm("Edit Folder", item, async (data) => {
+            Object.assign(item, data);
+            renderListArea();
+            await saveCharacterData();
+          });
+        } else {
+          showProfileForm("Edit Character Asset", item, async (data) => {
+            Object.assign(item, data);
+            renderListArea();
+            await saveCharacterData();
+          });
+        }
+        return;
+      }
+
+      // Tombol Delete
       if (e.target.closest(".ch-action-delete")) {
         const id = e.target.closest(".ch-action-delete").dataset.id;
         Dialog.confirm({
@@ -476,6 +476,7 @@ function attachCharacterEvents() {
         return;
       }
 
+      // Tombol Download / Import
       if (e.target.closest(".ch-action-download")) {
         const id = e.target.closest(".ch-action-download").dataset.id;
         const item = characterData.items.find((i) => i.id === id);
@@ -485,6 +486,7 @@ function attachCharacterEvents() {
         return;
       }
 
+      // Klik Folder untuk masuk
       const folderRow = e.target.closest(".ch-item-click");
       if (folderRow && folderRow.dataset.target === "folder") {
         currentFolderId = folderRow.dataset.id;
@@ -493,6 +495,7 @@ function attachCharacterEvents() {
       }
     });
 
+  // Tombol Tambah Folder
   document.getElementById("ch-btn-add-folder").addEventListener("click", () => {
     showFolderForm("Create New Folder", null, async (data) => {
       characterData.items.push({
@@ -500,12 +503,16 @@ function attachCharacterEvents() {
         type: "folder",
         parentId: currentFolderId,
         name: data.name,
+        folderColor: data.folderColor,
+        borderColor: data.borderColor,
+        syncColors: data.syncColors,
       });
       renderListArea();
       await saveCharacterData();
     });
   });
 
+  // Tombol Tambah Profile dari JSON
   document
     .getElementById("ch-btn-add-profile")
     .addEventListener("click", () => {
@@ -521,6 +528,7 @@ function attachCharacterEvents() {
       });
     });
 
+  // Tombol Ambil dari World
   document
     .getElementById("ch-btn-select-actor")
     .addEventListener("click", () => {
@@ -737,11 +745,41 @@ function showActorSelectorDialog(onConfirm) {
 }
 
 function showFolderForm(title, existingData, onConfirm) {
-  const data = existingData || { name: "" };
+  const data = existingData || {
+    name: "",
+    folderColor: "#fbbf24",
+    borderColor: "#fbbf24",
+    syncColors: true,
+  };
+  const isSyncChecked = data.syncColors !== false;
+  const fColor = data.folderColor || "#fbbf24";
+  const bColor = data.borderColor || "#fbbf24";
+
   const content = `
     <div class="silane-form-group" style="padding: 10px 0;">
       <label style="color: #a1a1aa; font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Folder Name</label>
       <input type="text" id="ch-modal-name" value="${data.name}" placeholder="e.g. NPC" style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; border-radius: 6px; padding: 10px 12px; color: #f4f4f5; outline: none;" />
+    </div>
+
+    <div class="silane-form-group" style="margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 10px; border: 1px solid #3f3f46; border-radius: 6px;">
+      <label style="display: block; margin-bottom: 8px; font-weight: bold; color: white;">Color Settings</label>
+      
+      <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+        <span style="width: 85px; font-size: 13px; color: #d4d4d8;">Folder Color</span>
+        <input type="color" id="ch-modal-folderColor" value="${fColor}" style="width: 40px; height: 32px; padding: 0; border: 1px solid #52525b; background: rgba(0,0,0,0.5); cursor: pointer;" />
+        <input type="text" id="ch-modal-folderColorText" value="${fColor}" class="silane-input" style="flex: 1; padding: 5px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b;" />
+      </div>
+
+      <div style="display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 5px;">
+        <input type="checkbox" id="ch-modal-syncColors" ${isSyncChecked ? "checked" : ""} style="cursor: pointer; margin: 0; width: 14px; height: 14px;" />
+        <label for="ch-modal-syncColors" style="cursor: pointer; color: #a1a1aa; user-select: none;">Use same color for Folder & Border</label>
+      </div>
+
+      <div id="ch-modal-border-container" style="display: flex; gap: 10px; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #52525b; opacity: ${isSyncChecked ? "0.4" : "1"}; transition: opacity 0.2s;">
+        <span style="width: 85px; font-size: 13px; color: #d4d4d8;">Border Color</span>
+        <input type="color" id="ch-modal-borderColor" value="${bColor}" ${isSyncChecked ? "disabled" : ""} style="width: 40px; height: 32px; padding: 0; border: 1px solid #52525b; background: rgba(0,0,0,0.5); cursor: ${isSyncChecked ? "not-allowed" : "pointer"};" />
+        <input type="text" id="ch-modal-borderColorText" value="${bColor}" ${isSyncChecked ? "disabled" : ""} class="silane-input" style="flex: 1; padding: 5px; background: rgba(0,0,0,0.5); color: ${isSyncChecked ? "#a1a1aa" : "white"} !important; border: 1px solid #52525b; cursor: ${isSyncChecked ? "not-allowed" : "text"};" />
+      </div>
     </div>
   `;
 
@@ -755,7 +793,19 @@ function showFolderForm(title, existingData, onConfirm) {
           callback: (html) => {
             const name = html.find("#ch-modal-name").val().trim();
             if (!name) return ui.notifications?.warn("Name empty.");
-            onConfirm({ name });
+
+            const isSync = html.find("#ch-modal-syncColors").is(":checked");
+            const newFColor = html.find("#ch-modal-folderColor").val();
+            const newBColor = isSync
+              ? newFColor
+              : html.find("#ch-modal-borderColor").val();
+
+            onConfirm({
+              name,
+              folderColor: newFColor,
+              borderColor: newBColor,
+              syncColors: isSync,
+            });
           },
         },
         cancel: { label: "Cancel" },
@@ -793,10 +843,58 @@ function showFolderForm(title, existingData, onConfirm) {
               $(this).css("background", "rgba(0,0,0,0.4)");
             },
           );
+
+        html.find("#ch-modal-syncColors").on("change", function () {
+          const isChecked = $(this).is(":checked");
+          const borderContainer = html.find("#ch-modal-border-container");
+          const inputColor = html.find("#ch-modal-borderColor");
+          const inputText = html.find("#ch-modal-borderColorText");
+
+          if (isChecked) {
+            borderContainer.css("opacity", "0.4");
+            inputColor.prop("disabled", true).css("cursor", "not-allowed");
+            inputText
+              .prop("disabled", true)
+              .css("cursor", "not-allowed")
+              .css("color", "#a1a1aa");
+
+            const folderVal = html.find("#ch-modal-folderColor").val();
+            inputColor.val(folderVal);
+            inputText.val(folderVal);
+          } else {
+            borderContainer.css("opacity", "1");
+            inputColor.prop("disabled", false).css("cursor", "pointer");
+            inputText
+              .prop("disabled", false)
+              .css("cursor", "text")
+              .css("color", "white");
+          }
+        });
+
+        html
+          .find("#ch-modal-folderColor, #ch-modal-folderColorText")
+          .on("input", function () {
+            const val = $(this).val();
+            html.find("#ch-modal-folderColor").val(val);
+            html.find("#ch-modal-folderColorText").val(val);
+
+            if (html.find("#ch-modal-syncColors").is(":checked")) {
+              html.find("#ch-modal-borderColor").val(val);
+              html.find("#ch-modal-borderColorText").val(val);
+            }
+          });
+
+        html
+          .find("#ch-modal-borderColor, #ch-modal-borderColorText")
+          .on("input", function () {
+            const val = $(this).val();
+            html.find("#ch-modal-borderColor").val(val);
+            html.find("#ch-modal-borderColorText").val(val);
+          });
       },
     },
     {
-      width: 350,
+      width: 400,
       classes: ["dialog", "silane-custom-dialog"],
     },
   ).render(true);

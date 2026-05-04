@@ -55,7 +55,6 @@ const injectVisageStyles = () => {
     .vs-list-row { display: flex; align-items: center; padding: 10px 15px; background: rgba(0,0,0,0.15); border: 1px solid transparent; border-radius: 8px; transition: all 0.2s; user-select: none; }
     .vs-list-row.clickable:hover { background: rgba(0,0,0,0.3); border-color: #3f3f46; cursor: pointer; }
     
-    /* 🔥 Efek Drag Over */
     .vs-list-row.drag-over { background: rgba(96, 165, 250, 0.25) !important; border-color: #60a5fa !important; }
     
     .vs-icon-wrapper { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border-radius: 8px; margin-right: 15px; font-size: 16px; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
@@ -188,21 +187,12 @@ function renderListArea() {
   let html = "";
   const query = searchQuery.toLowerCase();
 
-  // 🔥 AMBIL KEDUA SETTING WARNA
-  const folderColor =
-    game.settings.get("herald-silane", "folderColor") || "#fbbf24";
-  const borderColor =
-    game.settings.get("herald-silane", "borderColor") || "#fbbf24";
-
   updateBreadcrumbs();
 
-  // 🔥 Logika Filter Diperbarui untuk Global Search
   const itemsToDisplay = visageData.items.filter((i) => {
     if (query) {
-      // Jika ada teks di kotak pencarian, cari secara global (mengabaikan folder)
       return i.name.toLowerCase().includes(query);
     } else {
-      // Jika kotak pencarian kosong, tampilkan item sesuai folder yang aktif
       return i.parentId === currentFolderId;
     }
   });
@@ -215,7 +205,6 @@ function renderListArea() {
         <div style="font-size:13px; margin-top:5px;">Create a Folder or add a Profile asset to begin.</div>
       </div>`;
   } else if (itemsToDisplay.length === 0) {
-    // Teks diubah sedikit agar lebih masuk akal saat global search
     html += `<div class="vs-empty-state"><div style="font-size:15px;">No items found.</div></div>`;
   } else {
     itemsToDisplay
@@ -225,10 +214,12 @@ function renderListArea() {
       })
       .forEach((item) => {
         if (item.type === "folder") {
-          // 🔥 Folder ditambahkan draggable="true"
+          const fColor = item.folderColor || "#fbbf24";
+          const bColor = item.borderColor || "#fbbf24";
+
           html += `
           <div class="vs-list-row clickable vs-item-click" draggable="true" data-target="folder" data-id="${item.id}">
-            <div class="vs-icon-wrapper" style="background: rgba(${folderColor}, 0.15); box-shadow: inset 0 0 0 1px rgba(${borderColor}, 0.4);"><i class="fa-solid fa-folder" style="color: ${folderColor}; font-size: 18px;"></i></div>
+            <div class="vs-icon-wrapper" style="background: rgba(0,0,0,0.15); box-shadow: inset 0 0 0 1px ${bColor};"><i class="fa-solid fa-folder" style="color: ${fColor}; font-size: 18px;"></i></div>
             <div class="vs-text-container"><div class="vs-text-title">${item.name}</div></div>
             <div class="vs-row-actions" >
               <div class="vs-action-icon edit vs-action-edit" data-id="${item.id}" title="Edit Folder"><i class="fa-solid fa-pen" style="pointer-events:none;"></i></div>
@@ -248,10 +239,9 @@ function renderListArea() {
             wrapperPadding = "2px";
           }
 
-          // 🔥 Profile ditambahkan draggable="true"
           html += `
           <div class="vs-list-row clickable vs-profile-click" draggable="true" data-id="${item.id}">
-            <div class="vs-icon-wrapper" style="background: rgba(96, 165, 250, 0.1); box-shadow: inset 0 0 0 1px rgba(${borderColor}; padding: ${wrapperPadding};">
+            <div class="vs-icon-wrapper" style="background: rgba(96, 165, 250, 0.1); box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.4); padding: ${wrapperPadding};">
               ${iconContent}
             </div>
             <div class="vs-text-container"><div class="vs-text-title">${item.name}</div></div>
@@ -360,10 +350,13 @@ function attachVisageEvents() {
   document.getElementById("vs-btn-add-folder").addEventListener("click", () => {
     showFolderForm("Create New Folder", null, async (data) => {
       visageData.items.push({
-        id: foundry.utils.randomID(), // Fungsi Foundry asli tetap digunakan karena aman
+        id: foundry.utils.randomID(),
         type: "folder",
         parentId: currentFolderId,
         name: data.name,
+        folderColor: data.folderColor,
+        borderColor: data.borderColor,
+        syncColors: data.syncColors,
       });
       renderListArea();
       await saveVisageData();
@@ -375,7 +368,7 @@ function attachVisageEvents() {
     .addEventListener("click", () => {
       showProfileForm("Create Profile Asset", null, async (data) => {
         visageData.items.push({
-          id: generateSafeUUID(), // 🔥 MENGGUNAKAN FALLBACK AGAR BISA DI IP LOKAL
+          id: generateSafeUUID(),
           type: "profile",
           parentId: currentFolderId,
           ...data,
@@ -385,12 +378,11 @@ function attachVisageEvents() {
       });
     });
 
-  // === 🔥 DRAG AND DROP LOGIC ===
+  // === DRAG AND DROP LOGIC ===
   const listArea = document.getElementById("vs-list-area");
   const breadcrumbs = document.getElementById("vs-breadcrumbs");
   let draggedItemId = null;
 
-  // 1. Saat item mulai di-drag
   listArea.addEventListener("dragstart", (e) => {
     const row = e.target.closest(".vs-list-row");
     if (!row) return;
@@ -399,7 +391,6 @@ function attachVisageEvents() {
     row.style.opacity = "0.5";
   });
 
-  // 2. Saat item selesai di-drag
   listArea.addEventListener("dragend", (e) => {
     const row = e.target.closest(".vs-list-row");
     if (row) row.style.opacity = "1";
@@ -409,7 +400,6 @@ function attachVisageEvents() {
       .forEach((el) => el.classList.remove("drag-over"));
   });
 
-  // 3. Saat item melayang di atas area list
   listArea.addEventListener("dragover", (e) => {
     e.preventDefault();
     const targetRow = e.target.closest(".vs-list-row[data-target='folder']");
@@ -419,7 +409,6 @@ function attachVisageEvents() {
     }
   });
 
-  // 4. Saat item keluar dari area folder
   listArea.addEventListener("dragleave", (e) => {
     const targetRow = e.target.closest(".vs-list-row[data-target='folder']");
     if (targetRow) {
@@ -427,7 +416,6 @@ function attachVisageEvents() {
     }
   });
 
-  // 5. Eksekusi perpindahan data saat di-DROP ke folder
   listArea.addEventListener("drop", async (e) => {
     e.preventDefault();
     document
@@ -440,7 +428,6 @@ function attachVisageEvents() {
       const itemToMove = visageData.items.find((i) => i.id === draggedItemId);
 
       if (itemToMove) {
-        // Cegah folder dimasukkan ke dalam sub-foldernya sendiri (Infinite Loop)
         if (itemToMove.type === "folder") {
           const nestedIds = getNestedItemIds(visageData.items, draggedItemId);
           if (nestedIds.includes(targetFolderId)) {
@@ -459,7 +446,6 @@ function attachVisageEvents() {
     }
   });
 
-  // 6. Dukungan DROP ke Breadcrumbs
   breadcrumbs.addEventListener("dragover", (e) => {
     e.preventDefault();
     const bcItem = e.target.closest(".vs-bc-item:not(.active)");
@@ -627,14 +613,42 @@ async function showActorSelectionDialog(profile) {
   ).render(true);
 }
 
-// === FORM BUILDERS ===
-
 function showFolderForm(title, existingData, onConfirm) {
-  const data = existingData || { name: "" };
+  const data = existingData || {
+    name: "",
+    folderColor: "#fbbf24",
+    borderColor: "#fbbf24",
+    syncColors: true,
+  };
+  const isSyncChecked = data.syncColors !== false;
+  const fColor = data.folderColor || "#fbbf24";
+  const bColor = data.borderColor || "#fbbf24";
+
   const content = `
     <div class="silane-form-group" style="padding: 10px 0;">
       <label style="color: #a1a1aa; font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Folder Name</label>
       <input type="text" id="vs-modal-name" value="${data.name}" placeholder="e.g. Items" style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; border-radius: 6px; padding: 10px 12px; color: #f4f4f5; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#60a5fa'" onblur="this.style.borderColor='#3f3f46'" />
+    </div>
+
+    <div class="silane-form-group" style="margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 10px; border: 1px solid #3f3f46; border-radius: 6px;">
+      <label style="display: block; margin-bottom: 8px; font-weight: bold; color: white;">Color Settings</label>
+      
+      <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+        <span style="width: 85px; font-size: 13px; color: #d4d4d8;">Folder Color</span>
+        <input type="color" id="vs-modal-folderColor" value="${fColor}" style="width: 40px; height: 32px; padding: 0; border: 1px solid #52525b; background: rgba(0,0,0,0.5); cursor: pointer;" />
+        <input type="text" id="vs-modal-folderColorText" value="${fColor}" class="silane-input" style="flex: 1; padding: 5px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b;" />
+      </div>
+
+      <div style="display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 5px;">
+        <input type="checkbox" id="vs-modal-syncColors" ${isSyncChecked ? "checked" : ""} style="cursor: pointer; margin: 0; width: 14px; height: 14px;" />
+        <label for="vs-modal-syncColors" style="cursor: pointer; color: #a1a1aa; user-select: none;">Use same color for Folder & Border</label>
+      </div>
+
+      <div id="vs-modal-border-container" style="display: flex; gap: 10px; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #52525b; opacity: ${isSyncChecked ? "0.4" : "1"}; transition: opacity 0.2s;">
+        <span style="width: 85px; font-size: 13px; color: #d4d4d8;">Border Color</span>
+        <input type="color" id="vs-modal-borderColor" value="${bColor}" ${isSyncChecked ? "disabled" : ""} style="width: 40px; height: 32px; padding: 0; border: 1px solid #52525b; background: rgba(0,0,0,0.5); cursor: ${isSyncChecked ? "not-allowed" : "pointer"};" />
+        <input type="text" id="vs-modal-borderColorText" value="${bColor}" ${isSyncChecked ? "disabled" : ""} class="silane-input" style="flex: 1; padding: 5px; background: rgba(0,0,0,0.5); color: ${isSyncChecked ? "#a1a1aa" : "white"} !important; border: 1px solid #52525b; cursor: ${isSyncChecked ? "not-allowed" : "text"};" />
+      </div>
     </div>
   `;
 
@@ -650,14 +664,25 @@ function showFolderForm(title, existingData, onConfirm) {
             const name = html.find("#vs-modal-name").val().trim();
             if (!name)
               return ui.notifications?.warn("Folder Name cannot be empty.");
-            onConfirm({ name });
+
+            const isSync = html.find("#vs-modal-syncColors").is(":checked");
+            const newFColor = html.find("#vs-modal-folderColor").val();
+            const newBColor = isSync
+              ? newFColor
+              : html.find("#vs-modal-borderColor").val();
+
+            onConfirm({
+              name,
+              folderColor: newFColor,
+              borderColor: newBColor,
+              syncColors: isSync,
+            });
           },
         },
         cancel: { label: "Cancel" },
       },
       default: "ok",
       render: (html) => {
-        // 🔥 INI BAGIAN YANG DITAMBAHKAN UNTUK BACKGROUND HITAM DI VISAGE 🔥
         const dialogElement = html.closest(".app")[0];
         const contentElement = dialogElement.querySelector(".window-content");
 
@@ -670,7 +695,6 @@ function showFolderForm(title, existingData, onConfirm) {
           contentElement.style.backgroundPosition = "center";
         }
 
-        // Menyelaraskan style tombol dialog
         html.closest(".dialog").find(".dialog-buttons button").css({
           color: "white",
           border: "1px solid #3f3f46",
@@ -679,7 +703,6 @@ function showFolderForm(title, existingData, onConfirm) {
           transition: "all 0.2s",
         });
 
-        // Efek hover untuk tombol (warna biru khas Visage)
         html
           .closest(".dialog")
           .find(".dialog-buttons button")
@@ -691,10 +714,58 @@ function showFolderForm(title, existingData, onConfirm) {
               $(this).css("background", "rgba(0,0,0,0.4)");
             },
           );
+
+        html.find("#vs-modal-syncColors").on("change", function () {
+          const isChecked = $(this).is(":checked");
+          const borderContainer = html.find("#vs-modal-border-container");
+          const inputColor = html.find("#vs-modal-borderColor");
+          const inputText = html.find("#vs-modal-borderColorText");
+
+          if (isChecked) {
+            borderContainer.css("opacity", "0.4");
+            inputColor.prop("disabled", true).css("cursor", "not-allowed");
+            inputText
+              .prop("disabled", true)
+              .css("cursor", "not-allowed")
+              .css("color", "#a1a1aa");
+
+            const folderVal = html.find("#vs-modal-folderColor").val();
+            inputColor.val(folderVal);
+            inputText.val(folderVal);
+          } else {
+            borderContainer.css("opacity", "1");
+            inputColor.prop("disabled", false).css("cursor", "pointer");
+            inputText
+              .prop("disabled", false)
+              .css("cursor", "text")
+              .css("color", "white");
+          }
+        });
+
+        html
+          .find("#vs-modal-folderColor, #vs-modal-folderColorText")
+          .on("input", function () {
+            const val = $(this).val();
+            html.find("#vs-modal-folderColor").val(val);
+            html.find("#vs-modal-folderColorText").val(val);
+
+            if (html.find("#vs-modal-syncColors").is(":checked")) {
+              html.find("#vs-modal-borderColor").val(val);
+              html.find("#vs-modal-borderColorText").val(val);
+            }
+          });
+
+        html
+          .find("#vs-modal-borderColor, #vs-modal-borderColorText")
+          .on("input", function () {
+            const val = $(this).val();
+            html.find("#vs-modal-borderColor").val(val);
+            html.find("#vs-modal-borderColorText").val(val);
+          });
       },
     },
     {
-      width: 350,
+      width: 400,
       classes: ["dialog", "silane-custom-dialog"],
     },
   ).render(true);

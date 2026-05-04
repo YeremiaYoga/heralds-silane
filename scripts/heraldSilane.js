@@ -536,12 +536,6 @@ function heraldSilane_openSettingsModal() {
   const currentSize = game.settings.get("herald-silane", "windowSize");
   const currentDetail = game.settings.get("herald-silane", "characterDetailMode");
   
-  // AMBIL DATA WARNA & SYNC
-  const currentFolderColor = game.settings.get("herald-silane", "folderColor") || "#fbbf24";
-  const currentBorderColor = game.settings.get("herald-silane", "borderColor") || "#fbbf24";
-  const isSyncChecked = game.settings.get("herald-silane", "syncColors") ?? true;
-
-  // Hapus batasan scroll, biarkan memanjang ke bawah
   const content = `
     <div class="silane-settings-wrapper" style="padding: 10px; color: #f4f4f5;">
       <div class="silane-form-group" style="margin-bottom: 15px;">
@@ -562,31 +556,6 @@ function heraldSilane_openSettingsModal() {
           <option value="nameOnly" style="background: #18181b; color: white;" ${currentDetail === "nameOnly" ? "selected" : ""}>Name Only (Minimalist)</option>
         </select>
       </div>
-
-      <!-- COLOR SETTINGS WRAPPER -->
-      <div class="silane-form-group" style="margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 10px; border: 1px solid #3f3f46; border-radius: 6px;">
-        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: white;">Color Settings</label>
-        
-        <!-- Folder Color (Selalu Aktif) -->
-        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
-          <span style="width: 85px; font-size: 13px; color: #d4d4d8;">Folder Color</span>
-          <input type="color" id="hs-setting-folderColor" value="${currentFolderColor}" style="width: 40px; height: 32px; padding: 0; border: 1px solid #52525b; background: rgba(0,0,0,0.5); cursor: pointer;" />
-          <input type="text" id="hs-setting-folderColorText" value="${currentFolderColor}" class="silane-input" style="flex: 1; padding: 5px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b;" />
-        </div>
-
-        <!-- Checkbox Sync -->
-        <div style="display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 5px;">
-          <input type="checkbox" id="hs-setting-syncColors" ${isSyncChecked ? "checked" : ""} style="cursor: pointer; margin: 0; width: 14px; height: 14px;" />
-          <label for="hs-setting-syncColors" style="cursor: pointer; color: #a1a1aa; user-select: none;">Use same color for Folder & Border</label>
-        </div>
-
-        <!-- Border Color (Di-disable jika Sync aktif) -->
-        <div id="hs-setting-border-container" style="display: flex; gap: 10px; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #52525b; opacity: ${isSyncChecked ? "0.4" : "1"}; transition: opacity 0.2s;">
-          <span style="width: 85px; font-size: 13px; color: #d4d4d8;">Border Color</span>
-          <input type="color" id="hs-setting-borderColor" value="${currentBorderColor}" ${isSyncChecked ? "disabled" : ""} style="width: 40px; height: 32px; padding: 0; border: 1px solid #52525b; background: rgba(0,0,0,0.5); cursor: ${isSyncChecked ? "not-allowed" : "pointer"};" />
-          <input type="text" id="hs-setting-borderColorText" value="${currentBorderColor}" ${isSyncChecked ? "disabled" : ""} class="silane-input" style="flex: 1; padding: 5px; background: rgba(0,0,0,0.5); color: ${isSyncChecked ? "#a1a1aa" : "white"} !important; border: 1px solid #52525b; cursor: ${isSyncChecked ? "not-allowed" : "text"};" />
-        </div>
-      </div>
     </div>
   `;
 
@@ -600,15 +569,9 @@ function heraldSilane_openSettingsModal() {
           callback: async (html) => {
             const newSize = html.find("#hs-setting-windowSize").val();
             const newDetail = html.find("#hs-setting-characterDetail").val();
-            const newSync = html.find("#hs-setting-syncColors").is(":checked");
-            const newFolderColor = html.find("#hs-setting-folderColor").val(); 
-            const newBorderColor = newSync ? newFolderColor : html.find("#hs-setting-borderColor").val(); 
 
             await game.settings.set("herald-silane", "windowSize", newSize);
             await game.settings.set("herald-silane", "characterDetailMode", newDetail);
-            await game.settings.set("herald-silane", "syncColors", newSync);
-            await game.settings.set("herald-silane", "folderColor", newFolderColor); 
-            await game.settings.set("herald-silane", "borderColor", newBorderColor); 
 
             if (heraldSilane_currentDialog) {
               const dims = heraldSilane_getWindowDimensions();
@@ -635,52 +598,8 @@ function heraldSilane_openSettingsModal() {
           border: "1px solid #3f3f46",
           background: "rgba(0,0,0,0.4)",
         });
-
-        // 🔥 LOGIKA DISABLE & SYNC CHECKBOX 🔥
-        html.find("#hs-setting-syncColors").on("change", function () {
-          const isChecked = $(this).is(":checked");
-          const borderContainer = html.find("#hs-setting-border-container");
-          const inputColor = html.find("#hs-setting-borderColor");
-          const inputText = html.find("#hs-setting-borderColorText");
-          
-          if (isChecked) {
-            borderContainer.css("opacity", "0.4");
-            inputColor.prop("disabled", true).css("cursor", "not-allowed");
-            inputText.prop("disabled", true).css("cursor", "not-allowed").css("color", "#a1a1aa");
-            
-            // Langsung samakan warna saat dicentang
-            const folderVal = html.find("#hs-setting-folderColor").val();
-            inputColor.val(folderVal);
-            inputText.val(folderVal);
-          } else {
-            borderContainer.css("opacity", "1");
-            inputColor.prop("disabled", false).css("cursor", "pointer");
-            inputText.prop("disabled", false).css("cursor", "text").css("color", "white");
-          }
-        });
-
-        // Sinkronisasi Color Picker dan Text Input untuk FOLDER
-        html.find("#hs-setting-folderColor, #hs-setting-folderColorText").on("input", function () {
-          const val = $(this).val();
-          html.find("#hs-setting-folderColor").val(val);
-          html.find("#hs-setting-folderColorText").val(val);
-          
-          // Jika sync aktif, ubah juga nilai border secara real-time
-          if (html.find("#hs-setting-syncColors").is(":checked")) {
-            html.find("#hs-setting-borderColor").val(val);
-            html.find("#hs-setting-borderColorText").val(val);
-          }
-        });
-
-        // Sinkronisasi Color Picker dan Text Input untuk BORDER
-        html.find("#hs-setting-borderColor, #hs-setting-borderColorText").on("input", function () {
-          const val = $(this).val();
-          html.find("#hs-setting-borderColor").val(val);
-          html.find("#hs-setting-borderColorText").val(val);
-        });
       },
     },
-    // 🔥 Dialog akan otomatis memanjang ke bawah berkat height: "auto"
     { width: 450, height: "auto", classes: ["dialog", "silane-custom-dialog"] },
   ).render(true);
 }
