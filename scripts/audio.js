@@ -154,6 +154,94 @@ export async function initAudioTab(container) {
 }
 
 // ==========================================
+// FOUNDRY IMPORT FUNCTIONS
+// ==========================================
+async function importPlaylistToFoundry(playlistData) {
+  if (!playlistData) return;
+  ui.notifications.info(`Importing Playlist: ${playlistData.name}...`);
+
+  try {
+    // 1. Cari apakah playlist dengan nama tersebut sudah ada di Foundry
+    let foundryPlaylist = game.playlists.getName(playlistData.name);
+
+    if (foundryPlaylist) {
+      // Jika sudah ada, hapus semua track lama di dalamnya (replace kontennya)
+      const existingSoundIds = foundryPlaylist.sounds.map(s => s.id);
+      if (existingSoundIds.length > 0) {
+        await foundryPlaylist.deleteEmbeddedDocuments("PlaylistSound", existingSoundIds);
+      }
+      ui.notifications.info(`Updating existing playlist: ${playlistData.name}...`);
+    } else {
+      // Jika belum ada, buat Playlist baru
+      foundryPlaylist = await Playlist.create({
+        name: playlistData.name,
+        description: "Imported from Silane Assets",
+        playing: false,
+      });
+    }
+
+    // 2. Siapkan data track untuk di-embed
+    const tracksToImport = (playlistData.track || []).map((t) => ({
+      name: t.name,
+      path: t.url,
+    }));
+
+    if (tracksToImport.length > 0) {
+      // Masukkan semua track sekaligus ke dalam playlist
+      await foundryPlaylist.createEmbeddedDocuments(
+        "PlaylistSound",
+        tracksToImport
+      );
+    }
+
+    ui.notifications.info(`Playlist "${playlistData.name}" successfully imported/updated!`);
+  } catch (error) {
+    console.error("Import Playlist Error:", error);
+    ui.notifications.error("Failed to import playlist to Foundry.");
+  }
+}
+
+async function importTrackToFoundry(trackData, playlistName) {
+  if (!trackData) return;
+  ui.notifications.info(`Importing Track: ${trackData.name}...`);
+
+  try {
+
+    let foundryPlaylist = game.playlists.getName(playlistName);
+
+    if (!foundryPlaylist) {
+      foundryPlaylist = await Playlist.create({
+        name: playlistName,
+        description: "Auto-generated from Silane Track Import",
+      });
+    }
+
+    const existingSound = foundryPlaylist.sounds.find(s => s.name === trackData.name);
+
+    if (existingSound) {
+      await foundryPlaylist.updateEmbeddedDocuments("PlaylistSound", [
+        {
+          _id: existingSound.id,
+          path: trackData.url
+        }
+      ]);
+      ui.notifications.info(`Track "${trackData.name}" successfully updated!`);
+    } else {
+      await foundryPlaylist.createEmbeddedDocuments("PlaylistSound", [
+        {
+          name: trackData.name,
+          path: trackData.url,
+        },
+      ]);
+      ui.notifications.info(`Track "${trackData.name}" successfully imported!`);
+    }
+  } catch (error) {
+    console.error("Import Track Error:", error);
+    ui.notifications.error("Failed to import track to Foundry.");
+  }
+}
+
+// ==========================================
 // RENDERING
 // ==========================================
 function render() {
@@ -329,7 +417,13 @@ function renderAlbumView() {
             <div style="font-weight: bold; font-size: 15px; color: #e4e4e7; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pl.name}</div>
             <div style="font-size: 12px; color: #71717a;">${pl.track?.length || 0} Tracks</div>
           </div>
-          ${isOwner ? `<button class="hs-delete-playlist" data-id="${pl.uuid}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; cursor: pointer; margin-left: 8px;"><i class="fa-solid fa-trash"></i></button>` : ""}
+          
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="hs-import-playlist" data-id="${pl.uuid}" title="Import to Foundry" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; cursor: pointer;">
+              <i class="fa-solid fa-download"></i>
+            </button>
+            ${isOwner ? `<button class="hs-delete-playlist" data-id="${pl.uuid}" title="Delete" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; cursor: pointer;"><i class="fa-solid fa-trash"></i></button>` : ""}
+          </div>
         </div>
       `;
     });
@@ -363,14 +457,31 @@ function renderAlbumView() {
 
   containerElement.querySelectorAll(".hs-playlist-card").forEach((card) => {
     card.onclick = (e) => {
-      if (e.target.closest(".hs-delete-playlist")) return;
+      // Mencegah klik masuk ke dalam playlist jika yang diklik adalah tombol import/delete
+      if (
+        e.target.closest(".hs-delete-playlist") ||
+        e.target.closest(".hs-import-playlist")
+      )
+        return;
       state.currentPlaylistId = card.dataset.id;
       render();
     };
   });
 
+  // Import Event
+  containerElement.querySelectorAll(".hs-import-playlist").forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const playlistToImport = state.playlists.find((p) => p.uuid === id);
+      await importPlaylistToFoundry(playlistToImport);
+    };
+  });
+
+  // Delete Event
   containerElement.querySelectorAll(".hs-delete-playlist").forEach((btn) => {
-    btn.onclick = async () => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
       if (!window.confirm("Delete this playlist?")) return;
       const id = btn.dataset.id;
       const newPlaylists = state.playlists.filter((p) => p.uuid !== id);
@@ -381,7 +492,6 @@ function renderAlbumView() {
   });
 }
 
-// --- PLAYLIST VIEW (List of Tracks) ---
 function renderPlaylistView() {
   const album = state.albums.find((a) => a.id === state.currentAlbumId);
   const playlist = state.playlists.find(
@@ -397,15 +507,27 @@ function renderPlaylistView() {
 
   let html = `
     <div style="padding: 10px; display:flex; flex-direction:column; height: 100%; overflow-y: auto;">
+      
+      <!-- BANNER PLAYLIST -->
       <div style="background: linear-gradient(to right, rgba(134, 25, 143, 0.3), #18181b); border: 1px solid rgba(192, 38, 211, 0.2); border-radius: 16px; padding: 24px; margin-bottom: 24px; position: relative; overflow: hidden;">
         <div style="position: absolute; top: 0; right: 0; padding: 32px; opacity: 0.1; pointer-events: none;">
           <i class="fa-solid fa-list-music" style="font-size: 120px;"></i>
         </div>
-        <button id="hs-btn-back-album" style="display: flex; align-items: center; gap: 8px; background: none; border: none; color: #e879f9; font-size: 14px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 16px; width: fit-content;">
-          <i class="fa-solid fa-arrow-left"></i> Back to ${album.name}
-        </button>
-        <h2 style="font-size: 30px; font-weight: 900; color: white; margin: 0 0 8px 0;">${playlist.name}</h2>
-        <div style="font-size: 12px; font-weight: 500; color: #a1a1aa;">${playlist.track?.length || 0} Tracks Available</div>
+        
+        <div style="z-index: 10; position: relative;">
+          <button id="hs-btn-back-album" style="display: flex; align-items: center; gap: 8px; background: none; border: none; color: #e879f9; font-size: 14px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 16px; width: fit-content;">
+            <i class="fa-solid fa-arrow-left"></i> Back to ${album.name}
+          </button>
+          <h2 style="font-size: 30px; font-weight: 900; color: white; margin: 0 0 8px 0;">${playlist.name}</h2>
+          <div style="font-size: 12px; font-weight: 500; color: #a1a1aa;">${playlist.track?.length || 0} Tracks Available</div>
+        </div>
+
+        <!-- TOMBOL IMPORT PLAYLIST KANAN ATAS -->
+        <div style="position: absolute; top: 24px; right: 24px; z-index: 10;">
+          <button id="hs-btn-import-full-playlist" style="display: flex; align-items: center; gap: 8px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: all 0.2s;" onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
+            <i class="fa-solid fa-download"></i> Import Playlist
+          </button>
+        </div>
       </div>
 
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 0 4px;">
@@ -442,8 +564,8 @@ function renderPlaylistView() {
             <div style="font-size: 10px; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em;">By ${track.user_name}</div>
           </div>
 
-          <!-- HTML AUDIO PLAYER WITHOUT VOLUME/MUTE CONTROLS -->
-          <div class="hs-custom-player" style="display:none; align-items:center; gap:12px; background: rgba(0,0,0,0.4); padding: 8px 12px; border-radius: 8px; border: 1px solid #27272a; width: 280px;">
+          <!-- HTML AUDIO PLAYER DENGAN KONTROL VOLUME -->
+          <div class="hs-custom-player" style="display:flex; align-items:center; gap:12px; background: rgba(0,0,0,0.4); padding: 8px 12px; border-radius: 8px; border: 1px solid #27272a; flex: 2; max-width: 400px;">
             <audio id="audio-${track.id}" src="${track.url}" preload="metadata" data-track-id="${track.id}"></audio>
             
             <button class="hs-play-btn" data-track-id="${track.id}" style="width: 32px; height: 32px; border-radius: 50%; background: #27272a; border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">
@@ -455,9 +577,20 @@ function renderPlaylistView() {
             <input type="range" class="hs-progress-bar" min="0" max="100" value="0" style="flex:1; height:6px; cursor:pointer; accent-color:#3b82f6; background: #3f3f46; border-radius: 9999px; appearance: none; outline: none;" />
             
             <span class="hs-time-duration" style="font-size:11px; color:#71717a; font-family:monospace; min-width:35px;">00:00</span>
+
+            <!-- KONTROL VOLUME -->
+            <div style="display:flex; align-items:center; gap: 6px; margin-left: 8px; padding-left: 8px; border-left: 1px solid #3f3f46;">
+                <i class="fa-solid fa-volume-low" style="color:#a1a1aa; font-size:11px;"></i>
+                <input type="range" class="hs-volume-bar" min="0" max="1" step="0.01" value="${album.setting?.volume ?? 0.1}" style="width: 50px; height:6px; cursor:pointer; accent-color:#10b981; background: #3f3f46; border-radius: 9999px; appearance: none; outline: none;" title="Volume" />
+            </div>
           </div>
 
-          ${canDelete ? `<button class="hs-delete-track" data-track-id="${track.id}" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; cursor: pointer; flex-shrink: 0;"><i class="fa-solid fa-trash"></i></button>` : ""}
+          <div style="display: flex; gap: 8px;">
+            <button class="hs-import-track" data-track-id="${track.id}" title="Import to Foundry" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; cursor: pointer; flex-shrink: 0;">
+              <i class="fa-solid fa-download"></i>
+            </button>
+            ${canDelete ? `<button class="hs-delete-track" data-track-id="${track.id}" title="Remove Track" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; cursor: pointer; flex-shrink: 0;"><i class="fa-solid fa-trash"></i></button>` : ""}
+          </div>
         </div>
       `;
     });
@@ -474,6 +607,26 @@ function renderPlaylistView() {
   containerElement.querySelector("#hs-btn-upload-track").onclick =
     showUploadModal;
 
+  // Event Import Full Playlist dari Banner
+  const btnImportFull = containerElement.querySelector(
+    "#hs-btn-import-full-playlist",
+  );
+  if (btnImportFull) {
+    btnImportFull.onclick = async () => {
+      await importPlaylistToFoundry(playlist);
+    };
+  }
+
+  // Import Track Event
+  containerElement.querySelectorAll(".hs-import-track").forEach((btn) => {
+    btn.onclick = async () => {
+      const trackId = btn.dataset.trackId;
+      const trackToImport = playlist.track.find((t) => t.id === trackId);
+      await importTrackToFoundry(trackToImport, playlist.name);
+    };
+  });
+
+  // Delete Track Event
   containerElement.querySelectorAll(".hs-delete-track").forEach((btn) => {
     btn.onclick = async () => {
       if (!window.confirm("Remove track from playlist?")) return;
@@ -490,72 +643,80 @@ function renderPlaylistView() {
     };
   });
 
-  // INITIALIZE CUSTOM PLAYERS
-//   initVanillaAudioPlayers(
-//     album.setting?.volume ?? 0.1,
-//     album.setting?.repeat ?? true,
-//   );
+  // INITIALIZE CUSTOM PLAYERS DENGAN VOLUME & REPEAT ALBUM
+  initVanillaAudioPlayers(
+    album.setting?.volume ?? 0.1,
+    album.setting?.repeat ?? true,
+  );
 }
 
-// function initVanillaAudioPlayers(albumVolume, albumRepeat) {
-//   const players = containerElement.querySelectorAll(".hs-custom-player");
+function initVanillaAudioPlayers(albumVolume, albumRepeat) {
+  const players = containerElement.querySelectorAll(".hs-custom-player");
 
-//   players.forEach((player) => {
-//     const audio = player.querySelector("audio");
-//     const playBtn = player.querySelector(".hs-play-btn");
-//     const progressBar = player.querySelector(".hs-progress-bar");
-//     const timeCurrent = player.querySelector(".hs-time-current");
-//     const timeDuration = player.querySelector(".hs-time-duration");
+  players.forEach((player) => {
+    const audio = player.querySelector("audio");
+    const playBtn = player.querySelector(".hs-play-btn");
+    const progressBar = player.querySelector(".hs-progress-bar");
+    const timeCurrent = player.querySelector(".hs-time-current");
+    const timeDuration = player.querySelector(".hs-time-duration");
+    const volumeBar = player.querySelector(".hs-volume-bar"); // Input Range Volume
 
-//     // Set global volume based on album settings (no manual controls visible)
-//     audio.volume = albumVolume;
-//     audio.loop = albumRepeat;
+    // Set global volume based on album settings initally
+    audio.volume = volumeBar ? parseFloat(volumeBar.value) : albumVolume;
+    audio.loop = albumRepeat;
 
-//     audio.addEventListener("loadedmetadata", () => {
-//       timeDuration.textContent = formatTime(audio.duration);
-//       progressBar.max = audio.duration;
-//     });
+    audio.addEventListener("loadedmetadata", () => {
+      timeDuration.textContent = formatTime(audio.duration);
+      progressBar.max = audio.duration;
+    });
 
-//     audio.addEventListener("timeupdate", () => {
-//       timeCurrent.textContent = formatTime(audio.currentTime);
-//       progressBar.value = audio.currentTime;
-//     });
+    audio.addEventListener("timeupdate", () => {
+      timeCurrent.textContent = formatTime(audio.currentTime);
+      progressBar.value = audio.currentTime;
+    });
 
-//     audio.addEventListener("ended", () => {
-//       if (!audio.loop) {
-//         playBtn.innerHTML =
-//           '<i class="fa-solid fa-play" style="margin-left: 2px;"></i>';
-//       }
-//     });
+    audio.addEventListener("ended", () => {
+      if (!audio.loop) {
+        playBtn.innerHTML =
+          '<i class="fa-solid fa-play" style="margin-left: 2px;"></i>';
+      }
+    });
 
-//     playBtn.onclick = () => {
-//       if (audio.paused) {
-//         // Pause audio yang sedang jalan
-//         if (state.activeAudioElement && state.activeAudioElement !== audio) {
-//           state.activeAudioElement.pause();
-//           const prevBtn =
-//             state.activeAudioElement.parentElement.querySelector(
-//               ".hs-play-btn",
-//             );
-//           if (prevBtn)
-//             prevBtn.innerHTML =
-//               '<i class="fa-solid fa-play" style="margin-left: 2px;"></i>';
-//         }
-//         audio.play();
-//         playBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
-//         state.activeAudioElement = audio;
-//       } else {
-//         audio.pause();
-//         playBtn.innerHTML =
-//           '<i class="fa-solid fa-play" style="margin-left: 2px;"></i>';
-//       }
-//     };
+    playBtn.onclick = () => {
+      if (audio.paused) {
+        // Pause audio yang sedang jalan
+        if (state.activeAudioElement && state.activeAudioElement !== audio) {
+          state.activeAudioElement.pause();
+          const prevBtn =
+            state.activeAudioElement.parentElement.querySelector(
+              ".hs-play-btn",
+            );
+          if (prevBtn)
+            prevBtn.innerHTML =
+              '<i class="fa-solid fa-play" style="margin-left: 2px;"></i>';
+        }
+        audio.play();
+        playBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        state.activeAudioElement = audio;
+      } else {
+        audio.pause();
+        playBtn.innerHTML =
+          '<i class="fa-solid fa-play" style="margin-left: 2px;"></i>';
+      }
+    };
 
-//     progressBar.oninput = (e) => {
-//       audio.currentTime = e.target.value;
-//     };
-//   });
-// }
+    progressBar.oninput = (e) => {
+      audio.currentTime = e.target.value;
+    };
+
+    // Kontrol Volume Event
+    if (volumeBar) {
+      volumeBar.oninput = (e) => {
+        audio.volume = parseFloat(e.target.value);
+      };
+    }
+  });
+}
 
 // ==========================================
 // MODALS (FOUNDRY DIALOGS)
