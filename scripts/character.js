@@ -110,10 +110,11 @@ const injectCharacterStyles = () => {
     .ch-meta-size { font-size: 10px; color: #a1a1aa; margin-top: 2px; font-style: italic; }
     
     .ch-card-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
-    .ch-btn-action-box { display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; opacity: 0.7; background: transparent; border: none; padding: 0;}
+    .ch-btn-action-box { display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; opacity: 0.85; background: transparent; border: none; padding: 0;}
     .ch-btn-action-box:hover { opacity: 1; transform: scale(1.05); }
     .ch-icon-sq { width: 28px; height: 28px; border: 1px solid; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; background: rgba(0,0,0,0.2);}
     
+    .ch-edit .ch-icon-sq { border-color: #fbbf24; color: #fbbf24; }
     .ch-dl .ch-icon-sq { border-color: #0ea5e9; color: #0ea5e9; }
     .ch-del .ch-icon-sq { border-color: #ef4444; color: #ef4444; }
 
@@ -308,8 +309,8 @@ function renderListArea() {
             <div class="ch-card-info"><div class="ch-card-name">${item.name}</div></div>
             <div class="ch-card-meta" style="border:none;"></div>
             <div class="ch-card-actions">
-              <button class="ch-btn-action-box ch-edit ch-action-edit" data-id="${item.id}" title="Edit Folder">
-                <div class="ch-icon-sq"><i class="fa-solid fa-pen"></i></div>
+              <button class="ch-btn-action-box ch-edit ch-action-edit" data-id="${item.id}" title="Folder Settings">
+                <div class="ch-icon-sq"><i class="fa-solid fa-gear"></i></div>
               </button>
               <button class="ch-btn-action-box ch-del ch-action-delete" data-id="${item.id}" title="Delete Folder">
                 <div class="ch-icon-sq"><i class="fa-solid fa-trash"></i></div>

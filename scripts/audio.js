@@ -1,22 +1,16 @@
 import { API_BASE_URL } from "./helper.js";
 
-// ==========================================
-// STATE VARIABLES
-// ==========================================
 let state = {
   albums: [],
   playlists: [],
   currentAlbumId: null,
   currentPlaylistId: null,
   currentUser: { id: null, name: "Unknown" },
-  activeAudioElement: null, // Untuk pause track sebelumnya saat play track baru
+  activeAudioElement: null,
 };
 
 let containerElement = null;
 
-// ==========================================
-// HELPER: UTILS
-// ==========================================
 const generateUUID = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID)
     return crypto.randomUUID();
@@ -38,7 +32,6 @@ const formatTime = (time) => {
   return "00:00";
 };
 
-// Mengubah background Modal Dialog Foundry menjadi Dark Mode
 const applyDarkThemeToDialog = (html) => {
   const dialogElement = html.closest(".app")[0];
   const contentElement = dialogElement.querySelector(".window-content");
@@ -55,9 +48,6 @@ const applyDarkThemeToDialog = (html) => {
   });
 };
 
-// ==========================================
-// API CALLS
-// ==========================================
 const getToken = () => localStorage.getItem("heraldSilane_token");
 
 async function fetchAudioData() {
@@ -133,9 +123,6 @@ async function savePlaylistsToBackend(newPlaylists) {
   }
 }
 
-// ==========================================
-// INITIALIZATION
-// ==========================================
 export async function initAudioTab(container) {
   containerElement = container;
 
@@ -153,48 +140,52 @@ export async function initAudioTab(container) {
   await fetchAudioData();
 }
 
-// ==========================================
-// FOUNDRY IMPORT FUNCTIONS
-// ==========================================
-async function importPlaylistToFoundry(playlistData) {
+async function importPlaylistToFoundry(playlistData, folderId = null) {
   if (!playlistData) return;
   ui.notifications.info(`Importing Playlist: ${playlistData.name}...`);
 
   try {
-    // 1. Cari apakah playlist dengan nama tersebut sudah ada di Foundry
     let foundryPlaylist = game.playlists.getName(playlistData.name);
 
     if (foundryPlaylist) {
-      // Jika sudah ada, hapus semua track lama di dalamnya (replace kontennya)
-      const existingSoundIds = foundryPlaylist.sounds.map(s => s.id);
-      if (existingSoundIds.length > 0) {
-        await foundryPlaylist.deleteEmbeddedDocuments("PlaylistSound", existingSoundIds);
+      if (folderId && foundryPlaylist.folder?.id !== folderId) {
+        await foundryPlaylist.update({ folder: folderId });
       }
-      ui.notifications.info(`Updating existing playlist: ${playlistData.name}...`);
+      const existingSoundIds = foundryPlaylist.sounds.map((s) => s.id);
+      if (existingSoundIds.length > 0) {
+        await foundryPlaylist.deleteEmbeddedDocuments(
+          "PlaylistSound",
+          existingSoundIds,
+        );
+      }
+      ui.notifications.info(
+        `Updating existing playlist: ${playlistData.name}...`,
+      );
     } else {
-      // Jika belum ada, buat Playlist baru
-      foundryPlaylist = await Playlist.create({
+      const createData = {
         name: playlistData.name,
         description: "Imported from Silane Assets",
         playing: false,
-      });
+      };
+      if (folderId) createData.folder = folderId;
+      foundryPlaylist = await Playlist.create(createData);
     }
 
-    // 2. Siapkan data track untuk di-embed
     const tracksToImport = (playlistData.track || []).map((t) => ({
       name: t.name,
       path: t.url,
     }));
 
     if (tracksToImport.length > 0) {
-      // Masukkan semua track sekaligus ke dalam playlist
       await foundryPlaylist.createEmbeddedDocuments(
         "PlaylistSound",
-        tracksToImport
+        tracksToImport,
       );
     }
 
-    ui.notifications.info(`Playlist "${playlistData.name}" successfully imported/updated!`);
+    ui.notifications.info(
+      `Playlist "${playlistData.name}" successfully imported/updated!`,
+    );
   } catch (error) {
     console.error("Import Playlist Error:", error);
     ui.notifications.error("Failed to import playlist to Foundry.");
@@ -206,7 +197,6 @@ async function importTrackToFoundry(trackData, playlistName) {
   ui.notifications.info(`Importing Track: ${trackData.name}...`);
 
   try {
-
     let foundryPlaylist = game.playlists.getName(playlistName);
 
     if (!foundryPlaylist) {
@@ -216,14 +206,16 @@ async function importTrackToFoundry(trackData, playlistName) {
       });
     }
 
-    const existingSound = foundryPlaylist.sounds.find(s => s.name === trackData.name);
+    const existingSound = foundryPlaylist.sounds.find(
+      (s) => s.name === trackData.name,
+    );
 
     if (existingSound) {
       await foundryPlaylist.updateEmbeddedDocuments("PlaylistSound", [
         {
           _id: existingSound.id,
-          path: trackData.url
-        }
+          path: trackData.url,
+        },
       ]);
       ui.notifications.info(`Track "${trackData.name}" successfully updated!`);
     } else {
@@ -241,9 +233,48 @@ async function importTrackToFoundry(trackData, playlistName) {
   }
 }
 
-// ==========================================
-// RENDERING
-// ==========================================
+async function importAlbumToFoundry(albumData) {
+  if (!albumData) return;
+
+  const albumPlaylists = state.playlists.filter(
+    (p) => p.album_id === albumData.id,
+  );
+
+  if (albumPlaylists.length === 0) {
+    ui.notifications.warn(
+      `Album "${albumData.name}" does not have any playlists to import.`,
+    );
+    return;
+  }
+
+  ui.notifications.info(
+    `Starting batch import for Album: ${albumData.name} (${albumPlaylists.length} Playlists)...`,
+  );
+
+  try {
+    let albumFolder = game.folders.find(
+      (f) => f.name === albumData.name && f.type === "Playlist",
+    );
+    if (!albumFolder) {
+      albumFolder = await Folder.create({
+        name: albumData.name,
+        type: "Playlist",
+      });
+    }
+
+    for (const playlist of albumPlaylists) {
+      await importPlaylistToFoundry(playlist, albumFolder.id);
+    }
+
+    ui.notifications.info(
+      `🎉 Album "${albumData.name}" successfully imported!`,
+    );
+  } catch (error) {
+    console.error("Import Album Error:", error);
+    ui.notifications.error("Failed to import full album to Foundry.");
+  }
+}
+
 function render() {
   if (!containerElement) return;
 
@@ -256,15 +287,12 @@ function render() {
   }
 }
 
-// --- STUDIO VIEW (List of Albums) ---
 function renderStudioView() {
   const isOwner = (album) =>
     String(album.user_id) === String(state.currentUser.id);
 
   let html = `
     <div style="padding: 10px; display:flex; flex-direction:column; height: 100%; overflow-y: auto;">
-      
-      <!-- HEADER STUDIO -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
         <div>
           <h2 style="font-size: 24px; font-weight: bold; color: white; display: flex; align-items: center; gap: 8px; margin: 0;">
@@ -278,7 +306,6 @@ function renderStudioView() {
           </button>
         </div>
       </div>
-
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; padding-bottom: 40px;">
   `;
 
@@ -307,7 +334,12 @@ function renderStudioView() {
               <span>${playlistCount} Playlists</span>
             </div>
           </div>
-          ${isOwner(album) ? `<button class="hs-delete-album" data-id="${album.id}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; cursor: pointer; margin-left: 8px;"><i class="fa-solid fa-trash"></i></button>` : ""}
+          <div style="display: flex; gap: 8px; align-items: center; margin-left: 8px;">
+            <button class="hs-import-album" data-id="${album.id}" title="Import Full Album" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; cursor: pointer;">
+              <i class="fa-solid fa-download"></i>
+            </button>
+            ${isOwner(album) ? `<button class="hs-delete-album" data-id="${album.id}" title="Delete Album" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; cursor: pointer;"><i class="fa-solid fa-trash"></i></button>` : ""}
+          </div>
         </div>
       `;
     });
@@ -316,20 +348,33 @@ function renderStudioView() {
   html += `</div></div>`;
   containerElement.innerHTML = html;
 
-  // Bind Events
   const btnJoinAlbum = containerElement.querySelector("#hs-btn-join-album");
   if (btnJoinAlbum) btnJoinAlbum.onclick = showJoinModal;
 
   containerElement.querySelectorAll(".hs-album-card").forEach((card) => {
     card.onclick = (e) => {
-      if (e.target.closest(".hs-delete-album")) return;
+      if (
+        e.target.closest(".hs-delete-album") ||
+        e.target.closest(".hs-import-album")
+      )
+        return;
       state.currentAlbumId = card.dataset.id;
       render();
     };
   });
 
+  containerElement.querySelectorAll(".hs-import-album").forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const albumToImport = state.albums.find((a) => a.id === id);
+      await importAlbumToFoundry(albumToImport);
+    };
+  });
+
   containerElement.querySelectorAll(".hs-delete-album").forEach((btn) => {
-    btn.onclick = async () => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
       if (!window.confirm("Delete this entire album?")) return;
       const id = btn.dataset.id;
       const newAlbums = state.albums.filter((a) => a.id !== id);
@@ -343,7 +388,6 @@ function renderStudioView() {
   });
 }
 
-// --- ALBUM VIEW (List of Playlists) ---
 function renderAlbumView() {
   const album = state.albums.find((a) => a.id === state.currentAlbumId);
   if (!album) {
@@ -357,45 +401,34 @@ function renderAlbumView() {
 
   let html = `
     <div style="padding: 10px; display:flex; flex-direction:column; height: 100%; overflow-y: auto;">
-      
       <div style="background: linear-gradient(to right, rgba(49, 46, 129, 0.4), #18181b); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 16px; padding: 24px; margin-bottom: 24px; position: relative; overflow: hidden;">
         <div style="position: absolute; top: 0; right: 0; padding: 32px; opacity: 0.1; pointer-events: none;">
           <i class="fa-solid fa-compact-disc" style="font-size: 120px;"></i>
         </div>
-        
         <div style="z-index: 10; position: relative;">
           <button id="hs-btn-back-studio" style="display: flex; align-items: center; gap: 8px; background: none; border: none; color: #818cf8; font-size: 14px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 16px; width: fit-content;">
             <i class="fa-solid fa-arrow-left"></i> Back to Studio
           </button>
-
           <h2 style="font-size: 30px; font-weight: 900; color: white; margin: 0 0 12px 0; display: flex; align-items: center; gap: 12px;">
             ${album.name}
             ${!isOwner ? '<span style="font-size: 10px; background: #27272a; color: #a1a1aa; padding: 2px 8px; border-radius: 9999px; border: 1px solid #3f3f46; font-weight: 600; letter-spacing: 0.05em; align-middle;">JOINED</span>' : ""}
           </h2>
-
           <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; font-family: monospace; color: #a1a1aa; flex-wrap: wrap;">
             ${isOwner ? `<span id="hs-btn-copy-invite" style="background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px; border: 1px solid #3f3f46; cursor: pointer; display: flex; align-items: center; gap: 6px;" title="Copy Invite Code">Invite: ${album.invite_code} <i class="fa-solid fa-copy"></i></span>` : ""}
             <span style="color: #d4d4d8; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px; border: 1px solid #3f3f46;">${albumPlaylists.length} Playlists</span>
           </div>
         </div>
-
-        ${
-          isOwner
-            ? `
-        <div style="position: absolute; top: 24px; right: 24px; z-index: 10;">
-          <button id="hs-btn-album-settings" style="display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(63, 63, 70, 0.5); color: #d4d4d8; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-            <i class="fa-solid fa-gear"></i> Album Settings
+        <div style="position: absolute; top: 24px; right: 24px; z-index: 10; display: flex; gap: 8px;">
+          <button id="hs-btn-import-full-album" style="display: flex; align-items: center; gap: 8px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: all 0.2s;" onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
+            <i class="fa-solid fa-download"></i> Import Album
           </button>
-        </div>`
-            : ""
-        }
+          ${isOwner ? `<button id="hs-btn-album-settings" style="display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(63, 63, 70, 0.5); color: #d4d4d8; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;"><i class="fa-solid fa-gear"></i> Album Settings</button>` : ""}
+        </div>
       </div>
-
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 0 4px;">
         <h3 style="font-size: 18px; font-weight: bold; color: #e4e4e7; margin: 0;">Playlists</h3>
         ${isOwner ? `<button id="hs-btn-new-playlist" style="height: 36px; padding: 0 16px; display: flex; align-items: center; gap: 8px; background: rgba(192, 38, 211, 0.2); border: 1px solid rgba(192, 38, 211, 0.3); color: #e879f9; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer;"><i class="fa-solid fa-list-music"></i> New Playlist</button>` : ""}
       </div>
-
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; padding-bottom: 40px;">
   `;
 
@@ -417,7 +450,6 @@ function renderAlbumView() {
             <div style="font-weight: bold; font-size: 15px; color: #e4e4e7; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pl.name}</div>
             <div style="font-size: 12px; color: #71717a;">${pl.track?.length || 0} Tracks</div>
           </div>
-          
           <div style="display: flex; gap: 8px; align-items: center;">
             <button class="hs-import-playlist" data-id="${pl.uuid}" title="Import to Foundry" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; cursor: pointer;">
               <i class="fa-solid fa-download"></i>
@@ -432,11 +464,19 @@ function renderAlbumView() {
   html += `</div></div>`;
   containerElement.innerHTML = html;
 
-  // Bind Events
   containerElement.querySelector("#hs-btn-back-studio").onclick = () => {
     state.currentAlbumId = null;
     render();
   };
+
+  const btnImportFullAlbum = containerElement.querySelector(
+    "#hs-btn-import-full-album",
+  );
+  if (btnImportFullAlbum) {
+    btnImportFullAlbum.onclick = async () => {
+      await importAlbumToFoundry(album);
+    };
+  }
 
   if (isOwner) {
     const settingsBtn = containerElement.querySelector(
@@ -457,7 +497,6 @@ function renderAlbumView() {
 
   containerElement.querySelectorAll(".hs-playlist-card").forEach((card) => {
     card.onclick = (e) => {
-      // Mencegah klik masuk ke dalam playlist jika yang diklik adalah tombol import/delete
       if (
         e.target.closest(".hs-delete-playlist") ||
         e.target.closest(".hs-import-playlist")
@@ -468,7 +507,6 @@ function renderAlbumView() {
     };
   });
 
-  // Import Event
   containerElement.querySelectorAll(".hs-import-playlist").forEach((btn) => {
     btn.onclick = async (e) => {
       e.stopPropagation();
@@ -478,7 +516,6 @@ function renderAlbumView() {
     };
   });
 
-  // Delete Event
   containerElement.querySelectorAll(".hs-delete-playlist").forEach((btn) => {
     btn.onclick = async (e) => {
       e.stopPropagation();
@@ -507,13 +544,10 @@ function renderPlaylistView() {
 
   let html = `
     <div style="padding: 10px; display:flex; flex-direction:column; height: 100%; overflow-y: auto;">
-      
-      <!-- BANNER PLAYLIST -->
       <div style="background: linear-gradient(to right, rgba(134, 25, 143, 0.3), #18181b); border: 1px solid rgba(192, 38, 211, 0.2); border-radius: 16px; padding: 24px; margin-bottom: 24px; position: relative; overflow: hidden;">
         <div style="position: absolute; top: 0; right: 0; padding: 32px; opacity: 0.1; pointer-events: none;">
           <i class="fa-solid fa-list-music" style="font-size: 120px;"></i>
         </div>
-        
         <div style="z-index: 10; position: relative;">
           <button id="hs-btn-back-album" style="display: flex; align-items: center; gap: 8px; background: none; border: none; color: #e879f9; font-size: 14px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 16px; width: fit-content;">
             <i class="fa-solid fa-arrow-left"></i> Back to ${album.name}
@@ -521,22 +555,18 @@ function renderPlaylistView() {
           <h2 style="font-size: 30px; font-weight: 900; color: white; margin: 0 0 8px 0;">${playlist.name}</h2>
           <div style="font-size: 12px; font-weight: 500; color: #a1a1aa;">${playlist.track?.length || 0} Tracks Available</div>
         </div>
-
-        <!-- TOMBOL IMPORT PLAYLIST KANAN ATAS -->
         <div style="position: absolute; top: 24px; right: 24px; z-index: 10;">
           <button id="hs-btn-import-full-playlist" style="display: flex; align-items: center; gap: 8px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: all 0.2s;" onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
             <i class="fa-solid fa-download"></i> Import Playlist
           </button>
         </div>
       </div>
-
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 0 4px;">
         <h3 style="font-size: 18px; font-weight: bold; color: #e4e4e7; margin: 0;">Audio Tracks</h3>
         <button id="hs-btn-upload-track" style="height: 36px; padding: 0 16px; display: flex; align-items: center; gap: 8px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.2);">
           <i class="fa-solid fa-upload"></i> Upload Track
         </button>
       </div>
-
       <div style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 40px;">
   `;
 
@@ -558,33 +588,23 @@ function renderPlaylistView() {
           <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); flex-shrink: 0;">
             <i class="fa-solid fa-music" style="font-size: 18px; color: #60a5fa;"></i>
           </div>
-          
           <div style="flex: 1; min-width:0; padding-right: 16px;">
             <div style="font-weight: bold; font-size: 14px; color: #f4f4f5; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${track.name}</div>
             <div style="font-size: 10px; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em;">By ${track.user_name}</div>
           </div>
-
-          <!-- HTML AUDIO PLAYER DENGAN KONTROL VOLUME -->
           <div class="hs-custom-player" style="display:flex; align-items:center; gap:12px; background: rgba(0,0,0,0.4); padding: 8px 12px; border-radius: 8px; border: 1px solid #27272a; flex: 2; max-width: 400px;">
             <audio id="audio-${track.id}" src="${track.url}" preload="metadata" data-track-id="${track.id}"></audio>
-            
             <button class="hs-play-btn" data-track-id="${track.id}" style="width: 32px; height: 32px; border-radius: 50%; background: #27272a; border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">
               <i class="fa-solid fa-play" style="margin-left: 2px;"></i>
             </button>
-            
             <span class="hs-time-current" style="font-size:11px; color:#a1a1aa; font-family:monospace; min-width:35px; text-align:right;">00:00</span>
-            
             <input type="range" class="hs-progress-bar" min="0" max="100" value="0" style="flex:1; height:6px; cursor:pointer; accent-color:#3b82f6; background: #3f3f46; border-radius: 9999px; appearance: none; outline: none;" />
-            
             <span class="hs-time-duration" style="font-size:11px; color:#71717a; font-family:monospace; min-width:35px;">00:00</span>
-
-            <!-- KONTROL VOLUME -->
             <div style="display:flex; align-items:center; gap: 6px; margin-left: 8px; padding-left: 8px; border-left: 1px solid #3f3f46;">
                 <i class="fa-solid fa-volume-low" style="color:#a1a1aa; font-size:11px;"></i>
                 <input type="range" class="hs-volume-bar" min="0" max="1" step="0.01" value="${album.setting?.volume ?? 0.1}" style="width: 50px; height:6px; cursor:pointer; accent-color:#10b981; background: #3f3f46; border-radius: 9999px; appearance: none; outline: none;" title="Volume" />
             </div>
           </div>
-
           <div style="display: flex; gap: 8px;">
             <button class="hs-import-track" data-track-id="${track.id}" title="Import to Foundry" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; cursor: pointer; flex-shrink: 0;">
               <i class="fa-solid fa-download"></i>
@@ -599,7 +619,6 @@ function renderPlaylistView() {
   html += `</div></div>`;
   containerElement.innerHTML = html;
 
-  // Bind Events
   containerElement.querySelector("#hs-btn-back-album").onclick = () => {
     state.currentPlaylistId = null;
     render();
@@ -607,7 +626,6 @@ function renderPlaylistView() {
   containerElement.querySelector("#hs-btn-upload-track").onclick =
     showUploadModal;
 
-  // Event Import Full Playlist dari Banner
   const btnImportFull = containerElement.querySelector(
     "#hs-btn-import-full-playlist",
   );
@@ -617,7 +635,6 @@ function renderPlaylistView() {
     };
   }
 
-  // Import Track Event
   containerElement.querySelectorAll(".hs-import-track").forEach((btn) => {
     btn.onclick = async () => {
       const trackId = btn.dataset.trackId;
@@ -626,7 +643,6 @@ function renderPlaylistView() {
     };
   });
 
-  // Delete Track Event
   containerElement.querySelectorAll(".hs-delete-track").forEach((btn) => {
     btn.onclick = async () => {
       if (!window.confirm("Remove track from playlist?")) return;
@@ -643,7 +659,6 @@ function renderPlaylistView() {
     };
   });
 
-  // INITIALIZE CUSTOM PLAYERS DENGAN VOLUME & REPEAT ALBUM
   initVanillaAudioPlayers(
     album.setting?.volume ?? 0.1,
     album.setting?.repeat ?? true,
@@ -659,9 +674,8 @@ function initVanillaAudioPlayers(albumVolume, albumRepeat) {
     const progressBar = player.querySelector(".hs-progress-bar");
     const timeCurrent = player.querySelector(".hs-time-current");
     const timeDuration = player.querySelector(".hs-time-duration");
-    const volumeBar = player.querySelector(".hs-volume-bar"); // Input Range Volume
+    const volumeBar = player.querySelector(".hs-volume-bar");
 
-    // Set global volume based on album settings initally
     audio.volume = volumeBar ? parseFloat(volumeBar.value) : albumVolume;
     audio.loop = albumRepeat;
 
@@ -684,7 +698,6 @@ function initVanillaAudioPlayers(albumVolume, albumRepeat) {
 
     playBtn.onclick = () => {
       if (audio.paused) {
-        // Pause audio yang sedang jalan
         if (state.activeAudioElement && state.activeAudioElement !== audio) {
           state.activeAudioElement.pause();
           const prevBtn =
@@ -709,7 +722,6 @@ function initVanillaAudioPlayers(albumVolume, albumRepeat) {
       audio.currentTime = e.target.value;
     };
 
-    // Kontrol Volume Event
     if (volumeBar) {
       volumeBar.oninput = (e) => {
         audio.volume = parseFloat(e.target.value);
@@ -718,11 +730,6 @@ function initVanillaAudioPlayers(albumVolume, albumRepeat) {
   });
 }
 
-// ==========================================
-// MODALS (FOUNDRY DIALOGS)
-// ==========================================
-
-// 1. MODAL JOIN ALBUM
 function showJoinModal() {
   const content = `
     <div style="padding: 10px; color: white;">
@@ -776,7 +783,6 @@ function showJoinModal() {
   ).render(true);
 }
 
-// 2. MODAL SETTINGS ALBUM
 function showSettingsModal(album) {
   const content = `
     <div style="padding: 10px; color: white;">
@@ -830,7 +836,6 @@ function showSettingsModal(album) {
   d.render(true);
 }
 
-// 3. MODAL CREATE PLAYLIST
 function showNewPlaylistModal() {
   const content = `
     <div style="padding: 10px; color: white;">
@@ -873,7 +878,6 @@ function showNewPlaylistModal() {
   ).render(true);
 }
 
-// 4. MODAL UPLOAD TRACK
 function showUploadModal() {
   let selectedFile = null;
   const content = `
