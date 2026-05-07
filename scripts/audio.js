@@ -888,7 +888,7 @@ function showUploadModal() {
       </div>
       <div id="hs-audio-upload-box" style="border: 2px dashed #52525b; padding: 24px; text-align: center; border-radius: 8px; cursor: pointer; background: rgba(0,0,0,0.2); transition: all 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.4)'" onmouseout="this.style.background='rgba(0,0,0,0.2)'">
         <i class="fa-solid fa-file-audio fa-3x" style="color:#a1a1aa; margin-bottom:12px;"></i>
-        <div id="hs-audio-upload-text" style="color:#a1a1aa; font-size: 14px;">Click to select audio file<br><span style="font-size: 12px;">(.mp3, .wav, .ogg)</span></div>
+        <div id="hs-audio-upload-text" style="color:#a1a1aa; font-size: 14px;">Click to select audio file<br><span style="font-size: 12px;">(.mp3, .wav, .ogg - Max 10MB)</span></div>
         <input type="file" id="hs-audio-fileInput" accept="audio/*" style="display:none;" />
       </div>
     </div>
@@ -968,6 +968,10 @@ function showUploadModal() {
           if (!file) return;
           if (!file.type.startsWith("audio/")) {
             ui.notifications?.warn("Must be an audio file.");
+            return;
+          }
+          if (file.size > 10 * 1024 * 1024) {
+            ui.notifications?.warn("File size exceeds the 10MB limit.");
             return;
           }
           selectedFile = file;
