@@ -171,9 +171,17 @@ async function importPlaylistToFoundry(playlistData, folderId = null) {
       foundryPlaylist = await Playlist.create(createData);
     }
 
+    // AMBIL SETTING DARI ALBUM (TAMBAHAN BARU)
+    const album = state.albums.find((a) => a.id === playlistData.album_id);
+    const trackVolume = album?.setting?.volume ?? 0.1;
+    const trackRepeat = album?.setting?.repeat ?? true;
+
+    // MASUKKAN VOLUME & REPEAT KE FOUNDRY (TAMBAHAN BARU)
     const tracksToImport = (playlistData.track || []).map((t) => ({
       name: t.name,
       path: t.url,
+      volume: trackVolume,
+      repeat: trackRepeat
     }));
 
     if (tracksToImport.length > 0) {
@@ -192,9 +200,13 @@ async function importPlaylistToFoundry(playlistData, folderId = null) {
   }
 }
 
-async function importTrackToFoundry(trackData, playlistName) {
+// Tambahkan parameter albumSetting
+async function importTrackToFoundry(trackData, playlistName, albumSetting = {}) {
   if (!trackData) return;
   ui.notifications.info(`Importing Track: ${trackData.name}...`);
+
+  const trackVolume = albumSetting.volume ?? 0.1;
+  const trackRepeat = albumSetting.repeat ?? true;
 
   try {
     let foundryPlaylist = game.playlists.getName(playlistName);
@@ -215,6 +227,8 @@ async function importTrackToFoundry(trackData, playlistName) {
         {
           _id: existingSound.id,
           path: trackData.url,
+          volume: trackVolume, // Update volume
+          repeat: trackRepeat  // Update repeat
         },
       ]);
       ui.notifications.info(`Track "${trackData.name}" successfully updated!`);
@@ -223,6 +237,8 @@ async function importTrackToFoundry(trackData, playlistName) {
         {
           name: trackData.name,
           path: trackData.url,
+          volume: trackVolume, // Set volume
+          repeat: trackRepeat  // Set repeat
         },
       ]);
       ui.notifications.info(`Track "${trackData.name}" successfully imported!`);
@@ -635,11 +651,11 @@ function renderPlaylistView() {
     };
   }
 
-  containerElement.querySelectorAll(".hs-import-track").forEach((btn) => {
+ containerElement.querySelectorAll(".hs-import-track").forEach((btn) => {
     btn.onclick = async () => {
       const trackId = btn.dataset.trackId;
       const trackToImport = playlist.track.find((t) => t.id === trackId);
-      await importTrackToFoundry(trackToImport, playlist.name);
+      await importTrackToFoundry(trackToImport, playlist.name, album.setting);
     };
   });
 
