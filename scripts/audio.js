@@ -941,10 +941,19 @@ function showUploadModal() {
               const data = await response.json();
 
               if (response.ok) {
+                let cleanUrl = data.url;
+                try {
+                  const urlObj = new URL(cleanUrl);
+                  const host = urlObj.host;
+                  if (urlObj.pathname.startsWith(`/${host}/`)) {
+                    cleanUrl = cleanUrl.replace(`/${host}/`, "/");
+                  }
+                } catch (err) {}
+
                 const newTrack = {
                   id: generateUUID(),
                   name: nameInput,
-                  url: data.url,
+                  url: cleanUrl,
                   user_id: state.currentUser.id,
                   user_name: state.currentUser.name,
                 };
