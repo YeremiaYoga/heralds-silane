@@ -1,8 +1,14 @@
-export const API_BASE_URL = "http://localhost:19984";
-// export const API_BASE_URL = "https://azcn87b0k85drpfp.phanneldeliver.my.id";
+export let API_BASE_URL = "https://azcn87b0k85drpfp.phanneldeliver.my.id";
 
+export const initializeApiBaseUrl = () => {
+  const mode = game.settings.get("heralds-silane", "apiMode");
+  API_BASE_URL =
+    mode === "local"
+      ? "http://localhost:19984"
+      : "https://azcn87b0k85drpfp.phanneldeliver.my.id";
+};
 export function heraldSilane_getWindowDimensions() {
-  const size = game.settings.get("herald-silane", "windowSize");
+  const size = game.settings.get("heralds-silane", "windowSize");
   let dims;
 
   switch (size) {

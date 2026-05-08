@@ -528,8 +528,8 @@ const switchTab = (type) => {
 }
 
 function heraldSilane_openSettingsModal() {
-  const currentSize = game.settings.get("herald-silane", "windowSize");
-  const currentDetail = game.settings.get("herald-silane", "characterDetailMode");
+  const currentSize = game.settings.get("heralds-silane", "windowSize");
+  const currentDetail = game.settings.get("heralds-silane", "characterDetailMode");
   
   const content = `
     <div class="silane-settings-wrapper" style="padding: 10px; color: #f4f4f5;">
@@ -565,8 +565,8 @@ function heraldSilane_openSettingsModal() {
             const newSize = html.find("#hs-setting-windowSize").val();
             const newDetail = html.find("#hs-setting-characterDetail").val();
 
-            await game.settings.set("herald-silane", "windowSize", newSize);
-            await game.settings.set("herald-silane", "characterDetailMode", newDetail);
+            await game.settings.set("heralds-silane", "windowSize", newSize);
+            await game.settings.set("heralds-silane", "characterDetailMode", newDetail);
 
             if (heraldSilane_currentDialog) {
               const dims = heraldSilane_getWindowDimensions();
