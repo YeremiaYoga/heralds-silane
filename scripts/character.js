@@ -268,7 +268,7 @@ function renderListArea() {
   updateBreadcrumbs();
 
   const detailMode =
-    game.settings.get("herald-silane", "characterDetailMode") || "all";
+    game.settings.get("heralds-silane", "characterDetailMode") || "all";
   if (detailMode === "nameOnly") {
     listArea.classList.add("hs-character-name-only-mode");
   } else {
