@@ -2,6 +2,7 @@ import { API_BASE_URL, heraldSilane_getWindowDimensions } from "./helper.js";
 import { initVisageTab } from "./visage.js";
 import { initCharacterTab } from "./character.js";
 import { initAudioTab } from "./audio.js";
+import { initFireflyTab } from "./firefly.js";
 // ==========================================
 // STATE VARIABLES
 // ==========================================
@@ -206,6 +207,7 @@ async function heraldSilane_renderMainView() {
           <button id="hs-tab-audio" class="hs-circle-btn" title="Audio"><i class="fa-solid fa-music"></i></button>
           <button id="hs-tab-images" class="hs-circle-btn" title="Images"><i class="fa-solid fa-image"></i></button>
           <button id="hs-tab-character" class="hs-circle-btn" title="Character"><i class="fa-solid fa-users"></i></button>
+          <button id="hs-tab-firefly" class="hs-circle-btn" title="Firefly"><i class="fa-solid fa-fire"></i></button>
         </div>
         <div class="hs-content">
           <div class="hs-header">
@@ -266,6 +268,7 @@ async function heraldSilane_renderMainView() {
     audio: document.getElementById("hs-tab-audio"),
     visage: document.getElementById("hs-tab-visage"),
     character: document.getElementById("hs-tab-character"),
+    firefly: document.getElementById("hs-tab-firefly"),
   };
 
   const galleryContainer = document.getElementById("hs-gallery-container");
@@ -440,6 +443,12 @@ const switchTab = (type) => {
       searchInput.style.display = "none";
       galleryContainer.classList.remove("hs-gallery");
       initAudioTab(galleryContainer);
+    } else if (type === "firefly") {
+      titleText.innerText = "Firefly";
+      actionsContainer.style.display = "none";
+      searchInput.style.display = "none";
+      galleryContainer.classList.remove("hs-gallery");
+      initFireflyTab(galleryContainer);
     }
   };
 
