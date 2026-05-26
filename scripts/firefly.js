@@ -8,6 +8,7 @@ let currentType = "";
 let currentAdminView = "foundry"; // "foundry" | "homebrew"
 let selectedHomebrewUser = null; // { user_id, user_name } for admin drill-down
 let selectedCards = new Set(); // multi-select item ids
+let activeFilters = new Set(); // multi-filter types
 const LIMIT = 200;
 
 const ITEM_TYPES = ["weapon", "spell", "consumable", "container", "equipment", "feat", "loot", "tool"];
@@ -71,6 +72,13 @@ const injectFireflyStyles = () => {
     .ff-bulk-btn.import-bulk:hover { border-color:#10b981; color:#10b981; }
     .ff-bulk-btn.delete-bulk:hover { border-color:#ef4444; color:#ef4444; }
     .ff-bulk-btn.deselect-bulk:hover { border-color:#71717a; color:#71717a; }
+    .ff-filters { display:flex; flex-wrap:wrap; gap:5px; flex-shrink:0; }
+    .ff-filter-chip { padding:3px 10px; border-radius:12px; border:1px solid #3f3f46; background:transparent; color:#a1a1aa; font-size:10px; font-weight:600; cursor:pointer; transition:all 0.15s; text-transform:capitalize; }
+    .ff-filter-chip:hover { border-color:#60a5fa; color:#60a5fa; }
+    .ff-filter-chip.active { border-color:#3b82f6; background:rgba(59,130,246,0.15); color:#60a5fa; }
+    .ff-storage { font-size:10px; color:#71717a; display:flex; align-items:center; gap:6px; flex-shrink:0; }
+    .ff-storage-bar { width:80px; height:4px; background:#27272a; border-radius:2px; overflow:hidden; }
+    .ff-storage-fill { height:100%; border-radius:2px; transition:width 0.3s; }
   `;
   document.head.appendChild(style);
 };
@@ -172,6 +180,10 @@ function renderUI() {
           <i class="fa-solid fa-file-import"></i>
         </button>
       </div>
+      <div class="ff-filters" id="ff-filters">
+        ${ITEM_TYPES.map((t) => `<span class="ff-filter-chip ${activeFilters.has(t) ? 'active' : ''}" data-type="${t}">${t}</span>`).join("")}
+      </div>
+      <div id="ff-storage" class="ff-storage" style="display:none;"></div>
       <div id="ff-list" class="ff-list"></div>
       <div id="ff-bulk-bar" class="ff-bulk-bar">
         <span id="ff-bulk-count">0</span>
@@ -295,6 +307,19 @@ function renderList() {
     items = currentItems.filter((i) => i.user_id === selectedHomebrewUser.user_id);
   }
 
+  // Apply type filters
+  if (activeFilters.size > 0) {
+    items = items.filter((i) => {
+      const t = i.__type || i.type || "unknown";
+      return activeFilters.has(t);
+    });
+  }
+
+  if (items.length === 0) {
+    listEl.innerHTML = `<div class="ff-empty" style="grid-column:1/-1;"><i class="fa-solid fa-filter fa-2x" style="margin-bottom:12px;opacity:0.5;"></i><div>No items match filters.</div></div>`;
+    return;
+  }
+
   listEl.innerHTML = items.map((item) => {
     const itemType = item.__type || item.type || "unknown";
     const typeColors = { weapon:"#ef4444", spell:"#8b5cf6", consumable:"#f59e0b", container:"#6b7280", equipment:"#3b82f6", feat:"#10b981", loot:"#eab308", tool:"#06b6d4", feature:"#ec4899", unknown:"#71717a" };
@@ -331,23 +356,42 @@ function attachEvents() {
         showLoading();
         await fetchItems();
         renderUI();
-      }, 500);
+      }, 1000);
     });
   }
 
   const importBtn = document.getElementById("ff-btn-import");
   if (importBtn) importBtn.addEventListener("click", () => showImportFromFoundryDialog());
 
+  // Filter chips
+  const filtersEl = document.getElementById("ff-filters");
+  if (filtersEl) {
+    filtersEl.addEventListener("click", (e) => {
+      const chip = e.target.closest(".ff-filter-chip");
+      if (!chip) return;
+      const type = chip.dataset.type;
+      if (activeFilters.has(type)) {
+        activeFilters.delete(type);
+        chip.classList.remove("active");
+      } else {
+        activeFilters.add(type);
+        chip.classList.add("active");
+      }
+      selectedCards.clear();
+      renderList();
+      updateBulkBar();
+    });
+  }
+
+  // Card click & action buttons
   const listEl = document.getElementById("ff-list");
   if (listEl) {
     listEl.addEventListener("click", async (e) => {
-      // Single-item action buttons (hover)
       const ib = e.target.closest(".ff-btn-icon.import");
       if (ib) { e.stopPropagation(); await importItemToFoundry(ib.dataset.id, ib.dataset.type); return; }
       const db = e.target.closest(".ff-btn-icon.delete");
       if (db) { e.stopPropagation(); await deleteItem(db.dataset.id, db.dataset.type); return; }
 
-      // Card click = toggle select
       const card = e.target.closest(".ff-card");
       if (card) {
         const id = card.dataset.id;
@@ -374,6 +418,13 @@ function attachEvents() {
     document.querySelectorAll(".ff-card.selected").forEach((c) => c.classList.remove("selected"));
     updateBulkBar();
   });
+
+  // Fetch storage usage (user only)
+  fetchStorageUsage();
+}
+
+async function fetchStorageUsage() {
+  // Storage ditampilkan di footer silane, tidak perlu di sini
 }
 
 function updateBulkBar() {
@@ -522,22 +573,27 @@ function showImportFromFoundryDialog() {
   const user = getUser();
   const isAdmin = user?.role === "admin";
 
+  const typeChips = ITEM_TYPES.map((t) => {
+    const count = worldItems.filter((i) => i.type?.toLowerCase() === t).length;
+    if (count === 0) return "";
+    return `<span class="ff-import-filter-chip" data-type="${t}" style="padding:2px 8px;border-radius:10px;border:1px solid #3f3f46;background:transparent;color:#a1a1aa;font-size:10px;font-weight:600;cursor:pointer;text-transform:capitalize;transition:all 0.15s;">${t} (${count})</span>`;
+  }).join("");
+
   const content = `
     <div style="padding:10px;color:#f4f4f5;">
       <p style="font-size:13px;color:#a1a1aa;margin-bottom:10px;">Detected <strong>${worldItems.length}</strong> items.</p>
-      <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <div style="margin-bottom:8px;">
+        <input type="text" id="ff-import-search" placeholder="Search items..." style="width:100%;padding:8px 12px;border:1px solid #3f3f46;background:#27272a;color:#f4f4f5;border-radius:6px;outline:none;font-size:12px;box-sizing:border-box;" />
+      </div>
+      <div id="ff-import-filters" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;">
+        ${typeChips}
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
         <button id="ff-select-all" style="font-size:11px;padding:4px 12px;border-radius:4px;border:1px solid #3f3f46;background:rgba(0,0,0,0.3);color:#a1a1aa;cursor:pointer;">Select All</button>
         <button id="ff-deselect-all" style="font-size:11px;padding:4px 12px;border-radius:4px;border:1px solid #3f3f46;background:rgba(0,0,0,0.3);color:#a1a1aa;cursor:pointer;">Deselect All</button>
+        <span id="ff-import-count" style="font-size:11px;color:#71717a;margin-left:auto;display:flex;align-items:center;">Showing ${worldItems.length}</span>
       </div>
-      <div id="ff-import-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;max-height:420px;overflow-y:auto;padding:4px;">
-        ${worldItems.map((item) => `
-          <div class="ff-import-tile" data-id="${item.id}" style="display:flex;flex-direction:column;align-items:center;padding:6px;background:rgba(0,0,0,0.2);border:2px solid #3f3f46;border-radius:8px;cursor:pointer;transition:all 0.15s;gap:4px;">
-            <div style="width:52px;height:52px;border-radius:6px;overflow:hidden;background:#27272a;display:flex;align-items:center;justify-content:center;">
-              ${item.img ? `<img src="${item.img}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div style="display:none;align-items:center;justify-content:center;width:100%;height:100%;color:#52525b;font-size:18px;"><i class="fa-solid fa-cube"></i></div>` : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#52525b;font-size:18px;"><i class="fa-solid fa-cube"></i></div>`}
-            </div>
-            <div style="font-size:9px;color:#e4e4e7;text-align:center;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;">${item.name}</div>
-          </div>
-        `).join("")}
+      <div id="ff-import-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;max-height:380px;overflow-y:auto;padding:4px;">
       </div>
     </div>`;
 
@@ -562,14 +618,68 @@ function showImportFromFoundryDialog() {
       const contentEl = dialogEl.querySelector(".window-content");
       if (contentEl) { contentEl.style.backgroundColor = "#18181b"; contentEl.style.color = "white"; contentEl.style.backgroundImage = "none"; }
       html.closest(".dialog").find(".dialog-buttons button").css({ color: "white", border: "1px solid #3f3f46", background: "rgba(0,0,0,0.4)" });
+
+      const gridEl = html.find("#ff-import-grid")[0];
+      const searchEl = html.find("#ff-import-search")[0];
+      const countEl = html.find("#ff-import-count")[0];
+      let importActiveFilters = new Set();
+
+      function renderImportGrid() {
+        let filtered = worldItems;
+        const query = searchEl.value.trim().toLowerCase();
+        if (query) filtered = filtered.filter((i) => i.name.toLowerCase().includes(query));
+        if (importActiveFilters.size > 0) filtered = filtered.filter((i) => importActiveFilters.has(i.type?.toLowerCase()));
+        countEl.textContent = `Showing ${filtered.length}`;
+
+        gridEl.innerHTML = filtered.map((item) => `
+          <div class="ff-import-tile" data-id="${item.id}" style="display:flex;flex-direction:column;align-items:center;padding:6px;background:rgba(0,0,0,0.2);border:2px solid #3f3f46;border-radius:8px;cursor:pointer;transition:all 0.15s;gap:4px;">
+            <div style="width:52px;height:52px;border-radius:6px;overflow:hidden;background:#27272a;display:flex;align-items:center;justify-content:center;">
+              ${item.img ? `<img src="${item.img}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div style="display:none;align-items:center;justify-content:center;width:100%;height:100%;color:#52525b;font-size:18px;"><i class="fa-solid fa-cube"></i></div>` : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#52525b;font-size:18px;"><i class="fa-solid fa-cube"></i></div>`}
+            </div>
+            <div style="font-size:9px;color:#e4e4e7;text-align:center;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;">${item.name}</div>
+          </div>
+        `).join("");
+      }
+
+      renderImportGrid();
+
+      // Search
+      let searchTimeout;
+      searchEl.addEventListener("input", () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => renderImportGrid(), 1000);
+      });
+
+      // Filter chips
+      let filterTimeout;
+      html.find("#ff-import-filters").on("click", ".ff-import-filter-chip", function () {
+        const type = this.dataset.type;
+        if (importActiveFilters.has(type)) {
+          importActiveFilters.delete(type);
+          this.style.border = "1px solid #3f3f46";
+          this.style.background = "transparent";
+          this.style.color = "#a1a1aa";
+        } else {
+          importActiveFilters.add(type);
+          this.style.border = "1px solid #3b82f6";
+          this.style.background = "rgba(59,130,246,0.15)";
+          this.style.color = "#60a5fa";
+        }
+        clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(() => renderImportGrid(), 1000);
+      });
+
+      // Tile select toggle
       html.find("#ff-import-grid").on("click", ".ff-import-tile", function () {
         if (this.classList.contains("selected")) { this.classList.remove("selected"); this.style.border = "2px solid #3f3f46"; this.style.background = "rgba(0,0,0,0.2)"; }
         else { this.classList.add("selected"); this.style.border = "2px solid #3b82f6"; this.style.background = "rgba(59,130,246,0.1)"; }
       });
-      html.find("#ff-select-all").on("click", () => { html.find(".ff-import-tile").each(function () { this.classList.add("selected"); this.style.border = "2px solid #3b82f6"; this.style.background = "rgba(59,130,246,0.1)"; }); });
-      html.find("#ff-deselect-all").on("click", () => { html.find(".ff-import-tile").each(function () { this.classList.remove("selected"); this.style.border = "2px solid #3f3f46"; this.style.background = "rgba(0,0,0,0.2)"; }); });
+
+      // Select/Deselect visible
+      html.find("#ff-select-all").on("click", () => { html.find("#ff-import-grid .ff-import-tile").each(function () { this.classList.add("selected"); this.style.border = "2px solid #3b82f6"; this.style.background = "rgba(59,130,246,0.1)"; }); });
+      html.find("#ff-deselect-all").on("click", () => { html.find("#ff-import-grid .ff-import-tile").each(function () { this.classList.remove("selected"); this.style.border = "2px solid #3f3f46"; this.style.background = "rgba(0,0,0,0.2)"; }); });
     },
-  }, { width: 550, height: 600, classes: ["dialog", "silane-custom-dialog"] }).render(true);
+  }, { width: 550, height: 650, classes: ["dialog", "silane-custom-dialog"] }).render(true);
 }
 
 // ==========================================
