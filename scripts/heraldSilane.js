@@ -208,6 +208,7 @@ async function heraldSilane_renderMainView() {
           <button id="hs-tab-images" class="hs-circle-btn" title="Images"><i class="fa-solid fa-image"></i></button>
           <button id="hs-tab-character" class="hs-circle-btn" title="Character"><i class="fa-solid fa-users"></i></button>
           <button id="hs-tab-firefly" class="hs-circle-btn" title="Firefly"><i class="fa-solid fa-fire"></i></button>
+          <button id="hs-tab-group" class="hs-circle-btn" title="Group"><i class="fa-solid fa-people-group"></i></button>
         </div>
         <div class="hs-content">
           <div class="hs-header">
@@ -269,6 +270,7 @@ async function heraldSilane_renderMainView() {
     visage: document.getElementById("hs-tab-visage"),
     character: document.getElementById("hs-tab-character"),
     firefly: document.getElementById("hs-tab-firefly"),
+    group: document.getElementById("hs-tab-group"),
   };
 
   const galleryContainer = document.getElementById("hs-gallery-container");
@@ -449,6 +451,23 @@ const switchTab = (type) => {
       searchInput.style.display = "none";
       galleryContainer.classList.remove("hs-gallery");
       initFireflyTab(galleryContainer);
+    } else if (type === "group") {
+      titleText.innerText = "Group";
+      actionsContainer.style.display = "none";
+      searchInput.style.display = "none";
+      galleryContainer.classList.remove("hs-gallery");
+      galleryContainer.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#f4f4f5;text-align:center;padding:40px;gap:20px;">
+          <div style="font-size:64px;color:#8b5cf6;opacity:0.8;"><i class="fa-solid fa-people-group"></i></div>
+          <h2 style="font-size:22px;font-weight:700;color:#8b5cf6;margin:0;">Group</h2>
+          <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);color:#a78bfa;padding:8px 16px;border-radius:20px;font-size:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;">
+            <i class="fa-solid fa-hammer"></i> Work in Progress
+          </div>
+          <p style="font-size:14px;color:#a1a1aa;max-width:400px;line-height:1.6;">
+            Group management system — create parties, manage missions, and collaborate with your group members.
+          </p>
+        </div>
+      `;
     }
   };
 
