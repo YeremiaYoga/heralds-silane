@@ -3,6 +3,7 @@ import { initVisageTab } from "./visage.js";
 import { initCharacterTab } from "./character.js";
 import { initAudioTab } from "./audio.js";
 import { initFireflyTab } from "./firefly.js";
+import { initGroupTab } from "./group.js";
 // ==========================================
 // STATE VARIABLES
 // ==========================================
@@ -90,6 +91,7 @@ async function heraldSilane_renderLoginView() {
   if (!container) return;
 
   const dims = heraldSilane_getWindowDimensions();
+  let activePollInterval = null;
 
   container.innerHTML = `
     <div class="hs-layout-override" style="height: ${dims.overrideHeight}px; flex: 1; display: flex; flex-direction: column; min-height: 0;">
@@ -98,28 +100,136 @@ async function heraldSilane_renderLoginView() {
           <h2 class="silane-title">Silane Authentication</h2>
           <p class="silane-subtitle">Please connect to your node to continue.</p>
           <div class="silane-form-group">
-            <label for="heraldSilane-secretId">Secret ID</label>
-            <input type="password" id="heraldSilane-secretId" class="silane-input mono" placeholder="Enter Secret ID" />
+            <label for="heraldSilane-secretId">Silane ID</label>
+            <input type="text" id="heraldSilane-secretId" class="silane-input mono" placeholder="Enter Silane ID" />
             <div id="heraldSilane-loginMsg" class="silane-error-msg"></div>
           </div>
-        </div>
-        <div class="silane-dialog-bottom">
-          <button id="heraldSilane-btnCancel" class="silane-btn">Cancel</button>
-          <button id="heraldSilane-btnLogin" class="silane-btn primary">Connect</button>
+          <div class="silane-dialog-bottom" style="margin-top: 15px;">
+            <button id="heraldSilane-btnCancel" class="silane-btn">Cancel</button>
+            <button id="heraldSilane-btnLogin" class="silane-btn primary">Connect</button>
+          </div>
+          <div class="silane-social-login">
+            <button id="heraldSilane-btnGoogle" class="silane-btn google flex-center">
+              <i class="fab fa-google"></i> Connect with Google
+            </button>
+            <button id="heraldSilane-btnPatreon" class="silane-btn patreon flex-center">
+              <i class="fab fa-patreon"></i> Connect with Patreon
+            </button>
+          </div>
         </div>
       </div>
     </div>
   `;
 
+  const handleMessage = async (event) => {
+    if (event.data && event.data.type === "silane-auth-success") {
+      const { token, user } = event.data;
+      if (activePollInterval) {
+        clearInterval(activePollInterval);
+        activePollInterval = null;
+      }
+      localStorage.setItem("heraldSilane_token", token || "authenticated");
+      if (user) {
+        localStorage.setItem("heraldSilane_user", JSON.stringify(user));
+      }
+      ui.notifications?.info("Connected to Silane.");
+      window.removeEventListener("message", handleMessage);
+      await heraldSilane_renderRouting();
+    }
+  };
+
+  const startPolling = (tempId) => {
+    if (activePollInterval) clearInterval(activePollInterval);
+
+    let attempts = 0;
+    activePollInterval = setInterval(async () => {
+      attempts++;
+      if (attempts > 90) {
+        clearInterval(activePollInterval);
+        activePollInterval = null;
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/poll-status?temp_id=${tempId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status === "success") {
+            clearInterval(activePollInterval);
+            activePollInterval = null;
+            
+            window.removeEventListener("message", handleMessage);
+
+            localStorage.setItem("heraldSilane_token", data.token || "authenticated");
+            if (data.user) {
+              localStorage.setItem("heraldSilane_user", JSON.stringify(data.user));
+            }
+            ui.notifications?.info("Connected to Silane.");
+            await heraldSilane_renderRouting();
+          }
+        }
+      } catch (e) {
+        console.error("Polling error:", e);
+      }
+    }, 2000);
+  };
+
+  window.addEventListener("message", handleMessage);
+
   document
     .getElementById("heraldSilane-btnCancel")
     .addEventListener("click", () => {
+      window.removeEventListener("message", handleMessage);
+      if (activePollInterval) {
+        clearInterval(activePollInterval);
+        activePollInterval = null;
+      }
       if (heraldSilane_currentDialog) heraldSilane_currentDialog.close();
+    });
+
+  document
+    .getElementById("heraldSilane-btnGoogle")
+    .addEventListener("click", () => {
+      const width = 500;
+      const height = 600;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      const tempId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      
+      window.open(
+        `${API_BASE_URL}/api/auth/google?temp_id=${tempId}`,
+        "Silane Google Login",
+        `width=${width},height=${height},left=${left},top=${top}`
+      );
+
+      startPolling(tempId);
+    });
+
+  document
+    .getElementById("heraldSilane-btnPatreon")
+    .addEventListener("click", () => {
+      const width = 500;
+      const height = 600;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      const tempId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      
+      window.open(
+        `${API_BASE_URL}/api/auth/patreon?temp_id=${tempId}`,
+        "Silane Patreon Login",
+        `width=${width},height=${height},left=${left},top=${top}`
+      );
+
+      startPolling(tempId);
     });
 
   document
     .getElementById("heraldSilane-btnLogin")
     .addEventListener("click", async (e) => {
+      if (activePollInterval) {
+        clearInterval(activePollInterval);
+        activePollInterval = null;
+      }
       const btn = e.target;
       const secretId = document
         .getElementById("heraldSilane-secretId")
@@ -127,7 +237,7 @@ async function heraldSilane_renderLoginView() {
       const msgDiv = document.getElementById("heraldSilane-loginMsg");
 
       if (!secretId) {
-        msgDiv.textContent = "Secret ID cannot be empty.";
+        msgDiv.textContent = "Silane ID cannot be empty.";
         msgDiv.style.display = "block";
         return;
       }
@@ -155,6 +265,7 @@ async function heraldSilane_renderLoginView() {
             );
           }
           ui.notifications?.info("Connected to Silane.");
+          window.removeEventListener("message", handleMessage);
           await heraldSilane_renderRouting();
         } else {
           msgDiv.textContent = data.message || "Authentication failed.";
@@ -456,18 +567,7 @@ const switchTab = (type) => {
       actionsContainer.style.display = "none";
       searchInput.style.display = "none";
       galleryContainer.classList.remove("hs-gallery");
-      galleryContainer.innerHTML = `
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#f4f4f5;text-align:center;padding:40px;gap:20px;">
-          <div style="font-size:64px;color:#8b5cf6;opacity:0.8;"><i class="fa-solid fa-people-group"></i></div>
-          <h2 style="font-size:22px;font-weight:700;color:#8b5cf6;margin:0;">Group</h2>
-          <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);color:#a78bfa;padding:8px 16px;border-radius:20px;font-size:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;">
-            <i class="fa-solid fa-hammer"></i> Work in Progress
-          </div>
-          <p style="font-size:14px;color:#a1a1aa;max-width:400px;line-height:1.6;">
-            Group management system — create parties, manage missions, and collaborate with your group members.
-          </p>
-        </div>
-      `;
+      initGroupTab(galleryContainer);
     }
   };
 

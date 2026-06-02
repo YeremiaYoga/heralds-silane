@@ -480,3 +480,41 @@
   color: #e4e4e7;
   border: 1px solid #3f3f46;
 }
+
+/* --- SOCIAL LOGIN BUTTONS --- */
+.silane-social-login {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 15px;
+  border-top: 1px solid #27272a;
+  padding-top: 15px;
+}
+
+.silane-btn.google {
+  background: #ffffff;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+}
+
+.silane-btn.google:hover {
+  background: #f9fafb;
+}
+
+.silane-btn.patreon {
+  background: #ff424d;
+  color: white;
+  border: none;
+}
+
+.silane-btn.patreon:hover {
+  background: #e63741;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
