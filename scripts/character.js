@@ -670,8 +670,10 @@ function getNestedItemIds(items, targetId) {
 }
 
 function showActorSelectorDialog(onConfirm) {
-  const actors = game.actors.contents;
-  if (actors.length === 0) return ui.notifications?.warn("No actors in world.");
+  const actors = game.actors.filter(
+    (a) => a.ownership[game.user.id] >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER,
+  );
+  if (actors.length === 0) return ui.notifications?.warn("You do not own any characters in this world.");
 
   const actorGridHtml = actors
     .map(

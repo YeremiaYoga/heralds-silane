@@ -4,6 +4,8 @@ import { initCharacterTab } from "./character.js";
 import { initAudioTab } from "./audio.js";
 import { initFireflyTab } from "./firefly.js";
 import { initGroupTab } from "./group.js";
+import { openCharacterIconChanger } from "./iconChanger.js";
+import { initImagesTab, refreshImagesGallery, getImagesList } from "./images.js";
 // ==========================================
 // STATE VARIABLES
 // ==========================================
@@ -290,8 +292,6 @@ async function heraldSilane_renderMainView() {
   let activeTab = "visage";
   let userName = "Unknown User";
   let userImage = "icons/svg/mystery-man.svg";
-  let selectedItems = new Set();
-  let currentFilesArray = [];
   let maxStorageMb = 0;
   let isStorageUnlimited = false;
 
@@ -328,6 +328,10 @@ async function heraldSilane_renderMainView() {
             <input type="text" id="hs-search-input" class="silane-input" placeholder="Search by name..." style="margin-left: 15px; width: 200px; padding: 5px 10px; border-radius: 4px; border: 1px solid #52525b; background: rgba(0,0,0,0.2); color: #f4f4f5;" />
             
             <div class="hs-actions" id="hs-actions-container" style="margin-left: auto;">
+              <button id="hs-btn-icon-changer" class="hs-btn hs-btn-secondary" style="display: none; align-items: center; gap: 6px;" title="Character Icon Changer">
+                <i class="fa-solid fa-user-gear"></i> Icon Changer
+              </button>
+              
               <button id="hs-btn-share-chat" class="hs-btn" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.5);" disabled title="Show in Chat">
                 <i class="fa-solid fa-paper-plane"></i>
               </button>
@@ -444,130 +448,61 @@ async function heraldSilane_renderMainView() {
 
   fetchStorageUsage();
 
-  const updateDeleteBtnState = () => {
-    const hasSelection = selectedItems.size > 0;
-    deleteBtn.disabled = !hasSelection;
-    if (shareChatBtn) shareChatBtn.disabled = !hasSelection;
-  };
-
-  const renderGallery = (filesArray) => {
-    if (filesArray.length > 0) {
-      galleryContainer.innerHTML = filesArray
-        .map((file) => {
-          let mediaContent = `<i class="fa-solid fa-image hs-media-icon"></i>`;
-          if (file.url) {
-            mediaContent = `<img src="${file.url}" class="hs-media-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" /> <i class="fa-solid fa-image hs-media-icon" style="display:none;"></i>`;
-          }
-
-          const isSelected = selectedItems.has(String(file.id))
-            ? "selected"
-            : "";
-
-          return `
-          <div class="hs-gallery-item ${isSelected}" data-id="${file.id}">
-            <div class="hs-check-badge"><i class="fa-solid fa-check"></i></div>
-            <div class="hs-media-wrapper">${mediaContent}</div>
-            <div class="hs-gallery-name" title="${file.name}">${file.name}</div>
-          </div>
-        `;
-        })
-        .join("");
-    } else {
-      galleryContainer.innerHTML = `<div style="grid-column: 1 / -1; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color: #52525b; padding-top:40px;"><i class="fa-solid fa-folder-open fa-2x" style="margin-bottom: 12px;"></i> No image assets found.</div>`;
-    }
-  };
-
-  const fetchGalleryData = async () => {
-    galleryContainer.innerHTML = `<div style="grid-column: 1 / -1; display:flex; align-items:center; justify-content:center; height:100%; color: #a1a1aa; padding-top:40px;"><i class="fa-solid fa-circle-notch fa-spin fa-2x"></i></div>`;
-    selectedItems.clear();
-    updateDeleteBtnState();
-    searchInput.value = "";
-
-    try {
-      const token = localStorage.getItem("heraldSilane_token");
-      const response = await fetch(`${API_BASE_URL}/api/silane_assets/data`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        currentFilesArray = result.data ? result.data.images || [] : [];
-        renderGallery(currentFilesArray);
-        fetchStorageUsage();
-      } else {
-        galleryContainer.innerHTML = `<div style="grid-column: 1 / -1; color: #ef4444; text-align: center; padding: 20px;">Failed to load data.</div>`;
-      }
-    } catch (error) {
-      galleryContainer.innerHTML = `<div style="grid-column: 1 / -1; color: #ef4444; text-align: center; padding: 20px;">Connection error.</div>`;
-    }
-  };
-
-  searchInput.addEventListener("input", (e) => {
-    const query = e.target.value.toLowerCase();
-    const filteredFiles = currentFilesArray.filter((file) =>
-      file.name.toLowerCase().includes(query),
-    );
-    renderGallery(filteredFiles);
-  });
-
-  galleryContainer.addEventListener("click", (e) => {
-    if (activeTab !== "images") return;
-    const item = e.target.closest(".hs-gallery-item");
-    if (!item) return;
-
-    const id = String(item.dataset.id);
-    if (selectedItems.has(id)) {
-      selectedItems.delete(id);
-      item.classList.remove("selected");
-    } else {
-      selectedItems.add(id);
-      item.classList.add("selected");
-    }
-    updateDeleteBtnState();
-  });
-
-const switchTab = (type) => {
+  const switchTab = (type) => {
     activeTab = type;
     Object.values(tabs).forEach((btn) => btn.classList.remove("active"));
     tabs[type].classList.add("active");
+
+    const iconChangerBtn = document.getElementById("hs-btn-icon-changer");
+    const hasCharacter = game.actors.some(
+      (a) => a.ownership[game.user.id] >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER
+    );
 
     if (type === "images") {
       titleText.innerText = "Image Gallery";
       actionsContainer.style.display = "flex";
       searchInput.style.display = "block";
+      if (iconChangerBtn) {
+        iconChangerBtn.style.display = hasCharacter ? "flex" : "none";
+      }
       galleryContainer.classList.add("hs-gallery");
-      fetchGalleryData();
-    } else if (type === "visage") {
-      titleText.innerText = "Visage Profiles";
-      actionsContainer.style.display = "none";
-      searchInput.style.display = "none";
-      galleryContainer.classList.remove("hs-gallery");
-      initVisageTab(galleryContainer);
-    } else if (type === "character") {
-      titleText.innerText = "Character Roster";
-      actionsContainer.style.display = "none";
-      searchInput.style.display = "none";
-      galleryContainer.classList.remove("hs-gallery");
-      initCharacterTab(galleryContainer);
-    } else if (type === "audio") {
-      // 🔥 PANGGIL INIT AUDIO DI SINI
-      titleText.innerText = "Audio Studio";
-      actionsContainer.style.display = "none";
-      searchInput.style.display = "none";
-      galleryContainer.classList.remove("hs-gallery");
-      initAudioTab(galleryContainer);
-    } else if (type === "firefly") {
-      titleText.innerText = "Firefly";
-      actionsContainer.style.display = "none";
-      searchInput.style.display = "none";
-      galleryContainer.classList.remove("hs-gallery");
-      initFireflyTab(galleryContainer);
-    } else if (type === "group") {
-      titleText.innerText = "Group";
-      actionsContainer.style.display = "none";
-      searchInput.style.display = "none";
-      galleryContainer.classList.remove("hs-gallery");
-      initGroupTab(galleryContainer);
+      initImagesTab(galleryContainer, fetchStorageUsage);
+    } else {
+      if (iconChangerBtn) {
+        iconChangerBtn.style.display = "none";
+      }
+      if (type === "visage") {
+        titleText.innerText = "Visage Profiles";
+        actionsContainer.style.display = "none";
+        searchInput.style.display = "none";
+        galleryContainer.classList.remove("hs-gallery");
+        initVisageTab(galleryContainer);
+      } else if (type === "character") {
+        titleText.innerText = "Character Roster";
+        actionsContainer.style.display = "none";
+        searchInput.style.display = "none";
+        galleryContainer.classList.remove("hs-gallery");
+        initCharacterTab(galleryContainer);
+      } else if (type === "audio") {
+        // 🔥 PANGGIL INIT AUDIO DI SINI
+        titleText.innerText = "Audio Studio";
+        actionsContainer.style.display = "none";
+        searchInput.style.display = "none";
+        galleryContainer.classList.remove("hs-gallery");
+        initAudioTab(galleryContainer);
+      } else if (type === "firefly") {
+        titleText.innerText = "Firefly";
+        actionsContainer.style.display = "none";
+        searchInput.style.display = "none";
+        galleryContainer.classList.remove("hs-gallery");
+        initFireflyTab(galleryContainer);
+      } else if (type === "group") {
+        titleText.innerText = "Group";
+        actionsContainer.style.display = "none";
+        searchInput.style.display = "none";
+        galleryContainer.classList.remove("hs-gallery");
+        initGroupTab(galleryContainer);
+      }
     }
   };
 
@@ -576,72 +511,19 @@ const switchTab = (type) => {
   });
 
   btnOpenUpload.addEventListener("click", () => {
-    heraldSilane_openUploadModal(activeTab, fetchGalleryData);
+    heraldSilane_openUploadModal(activeTab, () => {
+      if (activeTab === "images") {
+        refreshImagesGallery(fetchStorageUsage);
+      }
+    });
   });
 
-  document.getElementById("hs-btn-settings").addEventListener("click", () => {
-    heraldSilane_openSettingsModal();
-  });
-
-  if (shareChatBtn) {
-    shareChatBtn.addEventListener("click", () => {
-      if (selectedItems.size === 0) return;
-
-      const selectedFiles = currentFilesArray.filter((file) =>
-        selectedItems.has(String(file.id)),
-      );
-
-      let chatContent = `<div class="silane-chat-images" style="display:flex; flex-direction:column; gap:8px;">`;
-      selectedFiles.forEach((file) => {
-        if (file.url) {
-          chatContent += `
-            <div style="background: rgba(0,0,0,0.2); padding: 5px; border-radius: 4px; border: 1px solid #3f3f46;">
-              <img src="${file.url}" alt="Shared Image" style="border-radius: 4px; max-width: 100%; height: auto; display: block;" />
-            </div>
-          `;
-        }
-      });
-      chatContent += `</div>`;
-
-      ChatMessage.create({
-        speaker: ChatMessage.getSpeaker(),
-        content: chatContent,
-      });
-
-      ui.notifications?.info(
-        `Shared ${selectedFiles.length} image(s) to chat.`,
-      );
+  const btnIconChanger = document.getElementById("hs-btn-icon-changer");
+  if (btnIconChanger) {
+    btnIconChanger.addEventListener("click", () => {
+      openCharacterIconChanger(getImagesList());
     });
   }
-
-  deleteBtn.addEventListener("click", async () => {
-    if (selectedItems.size === 0) return;
-
-    const idsToDelete = Array.from(selectedItems);
-    ui.notifications?.info(`Deleting ${idsToDelete.length} item(s)...`);
-
-    try {
-      const token = localStorage.getItem("heraldSilane_token");
-      const response = await fetch(`${API_BASE_URL}/api/silane_assets/delete`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ ids: idsToDelete, type: "images" }),
-      });
-
-      if (response.ok) {
-        ui.notifications?.info(`Delete successful!`);
-        fetchGalleryData();
-      } else {
-        const errData = await response.json();
-        ui.notifications?.error(`Delete failed: ${errData.message}`);
-      }
-    } catch (error) {
-      ui.notifications?.error("Delete error.");
-    }
-  });
 
   document
     .getElementById("hs-btn-logout")

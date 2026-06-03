@@ -140,6 +140,74 @@ export async function initAudioTab(container) {
   await fetchAudioData();
 }
 
+async function ensureDirectoryExists(source, targetPath) {
+  const parts = targetPath.split('/').filter(p => p);
+  let currentPath = "";
+  for (const part of parts) {
+    currentPath = currentPath ? `${currentPath}/${part}` : part;
+    try {
+      await FilePicker.createDirectory(source, currentPath);
+    } catch (err) {
+      // Ignore if directory already exists
+    }
+  }
+}
+
+function getFilenameFromUrl(url, blob) {
+  let filename = url.split('/').pop().split('?')[0];
+  filename = decodeURIComponent(filename).trim();
+  
+  // Clean filename to remove invalid characters
+  filename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+  
+  if (!filename) {
+    filename = generateUUID();
+  }
+  
+  // Check if filename has an extension
+  const hasExtension = filename.includes('.') && filename.lastIndexOf('.') > 0;
+  if (!hasExtension) {
+    let ext = "mp3"; // Default fallback
+    if (blob.type) {
+      const parts = blob.type.split('/');
+      if (parts.length === 2) {
+        if (parts[1] === "mpeg") ext = "mp3";
+        else ext = parts[1];
+      }
+    }
+    filename = `${filename}.${ext}`;
+  }
+  return filename;
+}
+
+async function downloadAndSaveAudio(url) {
+  if (!url) throw new Error("No URL provided");
+  
+  // 1. Fetch the file as a blob
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Failed to fetch audio file from ${url}`);
+  const blob = await response.blob();
+  
+  // 2. Extract filename from URL
+  const filename = getFilenameFromUrl(url, blob);
+
+  // 3. Ensure target directory exists
+  const targetDir = "assets/project-silane/music";
+  await ensureDirectoryExists("data", targetDir);
+
+  // 4. Create the File object
+  const file = new File([blob], filename, { type: blob.type });
+
+  // 5. Upload to Foundry
+  const uploadResponse = await FilePicker.upload("data", targetDir, file, {});
+  
+  if (!uploadResponse || !uploadResponse.path) {
+    throw new Error("Failed to upload audio via FilePicker");
+  }
+  
+  return uploadResponse.path;
+}
+
 async function importPlaylistToFoundry(playlistData, folderId = null) {
   if (!playlistData) return;
   ui.notifications.info(`Importing Playlist: ${playlistData.name}...`);
@@ -176,13 +244,29 @@ async function importPlaylistToFoundry(playlistData, folderId = null) {
     const trackVolume = album?.setting?.volume ?? 0.1;
     const trackRepeat = album?.setting?.repeat ?? true;
 
-    // MASUKKAN VOLUME & REPEAT KE FOUNDRY (TAMBAHAN BARU)
-    const tracksToImport = (playlistData.track || []).map((t) => ({
-      name: t.name,
-      path: t.url,
-      volume: trackVolume,
-      repeat: trackRepeat
-    }));
+    // DOWNLOAD TRACKS AND SAVE LOCALLY
+    const tracksToImport = [];
+    for (const t of (playlistData.track || [])) {
+      try {
+        ui.notifications.info(`Downloading track "${t.name}" to FVTT...`);
+        const localPath = await downloadAndSaveAudio(t.url);
+        tracksToImport.push({
+          name: t.name,
+          path: localPath,
+          volume: trackVolume,
+          repeat: trackRepeat
+        });
+      } catch (err) {
+        console.error(`Failed to download track ${t.name}:`, err);
+        ui.notifications.warn(`Failed to download "${t.name}". Using remote URL instead.`);
+        tracksToImport.push({
+          name: t.name,
+          path: t.url,
+          volume: trackVolume,
+          repeat: trackRepeat
+        });
+      }
+    }
 
     if (tracksToImport.length > 0) {
       await foundryPlaylist.createEmbeddedDocuments(
@@ -209,6 +293,15 @@ async function importTrackToFoundry(trackData, playlistName, albumSetting = {}) 
   const trackRepeat = albumSetting.repeat ?? true;
 
   try {
+    let localPath = trackData.url;
+    try {
+      ui.notifications.info(`Downloading track "${trackData.name}" to FVTT...`);
+      localPath = await downloadAndSaveAudio(trackData.url);
+    } catch (err) {
+      console.error(`Failed to download track ${trackData.name}:`, err);
+      ui.notifications.warn(`Failed to download "${trackData.name}". Using remote URL instead.`);
+    }
+
     let foundryPlaylist = game.playlists.getName(playlistName);
 
     if (!foundryPlaylist) {
@@ -226,7 +319,7 @@ async function importTrackToFoundry(trackData, playlistName, albumSetting = {}) 
       await foundryPlaylist.updateEmbeddedDocuments("PlaylistSound", [
         {
           _id: existingSound.id,
-          path: trackData.url,
+          path: localPath,
           volume: trackVolume, // Update volume
           repeat: trackRepeat  // Update repeat
         },
@@ -236,7 +329,7 @@ async function importTrackToFoundry(trackData, playlistName, albumSetting = {}) 
       await foundryPlaylist.createEmbeddedDocuments("PlaylistSound", [
         {
           name: trackData.name,
-          path: trackData.url,
+          path: localPath,
           volume: trackVolume, // Set volume
           repeat: trackRepeat  // Set repeat
         },
