@@ -29,6 +29,7 @@ const renderGallery = (filesArray) => {
         return `
           <div class="hs-gallery-item ${isSelected}" data-id="${file.id}">
             <div class="hs-check-badge"><i class="fa-solid fa-check"></i></div>
+            <div class="hs-edit-badge" title="Edit Asset Name/Image" data-id="${file.id}"><i class="fa-solid fa-edit"></i></div>
             <div class="hs-media-wrapper">${mediaContent}</div>
             <div class="hs-gallery-name" title="${file.name}">${file.name}</div>
           </div>
@@ -79,6 +80,125 @@ export const getImagesList = () => {
   return currentFilesArray;
 };
 
+function showImageEditForm(file) {
+  let selectedFile = null;
+  const hasExistingUrl = !!file.url;
+
+  const content = `
+    <div class="silane-upload-wrapper" style="padding: 10px; color: #f4f4f5;">
+      <div class="silane-form-group" style="margin-bottom: 12px; display:flex; flex-direction:column; gap:5px;">
+        <label style="font-weight: bold; color: white;">Asset Name</label>
+        <input type="text" id="hs-edit-image-name" class="silane-input" style="width: 100%; border-radius:4px;" value="${file.name}" />
+      </div>
+      <div class="silane-form-group" style="margin-bottom: 15px; display:flex; flex-direction:column; gap:5px;">
+        <label style="font-weight: bold; color: white;">Replace Image</label>
+        <div class="hs-upload-box" id="hs-edit-upload-box" style="margin-top:5px; height:140px;">
+          <div id="hs-edit-upload-placeholder" style="text-align:center; color:#a1a1aa; ${hasExistingUrl ? 'display:none;' : ''}">
+            <i class="fa-solid fa-image fa-2x" style="margin-bottom:8px;"></i><br>Click to Replace Image
+          </div>
+          <img id="hs-edit-upload-preview" src="${file.url || ''}" style="${hasExistingUrl ? 'display:block;' : 'display:none;'}; max-height: 100%; width: 100%; object-fit: contain;" />
+          <input type="file" id="hs-edit-fileInput" accept="image/*" style="display:none;">
+        </div>
+      </div>
+    </div>
+  `;
+
+  new Dialog(
+    {
+      title: "Edit Image Asset",
+      content: content,
+      buttons: {
+        save: {
+          label: '<i class="fa-solid fa-save"></i> Save Changes',
+          callback: async (html) => {
+            const name = html.find("#hs-edit-image-name").val().trim();
+
+            if (!name) {
+              ui.notifications?.warn("Name cannot be empty.");
+              return;
+            }
+
+            ui.notifications?.info("Updating image asset...");
+
+            const formData = new FormData();
+            formData.append("id", file.id);
+            formData.append("name", name);
+            if (selectedFile) {
+              formData.append("file", selectedFile);
+            }
+
+            try {
+              const token = localStorage.getItem("heraldSilane_token");
+              const response = await fetch(`${API_BASE_URL}/api/silane_assets/image/update`, {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`
+                },
+                body: formData
+              });
+
+              if (response.ok) {
+                ui.notifications?.info("Image asset updated successfully!");
+                fetchGalleryData();
+              } else {
+                const errData = await response.json();
+                ui.notifications?.error(`Failed to update: ${errData.message}`);
+              }
+            } catch (err) {
+              console.error(err);
+              ui.notifications?.error("Failed to update image asset.");
+            }
+          }
+        },
+        cancel: { label: "Cancel" }
+      },
+      default: "save",
+      render: (html) => {
+        const dialogElement = html.closest(".app")[0];
+        const contentElement = dialogElement.querySelector(".window-content");
+        if (contentElement) {
+          contentElement.style.backgroundColor = "#18181b";
+          contentElement.style.color = "white";
+          contentElement.style.backgroundImage = "none";
+        }
+
+        html.closest(".dialog").find(".dialog-buttons button").css({
+          color: "white",
+          border: "1px solid #3f3f46",
+          background: "rgba(0,0,0,0.4)",
+        });
+
+        const uploadBox = html.find("#hs-edit-upload-box")[0];
+        const fileInput = html.find("#hs-edit-fileInput")[0];
+        const previewImg = html.find("#hs-edit-upload-preview")[0];
+        const placeholderDiv = html.find("#hs-edit-upload-placeholder")[0];
+
+        if (uploadBox && fileInput) {
+          uploadBox.onclick = () => fileInput.click();
+
+          fileInput.onchange = (e) => {
+            const selected = e.target.files[0];
+            if (!selected) return;
+
+            if (!selected.type.startsWith("image/")) {
+              ui.notifications?.warn("Please select an image file.");
+              fileInput.value = "";
+              return;
+            }
+
+            selectedFile = selected;
+            const objectUrl = URL.createObjectURL(selected);
+            previewImg.src = objectUrl;
+            previewImg.style.display = "block";
+            placeholderDiv.style.display = "none";
+          };
+        }
+      }
+    },
+    { width: 400, classes: ["dialog", "silane-custom-dialog"] }
+  ).render(true);
+}
+
 export async function initImagesTab(container, onLoaded) {
   onDataLoaded = onLoaded;
 
@@ -98,6 +218,17 @@ export async function initImagesTab(container, onLoaded) {
   const galleryContainer = document.getElementById("hs-gallery-container");
   if (galleryContainer) {
     galleryContainer.onclick = (e) => {
+      const editBtn = e.target.closest(".hs-edit-badge");
+      if (editBtn) {
+        e.stopPropagation();
+        const id = String(editBtn.dataset.id);
+        const file = currentFilesArray.find(f => String(f.id) === id);
+        if (file) {
+          showImageEditForm(file);
+        }
+        return;
+      }
+
       const item = e.target.closest(".hs-gallery-item");
       if (!item) return;
 

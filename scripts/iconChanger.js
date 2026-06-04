@@ -286,6 +286,7 @@ export function openCharacterIconChanger(galleryImages = []) {
   let stagedChanges = new Map(); // key: assetId, value: newImageUrl
   let highlightedAssetId = null;
   let searchQuery = "";
+  let gallerySearchQuery = "";
 
   const TYPE_LABELS = {
     portrait: "Portrait",
@@ -387,6 +388,7 @@ export function openCharacterIconChanger(galleryImages = []) {
           <h3 style="margin: 0; font-size: 14px; font-weight: bold; color: #34d399; display: flex; align-items: center; gap: 6px;">
             <i class="fa-solid fa-images"></i> Silane Image Gallery
           </h3>
+          <input type="text" id="sic-gallery-search" class="silane-input" placeholder="Search gallery..." style="padding: 6px 10px; font-size: 13px; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; color: white; outline: none; margin-top: 5px; margin-bottom: 5px;" />
           <div id="sic-image-grid" class="sic-image-grid">
             <!-- Dynamically populated -->
           </div>
@@ -440,6 +442,7 @@ export function openCharacterIconChanger(galleryImages = []) {
         const selectAllCheckbox = html.find("#sic-select-all");
         const assetList = html.find("#sic-asset-list");
         const imageGrid = html.find("#sic-image-grid");
+        const gallerySearch = html.find("#sic-gallery-search");
         const applyBtn = html.find("#sic-btn-apply");
         const closeBtn = html.find("#sic-btn-close");
         const saveBtn = html.find("#sic-btn-save");
@@ -683,12 +686,19 @@ export function openCharacterIconChanger(galleryImages = []) {
 
         // Render Silane Image Gallery
         const renderGallery = () => {
-          if (galleryImages.length === 0) {
-            imageGrid.html(`<div style="grid-column: 1/-1; padding: 20px; text-align: center; color: #71717a;"><i class="fa-solid fa-folder-open fa-2x" style="margin-bottom:8px;"></i><br>No images found in your Silane Gallery.</div>`);
+          const filteredGallery = galleryImages.filter(img => {
+            if (gallerySearchQuery && !img.name.toLowerCase().includes(gallerySearchQuery.toLowerCase())) {
+              return false;
+            }
+            return true;
+          });
+
+          if (filteredGallery.length === 0) {
+            imageGrid.html(`<div style="grid-column: 1/-1; padding: 20px; text-align: center; color: #71717a;"><i class="fa-solid fa-folder-open fa-2x" style="margin-bottom:8px;"></i><br>${galleryImages.length === 0 ? "No images found in your Silane Gallery." : "No matching images."}</div>`);
             return;
           }
 
-          let gridContent = galleryImages.map((img) => {
+          let gridContent = filteredGallery.map((img) => {
             const isSelected = selectedImageUrl === img.url ? "selected" : "";
             return `
               <div class="sic-image-item ${isSelected}" data-url="${img.url}" title="${img.name}" draggable="true">
@@ -821,6 +831,16 @@ export function openCharacterIconChanger(galleryImages = []) {
           searchTimeout = setTimeout(() => {
             searchQuery = $(this).val();
             renderAssets();
+          }, 300);
+        });
+
+        // Bind Gallery Search
+        let gallerySearchTimeout;
+        gallerySearch.on("input", function() {
+          clearTimeout(gallerySearchTimeout);
+          gallerySearchTimeout = setTimeout(() => {
+            gallerySearchQuery = $(this).val();
+            renderGallery();
           }, 300);
         });
 

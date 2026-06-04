@@ -531,3 +531,32 @@
   justify-content: center;
   gap: 8px;
 }
+
+.hs-edit-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 24px;
+  height: 24px;
+  background: rgba(24, 24, 27, 0.9) !important;
+  border: 1px solid #3f3f46 !important;
+  color: #a1a1aa !important;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 5;
+  cursor: pointer;
+}
+.hs-gallery-item:hover .hs-edit-badge {
+  opacity: 1;
+}
+.hs-edit-badge:hover {
+  background: #3b82f6 !important;
+  color: white !important;
+  border-color: #3b82f6 !important;
+  transform: scale(1.1);
+}

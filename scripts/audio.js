@@ -278,6 +278,7 @@ async function importPlaylistToFoundry(playlistData, folderId = null) {
     ui.notifications.info(
       `Playlist "${playlistData.name}" successfully imported/updated!`,
     );
+    render();
   } catch (error) {
     console.error("Import Playlist Error:", error);
     ui.notifications.error("Failed to import playlist to Foundry.");
@@ -336,6 +337,7 @@ async function importTrackToFoundry(trackData, playlistName, albumSetting = {}) 
       ]);
       ui.notifications.info(`Track "${trackData.name}" successfully imported!`);
     }
+    render();
   } catch (error) {
     console.error("Import Track Error:", error);
     ui.notifications.error("Failed to import track to Foundry.");
@@ -378,6 +380,7 @@ async function importAlbumToFoundry(albumData) {
     ui.notifications.info(
       `🎉 Album "${albumData.name}" successfully imported!`,
     );
+    render();
   } catch (error) {
     console.error("Import Album Error:", error);
     ui.notifications.error("Failed to import full album to Foundry.");
@@ -402,7 +405,7 @@ function renderStudioView() {
 
   let html = `
     <div style="padding: 10px; display:flex; flex-direction:column; height: 100%; overflow-y: auto;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-shrink: 0;">
         <div>
           <h2 style="font-size: 24px; font-weight: bold; color: white; display: flex; align-items: center; gap: 8px; margin: 0;">
             <i class="fa-solid fa-house" style="color: #6366f1;"></i> Studio
@@ -410,7 +413,7 @@ function renderStudioView() {
           <p style="font-size: 14px; color: #a1a1aa; margin: 4px 0 0 0;">Manage your audio albums</p>
         </div>
         <div style="display: flex; gap: 12px;">
-          <button id="hs-btn-join-album" style="height: 40px; padding: 0 16px; display: flex; align-items: center; gap: 8px; background: #27272a; color: #e4e4e7; border: 1px solid #3f3f46; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer;">
+          <button id="hs-btn-join-album" style="height: 40px; padding: 0 16px; display: flex; align-items: center; gap: 8px; background: #27272a; color: #e4e4e7; border: 1px solid #3f3f46; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; width: auto; white-space: nowrap;">
             <i class="fa-solid fa-users"></i> Join Album
           </button>
         </div>
@@ -432,6 +435,13 @@ function renderStudioView() {
         (p) => p.album_id === album.id,
       ).length;
 
+      const existsInFoundry = game.folders.some(
+        (f) => f.name === album.name && f.type === "Playlist"
+      );
+      const badgeHtml = existsInFoundry
+        ? `<span style="font-size: 10px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 6px; border-radius: 4px; font-weight: bold; display: flex; align-items: center; gap: 4px;"><i class="fa-solid fa-circle-check"></i> Exported</span>`
+        : "";
+
       html += `
         <div class="hs-album-card" style="background: rgba(24, 24, 27, 0.5); border: 1px solid #3f3f46; border-radius: 12px; padding: 16px; cursor: pointer; display: flex; align-items: center; transition: all 0.2s;" data-id="${album.id}">
           <div style="width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 12px; margin-right: 16px; background: linear-gradient(to bottom right, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); border: 1px solid rgba(99, 102, 241, 0.3);">
@@ -439,8 +449,9 @@ function renderStudioView() {
           </div>
           <div style="flex: 1; overflow: hidden;">
             <div style="font-weight: bold; font-size: 16px; color: #f4f4f5; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${album.name}</div>
-            <div style="font-size: 12px; color: #a1a1aa; font-family: monospace; display: flex; align-items: center; gap: 8px;">
+            <div style="font-size: 12px; color: #a1a1aa; font-family: monospace; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
               <span>${playlistCount} Playlists</span>
+              ${badgeHtml}
             </div>
           </div>
           <div style="display: flex; gap: 8px; align-items: center; margin-left: 8px;">
@@ -510,9 +521,9 @@ function renderAlbumView() {
 
   let html = `
     <div style="padding: 10px; display:flex; flex-direction:column; height: 100%; overflow-y: auto;">
-      <div style="background: linear-gradient(to right, rgba(49, 46, 129, 0.4), #18181b); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 16px; padding: 24px; margin-bottom: 24px; position: relative; overflow: hidden;">
-        <div style="position: absolute; top: 0; right: 0; padding: 32px; opacity: 0.1; pointer-events: none;">
-          <i class="fa-solid fa-compact-disc" style="font-size: 120px;"></i>
+      <div style="background: linear-gradient(to right, rgba(49, 46, 129, 0.4), #18181b); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 16px; padding: 24px; margin-bottom: 24px; position: relative; overflow: hidden; flex-shrink: 0;">
+        <div style="position: absolute; top: -10px; right: -10px; opacity: 0.08; pointer-events: none; z-index: 1;">
+          <i class="fa-solid fa-compact-disc" style="font-size: 100px;"></i>
         </div>
         <div style="z-index: 10; position: relative;">
           <button id="hs-btn-back-studio" style="display: flex; align-items: center; gap: 8px; background: none; border: none; color: #818cf8; font-size: 14px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 16px; width: fit-content;">
@@ -528,15 +539,15 @@ function renderAlbumView() {
           </div>
         </div>
         <div style="position: absolute; top: 24px; right: 24px; z-index: 10; display: flex; gap: 8px;">
-          <button id="hs-btn-import-full-album" style="display: flex; align-items: center; gap: 8px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: all 0.2s;" onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
+          <button id="hs-btn-import-full-album" style="display: flex; align-items: center; gap: 8px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: all 0.2s; width: auto; white-space: nowrap;" onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
             <i class="fa-solid fa-download"></i> Import Album
           </button>
-          ${isOwner ? `<button id="hs-btn-album-settings" style="display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(63, 63, 70, 0.5); color: #d4d4d8; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;"><i class="fa-solid fa-gear"></i> Album Settings</button>` : ""}
+          ${isOwner ? `<button id="hs-btn-album-settings" style="display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(63, 63, 70, 0.5); color: #d4d4d8; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; width: auto; white-space: nowrap;"><i class="fa-solid fa-gear"></i> Album Settings</button>` : ""}
         </div>
       </div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 0 4px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 0 4px; flex-shrink: 0;">
         <h3 style="font-size: 18px; font-weight: bold; color: #e4e4e7; margin: 0;">Playlists</h3>
-        ${isOwner ? `<button id="hs-btn-new-playlist" style="height: 36px; padding: 0 16px; display: flex; align-items: center; gap: 8px; background: rgba(192, 38, 211, 0.2); border: 1px solid rgba(192, 38, 211, 0.3); color: #e879f9; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer;"><i class="fa-solid fa-list-music"></i> New Playlist</button>` : ""}
+        ${isOwner ? `<button id="hs-btn-new-playlist" style="height: 36px; padding: 0 16px; display: flex; align-items: center; gap: 8px; background: rgba(192, 38, 211, 0.2); border: 1px solid rgba(192, 38, 211, 0.3); color: #e879f9; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; width: auto; white-space: nowrap;"><i class="fa-solid fa-list-music"></i> New Playlist</button>` : ""}
       </div>
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; padding-bottom: 40px;">
   `;
@@ -550,13 +561,21 @@ function renderAlbumView() {
     `;
   } else {
     albumPlaylists.forEach((pl) => {
+      const existsInFoundry = game.playlists.some((p) => p.name === pl.name);
+      const badgeHtml = existsInFoundry
+        ? `<span style="font-size: 10px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 6px; border-radius: 4px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; margin-left: 8px;"><i class="fa-solid fa-circle-check"></i> Exported</span>`
+        : "";
+
       html += `
         <div class="hs-playlist-card" style="background: rgba(24, 24, 27, 0.4); border: 1px solid rgba(63, 63, 70, 0.8); border-radius: 12px; padding: 12px; cursor: pointer; display: flex; align-items: center; transition: all 0.2s;" data-id="${pl.uuid}">
           <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 8px; margin-right: 16px; background: rgba(192, 38, 211, 0.1); border: 1px solid rgba(192, 38, 211, 0.2);">
             <i class="fa-regular fa-circle-play" style="font-size: 22px; color: #e879f9;"></i>
           </div>
           <div style="flex: 1; overflow: hidden;">
-            <div style="font-weight: bold; font-size: 15px; color: #e4e4e7; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pl.name}</div>
+            <div style="font-weight: bold; font-size: 15px; color: #e4e4e7; margin-bottom: 2px; display: flex; align-items: center; overflow: hidden;">
+              <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;">${pl.name}</span>
+              ${badgeHtml}
+            </div>
             <div style="font-size: 12px; color: #71717a;">${pl.track?.length || 0} Tracks</div>
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
@@ -653,9 +672,9 @@ function renderPlaylistView() {
 
   let html = `
     <div style="padding: 10px; display:flex; flex-direction:column; height: 100%; overflow-y: auto;">
-      <div style="background: linear-gradient(to right, rgba(134, 25, 143, 0.3), #18181b); border: 1px solid rgba(192, 38, 211, 0.2); border-radius: 16px; padding: 24px; margin-bottom: 24px; position: relative; overflow: hidden;">
-        <div style="position: absolute; top: 0; right: 0; padding: 32px; opacity: 0.1; pointer-events: none;">
-          <i class="fa-solid fa-list-music" style="font-size: 120px;"></i>
+      <div style="background: linear-gradient(to right, rgba(134, 25, 143, 0.3), #18181b); border: 1px solid rgba(192, 38, 211, 0.2); border-radius: 16px; padding: 24px; margin-bottom: 24px; position: relative; overflow: hidden; flex-shrink: 0;">
+        <div style="position: absolute; top: -10px; right: -10px; opacity: 0.08; pointer-events: none; z-index: 1;">
+          <i class="fa-solid fa-list-music" style="font-size: 100px;"></i>
         </div>
         <div style="z-index: 10; position: relative;">
           <button id="hs-btn-back-album" style="display: flex; align-items: center; gap: 8px; background: none; border: none; color: #e879f9; font-size: 14px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 16px; width: fit-content;">
@@ -665,14 +684,14 @@ function renderPlaylistView() {
           <div style="font-size: 12px; font-weight: 500; color: #a1a1aa;">${playlist.track?.length || 0} Tracks Available</div>
         </div>
         <div style="position: absolute; top: 24px; right: 24px; z-index: 10;">
-          <button id="hs-btn-import-full-playlist" style="display: flex; align-items: center; gap: 8px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: all 0.2s;" onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
+          <button id="hs-btn-import-full-playlist" style="display: flex; align-items: center; gap: 8px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: all 0.2s; width: auto; white-space: nowrap;" onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
             <i class="fa-solid fa-download"></i> Import Playlist
           </button>
         </div>
       </div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 0 4px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 0 4px; flex-shrink: 0;">
         <h3 style="font-size: 18px; font-weight: bold; color: #e4e4e7; margin: 0;">Audio Tracks</h3>
-        <button id="hs-btn-upload-track" style="height: 36px; padding: 0 16px; display: flex; align-items: center; gap: 8px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.2);">
+        <button id="hs-btn-upload-track" style="height: 36px; padding: 0 16px; display: flex; align-items: center; gap: 8px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.2); width: auto; white-space: nowrap;">
           <i class="fa-solid fa-upload"></i> Upload Track
         </button>
       </div>
@@ -687,10 +706,17 @@ function renderPlaylistView() {
       </div>
     `;
   } else {
+    const fvttPlaylist = game.playlists.getName(playlist.name);
+
     playlist.track.forEach((track) => {
       const isTrackUploader =
         String(track.user_id) === String(state.currentUser.id);
       const canDelete = isAlbumOwner || isTrackUploader;
+
+      const existsInFoundry = fvttPlaylist && fvttPlaylist.sounds.some((s) => s.name === track.name);
+      const badgeHtml = existsInFoundry
+        ? `<span style="font-size: 10px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 6px; border-radius: 4px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; margin-left: 8px;"><i class="fa-solid fa-circle-check"></i> Exported</span>`
+        : "";
 
       html += `
         <div class="hs-track-row" style="background: rgba(24, 24, 27, 0.5); border: 1px solid rgba(63, 63, 70, 0.8); border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 16px; transition: all 0.2s;">
@@ -698,7 +724,10 @@ function renderPlaylistView() {
             <i class="fa-solid fa-music" style="font-size: 18px; color: #60a5fa;"></i>
           </div>
           <div style="flex: 1; min-width:0; padding-right: 16px;">
-            <div style="font-weight: bold; font-size: 14px; color: #f4f4f5; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${track.name}</div>
+            <div style="font-weight: bold; font-size: 14px; color: #f4f4f5; margin-bottom: 2px; display: flex; align-items: center; overflow: hidden;">
+              <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;">${track.name}</span>
+              ${badgeHtml}
+            </div>
             <div style="font-size: 10px; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em;">By ${track.user_name}</div>
           </div>
           <div class="hs-custom-player" style="display:flex; align-items:center; gap:12px; background: rgba(0,0,0,0.4); padding: 8px 12px; border-radius: 8px; border: 1px solid #27272a; flex: 2; max-width: 400px;">

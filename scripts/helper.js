@@ -36,3 +36,19 @@ export function hexToRgb(hex) {
   const b = bigint & 255;
   return `${r}, ${g}, ${b}`;
 }
+
+export const applyDarkThemeToDialog = (html) => {
+  const dialogElement = html.closest(".app")?.[0] || html.closest(".dialog")?.[0];
+  const contentElement = dialogElement?.querySelector(".window-content");
+  if (contentElement) {
+    contentElement.style.backgroundColor = "#18181b";
+    contentElement.style.color = "white";
+    contentElement.style.backgroundImage = "none";
+  }
+
+  html.closest(".dialog")?.find(".dialog-buttons button").css({
+    color: "white",
+    border: "1px solid #3f3f46",
+    background: "rgba(0,0,0,0.4)",
+  });
+};
