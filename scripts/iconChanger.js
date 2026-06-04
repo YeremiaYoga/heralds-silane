@@ -130,6 +130,99 @@ const injectIconChangerStyles = () => {
       background: rgba(239, 68, 68, 0.15) !important;
       transform: scale(1.15) !important;
     }
+    .sic-multiselect-container {
+      position: relative;
+      width: 120px;
+    }
+    .sic-multiselect-btn {
+      width: 100%;
+      height: 30px;
+      padding: 4px 10px;
+      font-size: 13px;
+      border-radius: 4px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid #3f3f46;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-sizing: border-box;
+      outline: none;
+      text-align: left;
+    }
+    .sic-multiselect-btn:hover {
+      border-color: #52525b;
+      background: rgba(255,255,255,0.05);
+    }
+    .sic-multiselect-options {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      right: 0;
+      width: 200px;
+      max-height: 250px;
+      overflow-y: auto;
+      background: #18181b;
+      border: 1px solid #3f3f46;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      z-index: 999;
+      padding: 6px;
+      box-sizing: border-box;
+    }
+    .sic-multiselect-options::-webkit-scrollbar {
+      width: 4px;
+    }
+    .sic-multiselect-options::-webkit-scrollbar-thumb {
+      background: #3f3f46;
+      border-radius: 10px;
+    }
+    .sic-multiselect-header {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #27272a;
+      padding-bottom: 6px;
+      margin-bottom: 6px;
+      font-size: 11px;
+    }
+    .sic-multiselect-link {
+      color: #3b82f6;
+      cursor: pointer;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .sic-multiselect-link:hover {
+      text-decoration: underline;
+    }
+    .sic-multiselect-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      color: #e4e4e7;
+      user-select: none;
+    }
+    .sic-multiselect-option:hover {
+      background: rgba(255,255,255,0.05);
+    }
+    .sic-multiselect-option input {
+      cursor: pointer;
+      margin: 0;
+      width: 14px;
+      height: 14px;
+      min-width: 14px;
+      min-height: 14px;
+    }
+    .sic-multiselect-option span {
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      flex: 1;
+    }
     .sic-image-grid {
       flex: 1;
       overflow-y: auto;
@@ -193,7 +286,46 @@ export function openCharacterIconChanger(galleryImages = []) {
   let stagedChanges = new Map(); // key: assetId, value: newImageUrl
   let highlightedAssetId = null;
   let searchQuery = "";
-  let typeFilter = "all";
+
+  const TYPE_LABELS = {
+    portrait: "Portrait",
+    token: "Token",
+    weapon: "Weapon",
+    equipment: "Equipment",
+    consumable: "Consumable",
+    tool: "Tool",
+    backpack: "Backpack / Container",
+    loot: "Loot",
+    spell: "Spell",
+    feat: "Feature / Feat",
+    class: "Class",
+    subclass: "Subclass",
+    background: "Background",
+    race: "Race"
+  };
+
+  const getAvailableTypes = (actor) => {
+    const types = new Set(["portrait", "token"]);
+    if (actor && actor.items) {
+      for (const item of actor.items) {
+        if (item.type) {
+          types.add(item.type);
+        }
+      }
+    }
+    return Array.from(types).sort((a, b) => {
+      if (a === "portrait") return -1;
+      if (b === "portrait") return 1;
+      if (a === "token") return -1;
+      if (b === "token") return 1;
+      const labelA = TYPE_LABELS[a] || a;
+      const labelB = TYPE_LABELS[b] || b;
+      return labelA.localeCompare(labelB);
+    });
+  };
+
+  let availableTypes = getAvailableTypes(activeActor);
+  let selectedTypes = new Set(availableTypes);
 
   // HTML Dialog Content
   const content = `
@@ -216,15 +348,23 @@ export function openCharacterIconChanger(galleryImages = []) {
           </h3>
 
           <!-- Search & Filter -->
-          <div style="display: flex; gap: 8px;">
+          <div style="display: flex; gap: 8px; align-items: center;">
             <input type="text" id="sic-asset-search" class="silane-input" placeholder="Search assets..." style="flex: 1; padding: 6px 10px; font-size: 13px; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; color: white; outline: none;" />
-            <select id="sic-asset-filter" class="silane-input" style="width: 110px; padding: 6px; font-size: 13px; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; color: white; outline: none; cursor: pointer;">
-              <option value="all" style="background: #18181b; color: white;">All Types</option>
-              <option value="items" style="background: #18181b; color: white;">Items</option>
-              <option value="equipment" style="background: #18181b; color: white;">Equipment</option>
-              <option value="features" style="background: #18181b; color: white;">Features</option>
-              <option value="spells" style="background: #18181b; color: white;">Spells</option>
-            </select>
+            <div class="sic-multiselect-container">
+              <button type="button" id="sic-filter-btn" class="sic-multiselect-btn">
+                <span>Filters (All)</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #a1a1aa; margin-left: 6px;"></i>
+              </button>
+              <div id="sic-filter-options" class="sic-multiselect-options">
+                <div class="sic-multiselect-header">
+                  <span id="sic-filter-select-all" class="sic-multiselect-link">Select All</span>
+                  <span id="sic-filter-clear-all" class="sic-multiselect-link">Clear All</span>
+                </div>
+                <div id="sic-filter-checkboxes-list">
+                  <!-- Dynamically populated -->
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Select All visible checkbox -->
@@ -272,22 +412,8 @@ export function openCharacterIconChanger(galleryImages = []) {
     if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
-    // 2. Filter by type dropdown
-    if (typeFilter === "all") return true;
-    const type = item.type;
-    if (typeFilter === "items") {
-      return ["weapon", "equipment", "consumable", "tool", "backpack", "loot"].includes(type);
-    }
-    if (typeFilter === "equipment") {
-      return ["equipment", "weapon"].includes(type);
-    }
-    if (typeFilter === "features") {
-      return ["feat", "class", "subclass"].includes(type);
-    }
-    if (typeFilter === "spells") {
-      return type === "spell";
-    }
-    return true;
+    // 2. Filter by selected types
+    return selectedTypes.has(item.type);
   };
 
   const changerDialog = new Dialog(
@@ -306,7 +432,11 @@ export function openCharacterIconChanger(galleryImages = []) {
 
         const charSelect = html.find("#sic-character-select");
         const assetSearch = html.find("#sic-asset-search");
-        const assetFilter = html.find("#sic-asset-filter");
+        const filterBtn = html.find("#sic-filter-btn");
+        const filterOptions = html.find("#sic-filter-options");
+        const filterCheckboxesList = html.find("#sic-filter-checkboxes-list");
+        const filterSelectAll = html.find("#sic-filter-select-all");
+        const filterClearAll = html.find("#sic-filter-clear-all");
         const selectAllCheckbox = html.find("#sic-select-all");
         const assetList = html.find("#sic-asset-list");
         const imageGrid = html.find("#sic-image-grid");
@@ -395,28 +525,31 @@ export function openCharacterIconChanger(galleryImages = []) {
 
           // 1. Get virtual assets (portrait, token)
           const virtualAssets = [];
-          if (typeFilter === "all") {
-            const portraitAsset = {
+          const virtualToRender = [];
+          if (selectedTypes.has("portrait")) {
+            virtualToRender.push({
               id: "char-portrait",
               name: `${activeActor.name} (Portrait)`,
               img: activeActor.img || "icons/svg/mystery-man.svg",
               type: "portrait"
-            };
-            const tokenAsset = {
+            });
+          }
+          if (selectedTypes.has("token")) {
+            virtualToRender.push({
               id: "char-token",
               name: `${activeActor.name} (Token)`,
               img: activeActor.prototypeToken?.texture?.src || activeActor.img || "icons/svg/mystery-man.svg",
               type: "token"
-            };
-
-            const filteredVirtual = [portraitAsset, tokenAsset].filter(item => {
-              if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-                return false;
-              }
-              return true;
             });
-            virtualAssets.push(...filteredVirtual);
           }
+
+          const filteredVirtual = virtualToRender.filter(item => {
+            if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+              return false;
+            }
+            return true;
+          });
+          virtualAssets.push(...filteredVirtual);
 
           // 2. Get and sort visible actor items
           const visibleItems = activeActor.items.contents
@@ -601,11 +734,87 @@ export function openCharacterIconChanger(galleryImages = []) {
           });
         };
 
+        // Define multiselect rendering and behaviors
+        const renderFilterCheckboxes = () => {
+          let listHtml = availableTypes.map(type => {
+            const label = TYPE_LABELS[type] || (type.charAt(0).toUpperCase() + type.slice(1));
+            const isChecked = selectedTypes.has(type) ? "checked" : "";
+            return `
+              <label class="sic-multiselect-option">
+                <input type="checkbox" class="sic-filter-checkbox" data-type="${type}" ${isChecked} />
+                <span title="${label}">${label}</span>
+              </label>
+            `;
+          }).join("");
+          filterCheckboxesList.html(listHtml);
+
+          // Bind checkbox click
+          filterCheckboxesList.find(".sic-filter-checkbox").off("change").on("change", function() {
+            const type = $(this).data("type");
+            if (this.checked) {
+              selectedTypes.add(type);
+            } else {
+              selectedTypes.delete(type);
+            }
+            updateFilterButtonText();
+            renderAssets();
+          });
+        };
+
+        const updateFilterButtonText = () => {
+          if (selectedTypes.size === 0) {
+            filterBtn.find("span").text("Filters (None)");
+          } else if (selectedTypes.size === availableTypes.length) {
+            filterBtn.find("span").text("Filters (All)");
+          } else if (selectedTypes.size === 1) {
+            const singleType = Array.from(selectedTypes)[0];
+            const label = TYPE_LABELS[singleType] || singleType;
+            filterBtn.find("span").text(`Filter: ${label}`);
+          } else {
+            filterBtn.find("span").text(`Filters (${selectedTypes.size})`);
+          }
+        };
+
+        // Toggle filter dropdown
+        filterBtn.off("click").on("click", (e) => {
+          e.stopPropagation();
+          filterOptions.toggle();
+        });
+
+        // Prevent closing when clicking inside options
+        filterOptions.off("click").on("click", (e) => {
+          e.stopPropagation();
+        });
+
+        // Close when clicking outside
+        $(document).off("click.sicFilterClose").on("click.sicFilterClose", () => {
+          filterOptions.hide();
+        });
+
+        // Select All / Clear All
+        filterSelectAll.off("click").on("click", (e) => {
+          e.preventDefault();
+          availableTypes.forEach(t => selectedTypes.add(t));
+          filterCheckboxesList.find(".sic-filter-checkbox").prop("checked", true);
+          updateFilterButtonText();
+          renderAssets();
+        });
+
+        filterClearAll.off("click").on("click", (e) => {
+          e.preventDefault();
+          selectedTypes.clear();
+          filterCheckboxesList.find(".sic-filter-checkbox").prop("checked", false);
+          updateFilterButtonText();
+          renderAssets();
+        });
+
         // Initialize Rendering
+        renderFilterCheckboxes();
+        updateFilterButtonText();
         renderAssets();
         renderGallery();
 
-        // Bind Search & Filters
+        // Bind Search
         let searchTimeout;
         assetSearch.on("input", function() {
           clearTimeout(searchTimeout);
@@ -615,25 +824,23 @@ export function openCharacterIconChanger(galleryImages = []) {
           }, 300);
         });
 
-        assetFilter.on("change", function() {
-          typeFilter = $(this).val();
-          renderAssets();
-        });
-
         // Toggle Select All Visible
         selectAllCheckbox.on("change", function() {
           const isChecked = this.checked;
           
           const virtualAssets = [];
-          if (typeFilter === "all") {
-            const portraitAsset = { id: "char-portrait", name: `${activeActor.name} (Portrait)` };
-            const tokenAsset = { id: "char-token", name: `${activeActor.name} (Token)` };
-            const filteredVirtual = [portraitAsset, tokenAsset].filter(item => {
-              if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-              return true;
-            });
-            virtualAssets.push(...filteredVirtual);
+          const virtualToRender = [];
+          if (selectedTypes.has("portrait")) {
+            virtualToRender.push({ id: "char-portrait", name: `${activeActor.name} (Portrait)` });
           }
+          if (selectedTypes.has("token")) {
+            virtualToRender.push({ id: "char-token", name: `${activeActor.name} (Token)` });
+          }
+          const filteredVirtual = virtualToRender.filter(item => {
+            if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+            return true;
+          });
+          virtualAssets.push(...filteredVirtual);
 
           const visibleItems = activeActor.items.contents.filter(filterItem);
           const allVisible = [...virtualAssets, ...visibleItems];
@@ -660,6 +867,10 @@ export function openCharacterIconChanger(galleryImages = []) {
                 content: `<p>You have unsaved icon changes for <b>${activeActor.name}</b>. Switching characters will discard these changes. Do you want to continue?</p>`,
                 yes: () => {
                   activeActor = selectedActor;
+                  availableTypes = getAvailableTypes(activeActor);
+                  selectedTypes = new Set(availableTypes);
+                  renderFilterCheckboxes();
+                  updateFilterButtonText();
                   stagedChanges.clear();
                   checkedAssetIds.clear();
                   highlightedAssetId = null;
@@ -674,6 +885,10 @@ export function openCharacterIconChanger(galleryImages = []) {
               });
             } else {
               activeActor = selectedActor;
+              availableTypes = getAvailableTypes(activeActor);
+              selectedTypes = new Set(availableTypes);
+              renderFilterCheckboxes();
+              updateFilterButtonText();
               checkedAssetIds.clear();
               highlightedAssetId = null;
               selectAllCheckbox.prop("checked", false);
@@ -783,6 +998,7 @@ export function openCharacterIconChanger(galleryImages = []) {
   // Override close to check for staged changes
   const originalClose = changerDialog.close.bind(changerDialog);
   changerDialog.close = async function(options) {
+    $(document).off("click.sicFilterClose"); // Clean up document click handler
     if (stagedChanges.size > 0) {
       return new Promise((resolve) => {
         Dialog.confirm({
