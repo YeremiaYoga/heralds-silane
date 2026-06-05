@@ -1143,6 +1143,7 @@ function showCreateOrEditMissionModal(group, mission = null) {
               required_level,
               notes,
               player_notes,
+              objectives: [],
               steps: gatheredSteps,
               rewards: gatheredRewards
             };
