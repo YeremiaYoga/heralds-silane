@@ -6,6 +6,7 @@ import { initFireflyTab } from "./firefly.js";
 import { initGroupTab } from "./group.js";
 import { openCharacterIconChanger } from "./iconChanger.js";
 import { initImagesTab, refreshImagesGallery, getImagesList } from "./images.js";
+import { initIgniteCharacterTab } from "./igniteCharacter.js";
 // ==========================================
 // STATE VARIABLES
 // ==========================================
@@ -318,6 +319,7 @@ async function heraldSilane_renderMainView() {
           <button id="hs-tab-audio" class="hs-circle-btn" title="Audio"><i class="fa-solid fa-music"></i></button>
           <button id="hs-tab-images" class="hs-circle-btn" title="Images"><i class="fa-solid fa-image"></i></button>
           <button id="hs-tab-character" class="hs-circle-btn" title="Character"><i class="fa-solid fa-users"></i></button>
+          <button id="hs-tab-ignite-character" class="hs-circle-btn" title="Ignite Character"><i class="fa-solid fa-address-card"></i></button>
           <button id="hs-tab-firefly" class="hs-circle-btn" title="Firefly"><i class="fa-solid fa-fire"></i></button>
           <button id="hs-tab-group" class="hs-circle-btn" title="Group"><i class="fa-solid fa-people-group"></i></button>
         </div>
@@ -384,6 +386,7 @@ async function heraldSilane_renderMainView() {
     audio: document.getElementById("hs-tab-audio"),
     visage: document.getElementById("hs-tab-visage"),
     character: document.getElementById("hs-tab-character"),
+    igniteCharacter: document.getElementById("hs-tab-ignite-character"),
     firefly: document.getElementById("hs-tab-firefly"),
     group: document.getElementById("hs-tab-group"),
   };
@@ -483,6 +486,12 @@ async function heraldSilane_renderMainView() {
         searchInput.style.display = "none";
         galleryContainer.classList.remove("hs-gallery");
         initCharacterTab(galleryContainer);
+      } else if (type === "igniteCharacter") {
+        titleText.innerText = "Ignite Character";
+        actionsContainer.style.display = "none";
+        searchInput.style.display = "none";
+        galleryContainer.classList.remove("hs-gallery");
+        initIgniteCharacterTab(galleryContainer);
       } else if (type === "audio") {
         // 🔥 PANGGIL INIT AUDIO DI SINI
         titleText.innerText = "Audio Studio";
