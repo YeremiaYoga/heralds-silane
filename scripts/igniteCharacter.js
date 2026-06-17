@@ -119,7 +119,7 @@ function renderListArea() {
 
   let html = "";
   filtered.forEach(char => {
-    const avatar = char.token_image || char.art_image || "icons/svg/mystery-man.svg";
+    const avatar = char.token_image || "icons/svg/mystery-man.svg";
     const displayName = char.name || "Hero Without A Name";
     const displayFullName = char.full_name || "";
     
