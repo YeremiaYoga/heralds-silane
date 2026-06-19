@@ -23,17 +23,23 @@ const injectIgniteCharacterStyles = () => {
     .ig-row-card { display: flex; align-items: center; padding: 10px 14px; background: rgba(0, 0, 0, 0.3); border: 1px solid #3f3f46; border-radius: 8px; transition: all 0.2s; user-select: none; gap: 14px; }
     .ig-row-card:hover { background: rgba(0, 0, 0, 0.5); border-color: #52525b; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
     
-    .ig-card-avatar { width: 52px; height: 52px; border-radius: 6px; border: 1px solid #52525b; overflow: hidden; background: #18181b; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-    .ig-card-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .ig-card-avatar, .ig-card-art { width: 52px; height: 52px; border-radius: 6px; border: 1px solid #52525b; overflow: hidden; background: #18181b; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .ig-card-avatar img, .ig-card-art img { width: 100%; height: 100%; object-fit: cover; }
     
     .ig-card-info { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
     .ig-card-name { font-size: 16px; font-weight: 700; color: #f4f4f5; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.5px; }
     .ig-card-fullname { font-size: 12px; color: #a1a1aa; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     
-    .ig-card-meta { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-width: 150px; text-align: right; padding-right: 4px; }
+    .ig-card-meta { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-width: 150px; text-align: right; padding-right: 12px; border-right: 1px solid #3f3f46; }
     .ig-meta-species { font-size: 13px; color: #60a5fa; font-weight: 600; margin-bottom: 2px; }
     .ig-meta-classes { font-size: 12px; color: #fbbf24; font-weight: 500; }
     .ig-meta-date { font-size: 10px; color: #71717a; margin-top: 4px; font-style: italic; }
+
+    .ig-card-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+    .ig-btn-action-box { display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; opacity: 0.85; background: transparent; border: none; padding: 0;}
+    .ig-btn-action-box:hover { opacity: 1; transform: scale(1.05); }
+    .ig-icon-sq { width: 28px; height: 28px; border: 1px solid; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; background: rgba(0,0,0,0.2);}
+    .ig-export .ig-icon-sq { border-color: #10b981; color: #10b981; }
 
     .ig-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; color: #71717a; text-align: center; }
     .ig-empty-state i { font-size: 40px; margin-bottom: 15px; opacity: 0.5; }
@@ -120,6 +126,7 @@ function renderListArea() {
   let html = "";
   filtered.forEach(char => {
     const avatar = char.token_image || "icons/svg/mystery-man.svg";
+    const art = char.art_image || "";
     const displayName = char.name || "Hero Without A Name";
     const displayFullName = char.full_name || "";
     
@@ -146,7 +153,7 @@ function renderListArea() {
 
     html += `
       <div class="ig-row-card">
-        <div class="ig-card-avatar">
+        <div class="ig-card-avatar" title="Token Image">
           <img src="${avatar}" onerror="this.src='icons/svg/mystery-man.svg'" />
         </div>
         <div class="ig-card-info">
@@ -158,11 +165,63 @@ function renderListArea() {
           ${classesStr ? `<div class="ig-meta-classes">${classesStr}</div>` : ""}
           ${formattedDate ? `<div class="ig-meta-date">Created on ${formattedDate}</div>` : ""}
         </div>
+        <div class="ig-card-actions">
+          <button class="ig-btn-action-box ig-export ig-action-export" data-id="${char.id}" title="Export to Foundry">
+            <div class="ig-icon-sq"><i class="fa-solid fa-file-import"></i></div>
+          </button>
+        </div>
       </div>
     `;
   });
 
   listArea.innerHTML = html;
+}
+
+async function exportCharacterToFoundry(char) {
+  if (!char || !char.fvtt_format || typeof char.fvtt_format !== "object" || Object.keys(char.fvtt_format).length === 0) {
+    ui.notifications?.warn(`Character "${char.name}" does not have a valid FVTT format. Please save/update the character in Ignite Character Maker first.`);
+    return;
+  }
+
+  const actorData = char.fvtt_format;
+
+  Dialog.confirm({
+    title: `Export Character`,
+    content: `<p>Are you sure you want to export <strong>${char.name}</strong> to your Foundry VTT Actors list?</p>`,
+    yes: async () => {
+      try {
+        const dataToImport = foundry.utils.deepClone(actorData);
+        delete dataToImport._id;
+
+        // Apply art and token image overrides/fallbacks on export to ensure they display properly
+        if (char.art_image) {
+          dataToImport.img = char.art_image;
+        } else if (char.token_image) {
+          dataToImport.img = char.token_image;
+        }
+        if (char.token_image) {
+          if (!dataToImport.prototypeToken) dataToImport.prototypeToken = {};
+          if (!dataToImport.prototypeToken.texture) dataToImport.prototypeToken.texture = {};
+          dataToImport.prototypeToken.texture.src = char.token_image;
+        } else if (char.art_image) {
+          if (!dataToImport.prototypeToken) dataToImport.prototypeToken = {};
+          if (!dataToImport.prototypeToken.texture) dataToImport.prototypeToken.texture = {};
+          dataToImport.prototypeToken.texture.src = char.art_image;
+        }
+
+        const newActor = await Actor.create(dataToImport);
+        if (newActor) {
+          ui.notifications?.info(`Success! Actor [${newActor.name}] has been created.`);
+          newActor.sheet.render(true);
+        }
+      } catch (error) {
+        console.error("Ignite Character VTT Export Error:", error);
+        ui.notifications?.error(`Failed to export character: ${error.message}`);
+      }
+    },
+    no: () => {},
+    defaultYes: true
+  });
 }
 
 function attachEvents() {
@@ -175,6 +234,20 @@ function attachEvents() {
         searchQuery = e.target.value;
         renderListArea();
       }, 500);
+    });
+  }
+
+  const listArea = document.getElementById("ig-list-area");
+  if (listArea) {
+    listArea.addEventListener("click", async (e) => {
+      const exportBtn = e.target.closest(".ig-action-export");
+      if (exportBtn) {
+        const id = exportBtn.dataset.id;
+        const char = igniteCharacters.find((c) => c.id === id);
+        if (char) {
+          await exportCharacterToFoundry(char);
+        }
+      }
     });
   }
 }
