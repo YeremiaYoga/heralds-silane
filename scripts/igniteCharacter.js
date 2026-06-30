@@ -193,7 +193,35 @@ async function exportCharacterToFoundry(char) {
         const dataToImport = foundry.utils.deepClone(actorData);
         delete dataToImport._id;
 
-        // Apply art and token image overrides/fallbacks on export to ensure they display properly
+        if (Array.isArray(dataToImport.items)) {
+          const uniqueItems = [];
+          const seenKeys = new Set();
+          for (const item of dataToImport.items) {
+            if (item.type === "spell") {
+              if (item.name.endsWith(" (In)") || item.name.endsWith(" (in)")) {
+                item.name = item.name.slice(0, -5) + " (IN)";
+              } else if (item.name.endsWith("(In)") || item.name.endsWith("(in)")) {
+                item.name = item.name.slice(0, -4) + " (IN)";
+              }
+
+              if (item.name.endsWith("(In)") || item.name.endsWith("(IN)")) {
+                if (!item.system) item.system = {};
+                item.system.method = "innate";
+                item.system.prepared = 0;
+                delete item.system.preparation;
+              }
+            }
+
+            const key = `${item.type}-${item.name}`;
+            if (["spell", "feat", "race", "class", "subclass"].includes(item.type)) {
+              if (seenKeys.has(key)) continue;
+              seenKeys.add(key);
+            }
+            uniqueItems.push(item);
+          }
+          dataToImport.items = uniqueItems;
+        }
+
         if (char.art_image) {
           dataToImport.img = char.art_image;
         } else if (char.token_image) {
@@ -209,9 +237,39 @@ async function exportCharacterToFoundry(char) {
           dataToImport.prototypeToken.texture.src = char.art_image;
         }
 
+        // Clean up existing actor with the same name to avoid duplicates
+        const existingActor = game.actors.find(a => a.name === dataToImport.name);
+        if (existingActor) {
+          await existingActor.delete();
+        }
+
         const newActor = await Actor.create(dataToImport);
         if (newActor) {
-          ui.notifications?.info(`Success! Actor [${newActor.name}] has been created.`);
+          if (Array.isArray(dataToImport.items) && dataToImport.items.length > 0) {
+            const folderName = `${newActor.name} - items`;
+            
+            // Clean up existing folder and its items to avoid duplicates
+            let folder = game.folders.find(f => f.name === folderName && f.type === "Item");
+            if (folder) {
+              await folder.delete({ deleteContents: true });
+            }
+            
+            folder = await Folder.create({
+              name: folderName,
+              type: "Item"
+            });
+
+            for (const itemData of dataToImport.items) {
+              const standaloneItemData = foundry.utils.deepClone(itemData);
+              delete standaloneItemData._id;
+              standaloneItemData.folder = folder.id;
+              await Item.create(standaloneItemData);
+            }
+            
+            ui.notifications?.info(`Success! Actor [${newActor.name}] and its items folder [${folderName}] have been created.`);
+          } else {
+            ui.notifications?.info(`Success! Actor [${newActor.name}] has been created.`);
+          }
           newActor.sheet.render(true);
         }
       } catch (error) {
