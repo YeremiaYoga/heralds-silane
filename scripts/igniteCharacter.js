@@ -246,27 +246,66 @@ async function exportCharacterToFoundry(char) {
         const newActor = await Actor.create(dataToImport);
         if (newActor) {
           if (Array.isArray(dataToImport.items) && dataToImport.items.length > 0) {
-            const folderName = `${newActor.name} - items`;
-            
-            // Clean up existing folder and its items to avoid duplicates
-            let folder = game.folders.find(f => f.name === folderName && f.type === "Item");
-            if (folder) {
-              await folder.delete({ deleteContents: true });
+            const today = new Date();
+            const day = String(today.getDate()).padStart(2, '0');
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const year = today.getFullYear();
+            const exportDate = `${day}-${month}-${year}`;
+
+            // Find or create "Silane" root folder (no parent folder)
+            let rootFolder = game.folders.find(f => f.name === "Silane" && f.type === "Item" && (!f.folder || f.folder === null || f.folder === undefined));
+            if (!rootFolder) {
+              rootFolder = await Folder.create({
+                name: "Silane",
+                type: "Item"
+              });
             }
-            
-            folder = await Folder.create({
-              name: folderName,
-              type: "Item"
+
+            // Under "Silane" root folder, find or create Character folder "Nama Character (Tanggal Export)"
+            const charFolderName = `${newActor.name} (${exportDate})`;
+            let charFolder = game.folders.find(f => f.name === charFolderName && f.type === "Item" && (f.folder === rootFolder.id || f.folder?.id === rootFolder.id));
+            if (charFolder) {
+              // Delete existing character folder and its items to avoid duplicates
+              await charFolder.delete({ deleteContents: true });
+            }
+
+            charFolder = await Folder.create({
+              name: charFolderName,
+              type: "Item",
+              folder: rootFolder.id
             });
+
+            // Create subfolders under Character folder dynamically on demand
+            const subfolders = {};
+            const getOrCreateSubfolder = async (categoryName) => {
+              if (subfolders[categoryName]) return subfolders[categoryName];
+
+              const sf = await Folder.create({
+                name: categoryName,
+                type: "Item",
+                folder: charFolder.id
+              });
+              subfolders[categoryName] = sf;
+              return sf;
+            };
 
             for (const itemData of dataToImport.items) {
               const standaloneItemData = foundry.utils.deepClone(itemData);
               delete standaloneItemData._id;
-              standaloneItemData.folder = folder.id;
+
+              let category = "Items";
+              if (["feat", "race", "class", "subclass", "background"].includes(itemData.type)) {
+                category = "Features";
+              } else if (itemData.type === "spell") {
+                category = "Spells";
+              }
+
+              const sf = await getOrCreateSubfolder(category);
+              standaloneItemData.folder = sf.id;
               await Item.create(standaloneItemData);
             }
-            
-            ui.notifications?.info(`Success! Actor [${newActor.name}] and its items folder [${folderName}] have been created.`);
+
+            ui.notifications?.info(`Success! Actor [${newActor.name}] and its items under Silane -> ${charFolderName} have been created.`);
           } else {
             ui.notifications?.info(`Success! Actor [${newActor.name}] has been created.`);
           }

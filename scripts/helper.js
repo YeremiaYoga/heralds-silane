@@ -2,10 +2,20 @@ export let API_BASE_URL = "https://azcn87b0k85drpfp.phanneldeliver.my.id";
 
 export const initializeApiBaseUrl = () => {
   const mode = game.settings.get("heralds-silane", "apiMode");
-  API_BASE_URL =
-    mode === "local"
+  if (mode === "local") {
+    API_BASE_URL = "http://localhost:19984";
+  } else if (mode === "prod") {
+    API_BASE_URL = "https://azcn87b0k85drpfp.phanneldeliver.my.id";
+  } else {
+    // mode === "auto" (default)
+    const isLocal = window.location.hostname === "localhost" || 
+                    window.location.hostname === "127.0.0.1" || 
+                    window.location.hostname.startsWith("192.168.") || 
+                    window.location.hostname.startsWith("10.");
+    API_BASE_URL = isLocal
       ? "http://localhost:19984"
       : "https://azcn87b0k85drpfp.phanneldeliver.my.id";
+  }
 };
 export function heraldSilane_getWindowDimensions() {
   const size = game.settings.get("heralds-silane", "windowSize");

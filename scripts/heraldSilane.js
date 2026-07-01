@@ -7,6 +7,8 @@ import { initGroupTab } from "./group.js";
 import { openCharacterIconChanger } from "./iconChanger.js";
 import { initImagesTab, refreshImagesGallery, getImagesList } from "./images.js";
 import { initIgniteCharacterTab } from "./igniteCharacter.js";
+import { initCharacterBackupTab } from "./characterBackup.js";
+
 // ==========================================
 // STATE VARIABLES
 // ==========================================
@@ -322,6 +324,7 @@ async function heraldSilane_renderMainView() {
           <button id="hs-tab-ignite-character" class="hs-circle-btn" title="Ignite Character"><i class="fa-solid fa-address-card"></i></button>
           <button id="hs-tab-firefly" class="hs-circle-btn" title="Firefly"><i class="fa-solid fa-fire"></i></button>
           <button id="hs-tab-group" class="hs-circle-btn" title="Group"><i class="fa-solid fa-people-group"></i></button>
+          ${game.user.isGM ? `<button id="hs-tab-character-backup" class="hs-circle-btn" title="Character Backup"><i class="fa-solid fa-database"></i></button>` : ""}
         </div>
         <div class="hs-content">
           <div class="hs-header">
@@ -389,6 +392,7 @@ async function heraldSilane_renderMainView() {
     igniteCharacter: document.getElementById("hs-tab-ignite-character"),
     firefly: document.getElementById("hs-tab-firefly"),
     group: document.getElementById("hs-tab-group"),
+    characterBackup: document.getElementById("hs-tab-character-backup"),
   };
 
   const galleryContainer = document.getElementById("hs-gallery-container");
@@ -453,8 +457,10 @@ async function heraldSilane_renderMainView() {
 
   const switchTab = (type) => {
     activeTab = type;
-    Object.values(tabs).forEach((btn) => btn.classList.remove("active"));
-    tabs[type].classList.add("active");
+    Object.values(tabs).forEach((btn) => {
+      if (btn) btn.classList.remove("active");
+    });
+    if (tabs[type]) tabs[type].classList.add("active");
 
     const iconChangerBtn = document.getElementById("hs-btn-icon-changer");
     const hasCharacter = game.actors.some(
@@ -511,12 +517,20 @@ async function heraldSilane_renderMainView() {
         searchInput.style.display = "none";
         galleryContainer.classList.remove("hs-gallery");
         initGroupTab(galleryContainer);
+      } else if (type === "characterBackup") {
+        titleText.innerText = "Character Backup";
+        actionsContainer.style.display = "none";
+        searchInput.style.display = "none";
+        galleryContainer.classList.remove("hs-gallery");
+        initCharacterBackupTab(galleryContainer);
       }
     }
   };
 
   Object.entries(tabs).forEach(([type, btn]) => {
-    btn.addEventListener("click", () => switchTab(type));
+    if (btn) {
+      btn.addEventListener("click", () => switchTab(type));
+    }
   });
 
   btnOpenUpload.addEventListener("click", () => {
