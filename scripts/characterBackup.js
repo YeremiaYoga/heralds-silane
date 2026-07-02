@@ -194,7 +194,7 @@ function saveCurrentWorldState() {
     const worldId = game.world.id;
     const worldTitle = game.world.title;
     const actors = game.actors.contents
-      .filter(a => a.type === "character" || a.type === "pc")
+      .filter(a => a.type === "character" || a.type === "pc" || a.type === "npc")
       .map(a => ({
         id: a.id,
         name: a.name,
@@ -243,11 +243,11 @@ export async function initCharacterBackupTab(container) {
 
   // Generate actors HTML helper
   const getActorsHtml = (actors, worldId, worldTitle) => {
-    // Filter to ensure only character/pc type is shown
-    const filteredActors = actors.filter(actor => actor.type === "character" || actor.type === "pc");
+    // Filter to ensure only character/pc/npc type is shown
+    const filteredActors = actors.filter(actor => actor.type === "character" || actor.type === "pc" || actor.type === "npc");
 
     if (filteredActors.length === 0) {
-      return `<div class="cb-empty-state"><i class="fa-solid fa-user-slash" style="margin-right: 6px;"></i>No characters found.</div>`;
+      return `<div class="cb-empty-state"><i class="fa-solid fa-user-slash" style="margin-right: 6px;"></i>No characters or NPCs found.</div>`;
     }
     
     const isActive = worldId === activeWorldId;
@@ -278,12 +278,12 @@ export async function initCharacterBackupTab(container) {
             <span class="cb-world-badge active">Active</span>
           </div>
           <div style="display: flex; align-items: center; gap: 12px;">
-            <span style="font-size: 12px; color: #a1a1aa;">${activeWorldData.actors.filter(a => a.type === "character" || a.type === "pc").length} Characters</span>
+            <span style="font-size: 12px; color: #a1a1aa;">${activeWorldData.actors.filter(a => a.type === "character" || a.type === "pc" || a.type === "npc").length} Characters & NPCs</span>
             <i class="fa-solid fa-chevron-up cb-toggle-icon"></i>
           </div>
         </div>
         <div class="cb-card-content" data-world-id="${activeWorldData.id}" style="display: block;">
-          <div class="cb-section-title">Active World Characters</div>
+          <div class="cb-section-title">Active World Characters & NPCs</div>
           <div class="cb-actors-list">
             ${getActorsHtml(activeWorldData.actors, activeWorldData.id, activeWorldData.title)}
           </div>
@@ -294,7 +294,7 @@ export async function initCharacterBackupTab(container) {
   // OTHER CACHED WORLDS
   if (otherWorlds.length > 0) {
     otherWorlds.forEach(world => {
-      const filteredActorsCount = world.actors.filter(a => a.type === "character" || a.type === "pc").length;
+      const filteredActorsCount = world.actors.filter(a => a.type === "character" || a.type === "pc" || a.type === "npc").length;
       html += `
         <div class="cb-world-card" data-world-id="${world.id}">
           <div class="cb-world-header" data-world-id="${world.id}">
@@ -304,12 +304,12 @@ export async function initCharacterBackupTab(container) {
               <span class="cb-world-badge cached">Cached</span>
             </div>
             <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 12px; color: #a1a1aa;">${filteredActorsCount} Characters</span>
+              <span style="font-size: 12px; color: #a1a1aa;">${filteredActorsCount} Characters & NPCs</span>
               <i class="fa-solid fa-chevron-down cb-toggle-icon"></i>
             </div>
           </div>
           <div class="cb-card-content" data-world-id="${world.id}" style="display: none;">
-            <div class="cb-section-title">Cached Characters</div>
+            <div class="cb-section-title">Cached Characters & NPCs</div>
             <div class="cb-actors-list">
               ${getActorsHtml(world.actors, world.id, world.title)}
             </div>

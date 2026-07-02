@@ -11,7 +11,7 @@ Hooks.on("ready", () => {
     const worldId = game.world.id;
     const worldTitle = game.world.title;
     const actors = game.actors.contents
-      .filter(a => a.type === "character" || a.type === "pc")
+      .filter(a => a.type === "character" || a.type === "pc" || a.type === "npc")
       .map(a => ({
         id: a.id,
         name: a.name,
