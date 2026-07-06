@@ -522,7 +522,7 @@ async function heraldSilane_renderMainView() {
         actionsContainer.style.display = "none";
         searchInput.style.display = "none";
         galleryContainer.classList.remove("hs-gallery");
-        initCharacterBackupTab(galleryContainer);
+        initCharacterBackupTab(galleryContainer, fetchStorageUsage);
       }
     }
   };

@@ -2,6 +2,7 @@ import { API_BASE_URL } from "./helper.js";
 
 let parentContainer = null;
 let activeSubTab = "backup";
+let storageUpdateCallback = null;
 
 const injectCharacterBackupStyles = () => {
   if (document.getElementById("character-backup-styles")) return;
@@ -663,8 +664,11 @@ function renderRestoreActorsListHtml(actors, localCache, folderIdx) {
   }).join("");
 }
 
-export async function initCharacterBackupTab(container) {
+export async function initCharacterBackupTab(container, onUpdateCallback) {
   parentContainer = container;
+  if (onUpdateCallback) {
+    storageUpdateCallback = onUpdateCallback;
+  }
   injectCharacterBackupStyles();
 
   parentContainer.innerHTML = `
@@ -1221,6 +1225,7 @@ async function backupCharacter(actorId, name, worldId, worldTitle, btn) {
 
     if (response.ok) {
       ui.notifications?.info(`Success! Backup for ${name} has been saved to the cloud.`);
+      if (storageUpdateCallback) storageUpdateCallback();
       await initCharacterBackupTab(parentContainer);
     } else {
       let errMsg = "Unknown error";
@@ -1301,6 +1306,7 @@ async function backupSelectedActors() {
   }
 
   ui.notifications?.info(`Backup completed. Success: ${successCount}, Failed: ${failCount}`);
+  if (storageUpdateCallback) storageUpdateCallback();
   await initCharacterBackupTab(parentContainer);
 }
 
@@ -1470,6 +1476,7 @@ async function deleteBackup(backupId, name) {
 
     if (response.ok) {
       ui.notifications?.info(`Backup for ${name} has been deleted successfully.`);
+      if (storageUpdateCallback) storageUpdateCallback();
       await initCharacterBackupTab(parentContainer);
     } else {
       let errMsg = "Unknown error";
