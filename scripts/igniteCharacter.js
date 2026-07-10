@@ -213,7 +213,7 @@ async function exportCharacterToFoundry(char) {
             }
 
             const key = `${item.type}-${item.name}`;
-            if (["spell", "feat", "race", "class", "subclass"].includes(item.type)) {
+            if (["spell", "feat", "feature", "race-feat", "race", "class", "subclass"].includes(item.type)) {
               if (seenKeys.has(key)) continue;
               seenKeys.add(key);
             }
@@ -294,7 +294,7 @@ async function exportCharacterToFoundry(char) {
               delete standaloneItemData._id;
 
               let category = "Items";
-              if (["feat", "race", "class", "subclass", "background"].includes(itemData.type)) {
+              if (["feat", "feature", "race-feat", "race", "class", "subclass", "background"].includes(itemData.type)) {
                 category = "Features";
               } else if (itemData.type === "spell") {
                 category = "Spells";
