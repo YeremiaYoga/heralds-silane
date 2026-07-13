@@ -150,6 +150,10 @@ const injectCharacterBackupStyles = () => {
     .cb-search-input:focus {
       border-color: #3b82f6;
     }
+    .cb-search-input::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
+    }
     .cb-btn-secondary {
       background: rgba(39, 39, 42, 0.6);
       border: 1px solid #3f3f46;
@@ -834,9 +838,20 @@ async function renderRestoreTab(container) {
     const folders = groupBackupsIntoFolders(cloudBackups);
 
     let html = `
-      <div class="cb-controls-column" style="margin-bottom: 15px;">
+      <div class="cb-controls-column" style="margin-bottom: 15px; gap: 8px;">
         <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
           <input type="text" id="cb-search-restore-actors" class="cb-search-input" placeholder="Search characters..." style="flex: 1;">
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; width: 100%; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 120px;">
+            <span style="font-size: 11px; color: #a1a1aa; white-space: nowrap;">From:</span>
+            <input type="date" id="cb-filter-restore-start" class="cb-search-input" style="flex: 1; padding: 6px 8px;">
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 120px;">
+            <span style="font-size: 11px; color: #a1a1aa; white-space: nowrap;">To:</span>
+            <input type="date" id="cb-filter-restore-end" class="cb-search-input" style="flex: 1; padding: 6px 8px;">
+          </div>
+          <button id="cb-btn-restore-clear-filters" class="cb-btn-secondary" style="padding: 6px 12px; font-size: 11px;">Clear</button>
         </div>
       </div>
     `;
@@ -1146,52 +1161,92 @@ function attachRestoreTabEvents() {
   if (!containerEl) return;
 
   const searchInput = containerEl.querySelector("#cb-search-restore-actors");
-  if (searchInput) {
-    searchInput.addEventListener("input", (e) => {
-      const q = e.target.value.toLowerCase().trim();
-      const folderCards = containerEl.querySelectorAll(".cb-world-card");
-      
-      folderCards.forEach(folderCard => {
-        const actorCards = folderCard.querySelectorAll(".cb-actor-card");
-        let folderHasMatch = false;
-        
-        actorCards.forEach(actorCard => {
-          const actorName = actorCard.dataset.actorName || "";
-          if (q === "" || actorName.includes(q)) {
-            actorCard.style.display = "flex";
-            if (q !== "") {
-              folderHasMatch = true;
-            }
-          } else {
-            actorCard.style.display = "none";
+  const startInput = containerEl.querySelector("#cb-filter-restore-start");
+  const endInput = containerEl.querySelector("#cb-filter-restore-end");
+  const clearBtn = containerEl.querySelector("#cb-btn-restore-clear-filters");
+
+  const applyRestoreFilters = () => {
+    const q = searchInput ? searchInput.value.toLowerCase().trim() : "";
+    const startDateVal = startInput ? startInput.value : "";
+    const endDateVal = endInput ? endInput.value : "";
+    const hasAnyActiveFilter = q !== "" || startDateVal !== "" || endDateVal !== "";
+
+    const folderCards = containerEl.querySelectorAll(".cb-world-card");
+    folderCards.forEach(folderCard => {
+      const folderCreatedAt = folderCard.dataset.folderCreatedAt || "";
+      let dateMatches = true;
+
+      if (folderCreatedAt) {
+        try {
+          const folderDate = new Date(folderCreatedAt);
+          const y = folderDate.getFullYear();
+          const m = (folderDate.getMonth() + 1).toString().padStart(2, '0');
+          const date = folderDate.getDate().toString().padStart(2, '0');
+          const folderDateStr = `${y}-${m}-${date}`;
+
+          if (startDateVal && folderDateStr < startDateVal) {
+            dateMatches = false;
           }
-        });
-        
-        const folderContent = folderCard.querySelector(".cb-folder-content");
-        const icon = folderCard.querySelector(".cb-toggle-icon");
-        
-        if (q === "") {
-          folderCard.style.display = "block";
-          if (folderContent) {
-            folderContent.style.display = "none";
+          if (endDateVal && folderDateStr > endDateVal) {
+            dateMatches = false;
           }
-          if (icon) {
-            icon.className = "fa-solid fa-chevron-down cb-toggle-icon";
+        } catch (e) {
+          console.error("Error parsing folder date:", e);
+        }
+      }
+
+      const actorCards = folderCard.querySelectorAll(".cb-actor-card");
+      let folderHasActorMatch = false;
+
+      actorCards.forEach(actorCard => {
+        const actorName = actorCard.dataset.actorName || "";
+        if (q === "" || actorName.includes(q)) {
+          actorCard.style.display = "flex";
+          if (q !== "") {
+            folderHasActorMatch = true;
           }
         } else {
-          if (folderHasMatch) {
+          actorCard.style.display = "none";
+        }
+      });
+
+      const folderContent = folderCard.querySelector(".cb-folder-content");
+      const icon = folderCard.querySelector(".cb-toggle-icon");
+
+      if (!dateMatches) {
+        folderCard.style.display = "none";
+      } else {
+        if (q === "") {
+          folderCard.style.display = "block";
+          if (hasAnyActiveFilter) {
+            if (folderContent) folderContent.style.display = "block";
+            if (icon) icon.className = "fa-solid fa-chevron-up cb-toggle-icon";
+          } else {
+            if (folderContent) folderContent.style.display = "none";
+            if (icon) icon.className = "fa-solid fa-chevron-down cb-toggle-icon";
+          }
+        } else {
+          if (folderHasActorMatch) {
             folderCard.style.display = "block";
-            if (folderContent) {
-              folderContent.style.display = "block";
-            }
-            if (icon) {
-              icon.className = "fa-solid fa-chevron-up cb-toggle-icon";
-            }
+            if (folderContent) folderContent.style.display = "block";
+            if (icon) icon.className = "fa-solid fa-chevron-up cb-toggle-icon";
           } else {
             folderCard.style.display = "none";
           }
         }
-      });
+      }
+    });
+  };
+
+  if (searchInput) searchInput.addEventListener("input", applyRestoreFilters);
+  if (startInput) startInput.addEventListener("change", applyRestoreFilters);
+  if (endInput) endInput.addEventListener("change", applyRestoreFilters);
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      if (searchInput) searchInput.value = "";
+      if (startInput) startInput.value = "";
+      if (endInput) endInput.value = "";
+      applyRestoreFilters();
     });
   }
 

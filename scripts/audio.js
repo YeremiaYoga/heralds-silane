@@ -578,11 +578,14 @@ function renderAlbumView() {
             </div>
             <div style="font-size: 12px; color: #71717a;">${pl.track?.length || 0} Tracks</div>
           </div>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <button class="hs-import-playlist" data-id="${pl.uuid}" title="Import to Foundry" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; cursor: pointer;">
-              <i class="fa-solid fa-download"></i>
-            </button>
-            ${isOwner ? `<button class="hs-delete-playlist" data-id="${pl.uuid}" title="Delete" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; cursor: pointer;"><i class="fa-solid fa-trash"></i></button>` : ""}
+            ${isOwner ? `
+              <button class="hs-edit-playlist" data-id="${pl.uuid}" title="Edit" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(99, 102, 241, 0.3); color: #818cf8; cursor: pointer;">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+              <button class="hs-delete-playlist" data-id="${pl.uuid}" title="Delete" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; cursor: pointer;">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            ` : ""}
           </div>
         </div>
       `;
@@ -627,7 +630,8 @@ function renderAlbumView() {
     card.onclick = (e) => {
       if (
         e.target.closest(".hs-delete-playlist") ||
-        e.target.closest(".hs-import-playlist")
+        e.target.closest(".hs-import-playlist") ||
+        e.target.closest(".hs-edit-playlist")
       )
         return;
       state.currentPlaylistId = card.dataset.id;
@@ -655,6 +659,17 @@ function renderAlbumView() {
       await savePlaylistsToBackend(newPlaylists);
     };
   });
+
+  containerElement.querySelectorAll(".hs-edit-playlist").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const playlistToEdit = state.playlists.find((p) => p.uuid === id);
+      if (playlistToEdit) {
+        showEditPlaylistModal(playlistToEdit);
+      }
+    };
+  });
 }
 
 function renderPlaylistView() {
@@ -680,7 +695,14 @@ function renderPlaylistView() {
           <button id="hs-btn-back-album" style="display: flex; align-items: center; gap: 8px; background: none; border: none; color: #e879f9; font-size: 14px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 16px; width: fit-content;">
             <i class="fa-solid fa-arrow-left"></i> Back to ${album.name}
           </button>
-          <h2 style="font-size: 30px; font-weight: 900; color: white; margin: 0 0 8px 0;">${playlist.name}</h2>
+          <h2 style="font-size: 30px; font-weight: 900; color: white; margin: 0 0 8px 0; display: flex; align-items: center; gap: 10px;">
+            ${playlist.name}
+            ${isAlbumOwner ? `
+              <button id="hs-btn-edit-playlist-header" title="Rename Playlist" style="background: none; border: none; color: #a1a1aa; cursor: pointer; font-size: 18px; padding: 4px; display: inline-flex; align-items: center; justify-content: center; transition: color 0.2s;">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+            ` : ""}
+          </h2>
           <div style="font-size: 12px; font-weight: 500; color: #a1a1aa;">${playlist.track?.length || 0} Tracks Available</div>
         </div>
         <div style="position: absolute; top: 24px; right: 24px; z-index: 10;">
@@ -747,7 +769,14 @@ function renderPlaylistView() {
             <button class="hs-import-track" data-track-id="${track.id}" title="Import to Foundry" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; cursor: pointer; flex-shrink: 0;">
               <i class="fa-solid fa-download"></i>
             </button>
-            ${canDelete ? `<button class="hs-delete-track" data-track-id="${track.id}" title="Remove Track" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; cursor: pointer; flex-shrink: 0;"><i class="fa-solid fa-trash"></i></button>` : ""}
+            ${canDelete ? `
+              <button class="hs-edit-track" data-track-id="${track.id}" title="Edit Track" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(99, 102, 241, 0.3); color: #818cf8; cursor: pointer; flex-shrink: 0;">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+              <button class="hs-delete-track" data-track-id="${track.id}" title="Remove Track" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; cursor: pointer; flex-shrink: 0;">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            ` : ""}
           </div>
         </div>
       `;
@@ -781,7 +810,6 @@ function renderPlaylistView() {
       await importTrackToFoundry(trackToImport, playlist.name, album.setting);
     };
   });
-
   containerElement.querySelectorAll(".hs-delete-track").forEach((btn) => {
     btn.onclick = async () => {
       if (!window.confirm("Remove track from playlist?")) return;
@@ -795,6 +823,24 @@ function renderPlaylistView() {
       state.playlists = updatedPlaylists;
       render();
       await savePlaylistsToBackend(updatedPlaylists);
+    };
+  });
+
+  const editHeaderBtn = containerElement.querySelector("#hs-btn-edit-playlist-header");
+  if (editHeaderBtn) {
+    editHeaderBtn.onclick = () => {
+      showEditPlaylistModal(playlist);
+    };
+  }
+
+  containerElement.querySelectorAll(".hs-edit-track").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const trackId = btn.dataset.trackId;
+      const trackToEdit = playlist.track.find((t) => t.id === trackId);
+      if (trackToEdit) {
+        showEditTrackModal(trackToEdit);
+      }
     };
   });
 
@@ -925,6 +971,12 @@ function showJoinModal() {
 function showSettingsModal(album) {
   const content = `
     <div style="padding: 10px; color: white;">
+      <h4 style="margin-bottom: 5px; color:#a1a1aa; text-transform:uppercase; font-size:12px; font-weight: bold; letter-spacing: 0.05em;">Album Info</h4>
+      <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border: 1px solid #3f3f46; margin-bottom: 16px;">
+        <label style="display:block; margin-bottom:6px; font-size:13px; color:#e4e4e7; font-weight: 500;">Album Name</label>
+        <input type="text" id="hs-set-album-name" value="${album.name}" style="width:100%; padding: 6px 10px; background: #18181b; border: 1px solid #3f3f46; border-radius: 6px; color: white; outline: none; font-size: 13px;" />
+      </div>
+
       <h4 style="margin-bottom: 5px; color:#a1a1aa; text-transform:uppercase; font-size:12px; font-weight: bold; letter-spacing: 0.05em;">Audio Playback</h4>
       <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border: 1px solid #3f3f46; margin-bottom: 20px;">
         <label style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:13px; color:#e4e4e7; font-weight: 500;">Default Volume <span id="hs-vol-val">${Math.round((album.setting?.volume ?? 0.1) * 100)}%</span></label>
@@ -946,12 +998,13 @@ function showSettingsModal(album) {
         save: {
           label: "Save Settings",
           callback: async (html) => {
+            const newName = html.find("#hs-set-album-name").val().trim() || album.name;
             const vol = parseFloat(html.find("#hs-set-volume").val());
             const rep = html.find("#hs-set-repeat").is(":checked");
 
             const updatedAlbums = state.albums.map((a) => {
               if (a.id === album.id)
-                return { ...a, setting: { volume: vol, repeat: rep } };
+                return { ...a, name: newName, setting: { volume: vol, repeat: rep } };
               return a;
             });
             state.albums = updatedAlbums;
@@ -973,6 +1026,86 @@ function showSettingsModal(album) {
     { width: 400, classes: ["dialog", "silane-custom-dialog"] },
   );
   d.render(true);
+}
+
+function showEditPlaylistModal(playlist) {
+  const content = `
+    <div style="padding: 10px; color: white;">
+      <label style="display:block; margin-bottom:6px; font-size:13px; color:#e4e4e7; font-weight: 500;">Playlist Name</label>
+      <input type="text" id="hs-edit-playlist-name" value="${playlist.name}" style="width:100%; padding: 6px 10px; background: #18181b; border: 1px solid #3f3f46; border-radius: 6px; color: white; outline: none; font-size: 13px;" />
+    </div>
+  `;
+
+  new Dialog(
+    {
+      title: "Edit Playlist Name",
+      content: content,
+      buttons: {
+        save: {
+          label: "Save Changes",
+          callback: async (html) => {
+            const newName = html.find("#hs-edit-playlist-name").val() || playlist.name;
+            const updatedPlaylists = state.playlists.map((p) => {
+              if (p.uuid === playlist.uuid) {
+                return { ...p, name: newName };
+              }
+              return p;
+            });
+            state.playlists = updatedPlaylists;
+            render();
+            await savePlaylistsToBackend(updatedPlaylists);
+          }
+        },
+        cancel: { label: "Cancel" }
+      },
+      render: (html) => applyDarkThemeToDialog(html)
+    },
+    { width: 350, classes: ["dialog", "silane-custom-dialog"] }
+  ).render(true);
+}
+
+function showEditTrackModal(track) {
+  const content = `
+    <div style="padding: 10px; color: white;">
+      <label style="display:block; margin-bottom:6px; font-size:13px; color:#e4e4e7; font-weight: 500;">Track Name</label>
+      <input type="text" id="hs-edit-track-name" value="${track.name}" style="width:100%; padding: 6px 10px; background: #18181b; border: 1px solid #3f3f46; border-radius: 6px; color: white; outline: none; font-size: 13px;" />
+    </div>
+  `;
+
+  new Dialog(
+    {
+      title: "Edit Track Name",
+      content: content,
+      buttons: {
+        save: {
+          label: "Save Changes",
+          callback: async (html) => {
+            const newName = html.find("#hs-edit-track-name").val() || track.name;
+            const updatedPlaylists = state.playlists.map((pl) => {
+              if (pl.uuid === state.currentPlaylistId) {
+                return {
+                  ...pl,
+                  track: pl.track.map((t) => {
+                    if (t.id === track.id) {
+                      return { ...t, name: newName };
+                    }
+                    return t;
+                  })
+                };
+              }
+              return pl;
+            });
+            state.playlists = updatedPlaylists;
+            render();
+            await savePlaylistsToBackend(updatedPlaylists);
+          }
+        },
+        cancel: { label: "Cancel" }
+      },
+      render: (html) => applyDarkThemeToDialog(html)
+    },
+    { width: 350, classes: ["dialog", "silane-custom-dialog"] }
+  ).render(true);
 }
 
 function showNewPlaylistModal() {
