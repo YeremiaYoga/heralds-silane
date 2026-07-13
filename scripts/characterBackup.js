@@ -553,19 +553,25 @@ function formatFolderName(worldTitle, createdAtStr) {
   }
 }
 
-function getRestoreFolderName(createdAtStr) {
+function getRestoreFolderName(createdAtStr, actorName = "") {
   try {
     const d = new Date(createdAtStr);
     const y = d.getFullYear();
     const m = (d.getMonth() + 1).toString().padStart(2, '0');
     const date = d.getDate().toString().padStart(2, '0');
-    return `silane restore - ${y}-${m}-${date}`;
+    const h = d.getHours().toString().padStart(2, '0');
+    const min = d.getMinutes().toString().padStart(2, '0');
+    const namePart = actorName ? `${actorName} - ` : "";
+    return `silane restore - ${namePart}${y}-${m}-${date} - ${h}:${min}`;
   } catch (e) {
     const now = new Date();
     const y = now.getFullYear();
     const m = (now.getMonth() + 1).toString().padStart(2, '0');
     const date = now.getDate().toString().padStart(2, '0');
-    return `silane restore - ${y}-${m}-${date}`;
+    const h = now.getHours().toString().padStart(2, '0');
+    const min = now.getMinutes().toString().padStart(2, '0');
+    const namePart = actorName ? `${actorName} - ` : "";
+    return `silane restore - ${namePart}${y}-${m}-${date} - ${h}:${min}`;
   }
 }
 
@@ -636,7 +642,7 @@ function renderRestoreActorsListHtml(actors, localCache, folderIdx) {
     const backupDateStr = formatDate(actor.created_at);
 
     return `
-      <div class="cb-actor-card">
+      <div class="cb-actor-card" data-actor-name="${actor.name.toLowerCase()}">
         <div class="cb-actor-checkbox-wrapper">
           <input type="checkbox" class="cb-folder-actor-checkbox" data-folder-id="${folderIdx}" data-backup-id="${actor.id}" data-actor-name="${actor.name}" title="Select for restoring">
         </div>
@@ -827,7 +833,13 @@ async function renderRestoreTab(container) {
 
     const folders = groupBackupsIntoFolders(cloudBackups);
 
-    let html = "";
+    let html = `
+      <div class="cb-controls-column" style="margin-bottom: 15px;">
+        <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
+          <input type="text" id="cb-search-restore-actors" class="cb-search-input" placeholder="Search characters..." style="flex: 1;">
+        </div>
+      </div>
+    `;
     folders.forEach((folder, idx) => {
       const folderName = formatFolderName(folder.worldTitle, folder.createdAt);
       
@@ -1133,6 +1145,56 @@ function attachRestoreTabEvents() {
   const containerEl = parentContainer.querySelector("#cb-tab-content");
   if (!containerEl) return;
 
+  const searchInput = containerEl.querySelector("#cb-search-restore-actors");
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      const folderCards = containerEl.querySelectorAll(".cb-world-card");
+      
+      folderCards.forEach(folderCard => {
+        const actorCards = folderCard.querySelectorAll(".cb-actor-card");
+        let folderHasMatch = false;
+        
+        actorCards.forEach(actorCard => {
+          const actorName = actorCard.dataset.actorName || "";
+          if (q === "" || actorName.includes(q)) {
+            actorCard.style.display = "flex";
+            if (q !== "") {
+              folderHasMatch = true;
+            }
+          } else {
+            actorCard.style.display = "none";
+          }
+        });
+        
+        const folderContent = folderCard.querySelector(".cb-folder-content");
+        const icon = folderCard.querySelector(".cb-toggle-icon");
+        
+        if (q === "") {
+          folderCard.style.display = "block";
+          if (folderContent) {
+            folderContent.style.display = "none";
+          }
+          if (icon) {
+            icon.className = "fa-solid fa-chevron-down cb-toggle-icon";
+          }
+        } else {
+          if (folderHasMatch) {
+            folderCard.style.display = "block";
+            if (folderContent) {
+              folderContent.style.display = "block";
+            }
+            if (icon) {
+              icon.className = "fa-solid fa-chevron-up cb-toggle-icon";
+            }
+          } else {
+            folderCard.style.display = "none";
+          }
+        }
+      });
+    });
+  }
+
   containerEl.querySelectorAll(".cb-folder-header").forEach(header => {
     header.addEventListener("click", (e) => {
       const folderId = header.dataset.folderId;
@@ -1337,7 +1399,7 @@ async function restoreCharacter(backupId, name, backupDate) {
     }
 
     const createdAt = backupDate || resData.created_at || new Date().toISOString();
-    const folderName = getRestoreFolderName(createdAt);
+    const folderName = getRestoreFolderName(createdAt, name);
 
     let folder = game.folders.find(f => f.name === folderName && f.type === "Actor");
     if (!folder) {
@@ -1387,21 +1449,10 @@ async function restoreSelectedActors(folderId, containerEl) {
 
   const folderCard = containerEl.querySelector(`.cb-world-card[data-folder-id="${folderId}"]`);
   const folderCreatedAt = folderCard ? folderCard.dataset.folderCreatedAt : new Date().toISOString();
-  const folderName = getRestoreFolderName(folderCreatedAt);
-
-  let folder = game.folders.find(f => f.name === folderName && f.type === "Actor");
-  if (!folder) {
-    const created = await Folder.create({
-      name: folderName,
-      type: "Actor",
-      color: "#fbbf24"
-    });
-    folder = Array.isArray(created) ? created[0] : created;
-  }
-  const folderIdVal = folder?.id || folder?._id;
 
   let successCount = 0;
   let failCount = 0;
+  const restoredFolders = new Set();
 
   for (const item of selectedActors) {
     try {
@@ -1427,6 +1478,21 @@ async function restoreSelectedActors(folderId, containerEl) {
         }
       }
 
+      const createdAt = resData.created_at || folderCreatedAt || new Date().toISOString();
+      const folderName = getRestoreFolderName(createdAt, item.name);
+      restoredFolders.add(folderName);
+
+      let folder = game.folders.find(f => f.name === folderName && f.type === "Actor");
+      if (!folder) {
+        const created = await Folder.create({
+          name: folderName,
+          type: "Actor",
+          color: "#fbbf24"
+        });
+        folder = Array.isArray(created) ? created[0] : created;
+      }
+      const folderIdVal = folder?.id || folder?._id;
+
       const copyData = JSON.parse(JSON.stringify(actorData));
       delete copyData._id;
       delete copyData.id;
@@ -1444,7 +1510,8 @@ async function restoreSelectedActors(folderId, containerEl) {
     }
   }
 
-  ui.notifications?.info(`Restore completed in folder "${folderName}". Success: ${successCount}, Failed: ${failCount}`);
+  const foldersStr = Array.from(restoredFolders).join(", ");
+  ui.notifications?.info(`Restore completed. Success: ${successCount}, Failed: ${failCount} (Folders: ${foldersStr})`);
   await initCharacterBackupTab(parentContainer);
 }
 
