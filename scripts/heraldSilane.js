@@ -9,15 +9,9 @@ import { initImagesTab, refreshImagesGallery, getImagesList } from "./images.js"
 import { initIgniteCharacterTab } from "./igniteCharacter.js";
 import { initCharacterBackupTab } from "./characterBackup.js";
 
-// ==========================================
-// STATE VARIABLES
-// ==========================================
 let heraldSilane_currentDialog = null;
 let heraldSilane_uploadDialog = null;
 
-// ==========================================
-// FUNGSI UTAMA
-// ==========================================
 async function heraldSilane_renderAccessButton() {
   const existingButton = document.getElementById(
     "heraldSilane-accessButtonContainer",
@@ -53,7 +47,7 @@ async function heraldSilane_renderAccessButton() {
 }
 
 async function heraldSilane_showDialog() {
-  const dims = heraldSilane_getWindowDimensions(); // Diambil dari helper.js
+  const dims = heraldSilane_getWindowDimensions();
   const dialogContent = `<div id="heraldSilane-dialogContainer" ></div>`;
   const dialogOptions = {
     width: dims.width,
@@ -70,7 +64,6 @@ async function heraldSilane_showDialog() {
 
   Hooks.once("renderDialog", async (app) => {
     if (app instanceof Dialog && app.title === "Silane Assets") {
-      // 🔥 INJEKSI STYLE LANGSUNG KE WINDOW CONTENT FOUNDRY AGAR HEIGHT SELALU PAS 🔥
       const contentEl = app.element[0].querySelector(".window-content");
       if (contentEl) {
         contentEl.style.padding = "0";
@@ -290,7 +283,7 @@ async function heraldSilane_renderMainView() {
   const container = document.getElementById("heraldSilane-dialogContainer");
   if (!container) return;
 
-  const dims = heraldSilane_getWindowDimensions(); // 🔥 Ambil dimensi untuk Main View
+  const dims = heraldSilane_getWindowDimensions();
 
   let activeTab = "visage";
   let userName = "Unknown User";
@@ -499,7 +492,6 @@ async function heraldSilane_renderMainView() {
         galleryContainer.classList.remove("hs-gallery");
         initIgniteCharacterTab(galleryContainer);
       } else if (type === "audio") {
-        // 🔥 PANGGIL INIT AUDIO DI SINI
         titleText.innerText = "Audio Studio";
         actionsContainer.style.display = "none";
         searchInput.style.display = "none";
@@ -632,9 +624,6 @@ function heraldSilane_openSettingsModal() {
   ).render(true);
 }
 
-// ==========================================
-// FUNGSI MODAL UPLOAD
-// ==========================================
 function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
   if (heraldSilane_uploadDialog) {
     heraldSilane_uploadDialog.close();

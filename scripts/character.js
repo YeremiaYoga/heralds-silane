@@ -1,12 +1,10 @@
 import { API_BASE_URL } from "./helper.js";
 
-// State Management
 let characterData = { items: [] };
 let currentFolderId = null;
 let parentContainer = null;
 let searchQuery = "";
 
-// Helper untuk generate UUID v4 murni (Standar Supabase)
 const generateUUID = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -18,7 +16,6 @@ const generateUUID = () => {
   });
 };
 
-// Memperbaiki Format Tanggal
 const formatExportDate = (val) => {
   if (!val) return "Unknown Time";
   const date = new Date(
@@ -35,7 +32,6 @@ const formatExportDate = (val) => {
   return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
 };
 
-// URL Cerdas: Tangani null, string kosong, dan path relatif Foundry
 const formatCharacterUrl = (link) => {
   if (
     !link ||
@@ -90,7 +86,7 @@ const injectCharacterStyles = () => {
     .ch-list-area::-webkit-scrollbar { width: 6px; }
     .ch-list-area::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
     
-    /* UKURAN DEFAULT CARD */
+    
     .ch-row-card { display: flex; align-items: center; padding: 8px 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid #3f3f46; border-radius: 8px; transition: all 0.2s; user-select: none; gap: 12px; }
     .ch-row-card.clickable:hover { background: rgba(0, 0, 0, 0.5); border-color: #52525b; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
     .ch-row-card.drag-over { border-color: #10b981 !important; background: rgba(16, 185, 129, 0.05) !important; }
@@ -136,18 +132,18 @@ const injectCharacterStyles = () => {
     .vs-actor-name { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8); color: #f4f4f5; font-size: 10px; padding: 4px 2px; text-align: center; box-sizing: border-box; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
     .vs-actor-item:hover .vs-actor-name, .vs-actor-item.selected .vs-actor-name { opacity: 1; }
 
-    /* 🔥 CSS KHUSUS MODE "NAME ONLY" (DIBUAT SETIPIS MUNGKIN TAPI ADA VERSI) 🔥 */
+    
     .hs-character-name-only-mode .ch-row-card { padding: 4px 8px; gap: 10px; min-height: 36px; border-radius: 4px; }
     .hs-character-name-only-mode .ch-card-avatar { width: 28px; height: 28px; border-radius: 3px; }
     .hs-character-name-only-mode .ch-row-card[data-target="folder"] .ch-card-avatar i { font-size: 14px !important; }
     
-    /* Sembunyikan Info Jam dan Size JSON */
+    
     .hs-character-name-only-mode .ch-card-detail { display: none !important; }
     .hs-character-name-only-mode .ch-meta-size { display: none !important; }
     
     .hs-character-name-only-mode .ch-card-name { font-size: 14px; font-weight: 500; margin: 0; line-height: 1.2; }
     
-    /* Modifikasi Meta Data agar Horizontal dan Tipis */
+    
     .hs-character-name-only-mode .ch-card-meta { flex-direction: row; gap: 8px; align-items: center; border-right: 1px solid #3f3f46; padding-right: 10px; min-width: auto; justify-content: flex-end;}
     .hs-character-name-only-mode .ch-meta-top { margin: 0; font-size: 11px; }
     .hs-character-name-only-mode .ch-meta-bot { font-size: 10px; margin: 0; }
@@ -435,7 +431,6 @@ function attachCharacterEvents() {
   document
     .getElementById("ch-list-area")
     .addEventListener("click", async (e) => {
-      // Tombol Edit
       if (e.target.closest(".ch-action-edit")) {
         const id = e.target.closest(".ch-action-edit").dataset.id;
         const item = characterData.items.find((i) => i.id === id);
@@ -456,7 +451,6 @@ function attachCharacterEvents() {
         return;
       }
 
-      // Tombol Delete
       if (e.target.closest(".ch-action-delete")) {
         const id = e.target.closest(".ch-action-delete").dataset.id;
         Dialog.confirm({
@@ -477,7 +471,6 @@ function attachCharacterEvents() {
         return;
       }
 
-      // Tombol Download / Import
       if (e.target.closest(".ch-action-download")) {
         const id = e.target.closest(".ch-action-download").dataset.id;
         const item = characterData.items.find((i) => i.id === id);
@@ -487,7 +480,6 @@ function attachCharacterEvents() {
         return;
       }
 
-      // Klik Folder untuk masuk
       const folderRow = e.target.closest(".ch-item-click");
       if (folderRow && folderRow.dataset.target === "folder") {
         currentFolderId = folderRow.dataset.id;
@@ -496,7 +488,6 @@ function attachCharacterEvents() {
       }
     });
 
-  // Tombol Tambah Folder
   document.getElementById("ch-btn-add-folder").addEventListener("click", () => {
     showFolderForm("Create New Folder", null, async (data) => {
       characterData.items.push({
@@ -513,7 +504,6 @@ function attachCharacterEvents() {
     });
   });
 
-  // Tombol Tambah Profile dari JSON
   document
     .getElementById("ch-btn-add-profile")
     .addEventListener("click", () => {
@@ -529,7 +519,6 @@ function attachCharacterEvents() {
       });
     });
 
-  // Tombol Ambil dari World
   document
     .getElementById("ch-btn-select-actor")
     .addEventListener("click", () => {
@@ -558,7 +547,6 @@ function attachCharacterEvents() {
       });
     });
 
-  // DRAG AND DROP
   const listArea = document.getElementById("ch-list-area");
   const breadcrumbs = document.getElementById("ch-breadcrumbs");
   let draggedItemId = null;

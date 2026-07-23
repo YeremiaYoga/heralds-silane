@@ -202,7 +202,6 @@ function showImageEditForm(file) {
 export async function initImagesTab(container, onLoaded) {
   onDataLoaded = onLoaded;
 
-  // Bind search input listener
   const searchInput = document.getElementById("hs-search-input");
   if (searchInput) {
     searchInput.oninput = (e) => {
@@ -214,7 +213,6 @@ export async function initImagesTab(container, onLoaded) {
     };
   }
 
-  // Bind gallery container selection click
   const galleryContainer = document.getElementById("hs-gallery-container");
   if (galleryContainer) {
     galleryContainer.onclick = (e) => {
@@ -244,7 +242,6 @@ export async function initImagesTab(container, onLoaded) {
     };
   }
 
-  // Bind share and delete buttons
   const deleteBtn = document.getElementById("hs-btn-delete");
   const shareChatBtn = document.getElementById("hs-btn-share-chat");
 
@@ -310,6 +307,5 @@ export async function initImagesTab(container, onLoaded) {
     };
   }
 
-  // Load initial gallery data
   await fetchGalleryData();
 }

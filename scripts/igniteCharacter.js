@@ -130,19 +130,16 @@ function renderListArea() {
     const displayName = char.name || "Hero Without A Name";
     const displayFullName = char.full_name || "";
     
-    // Species
     let speciesName = "";
     if (char.species) {
       speciesName = char.species.name || "";
     }
     
-    // Classes details
     let classesStr = "";
     if (Array.isArray(char.classes) && char.classes.length > 0) {
       classesStr = char.classes.map(c => `${c.name || c.class_name || ""} ${c.level || ""}`).join(", ");
     }
 
-    // Created date
     let formattedDate = "";
     if (char.created_at) {
       try {
@@ -237,7 +234,6 @@ async function exportCharacterToFoundry(char) {
           dataToImport.prototypeToken.texture.src = char.art_image;
         }
 
-        // Clean up existing actor with the same name to avoid duplicates
         const existingActor = game.actors.find(a => a.name === dataToImport.name);
         if (existingActor) {
           await existingActor.delete();
@@ -252,7 +248,6 @@ async function exportCharacterToFoundry(char) {
             const year = today.getFullYear();
             const exportDate = `${day}-${month}-${year}`;
 
-            // Find or create "Silane" root folder (no parent folder)
             let rootFolder = game.folders.find(f => f.name === "Silane" && f.type === "Item" && (!f.folder || f.folder === null || f.folder === undefined));
             if (!rootFolder) {
               rootFolder = await Folder.create({
@@ -261,11 +256,9 @@ async function exportCharacterToFoundry(char) {
               });
             }
 
-            // Under "Silane" root folder, find or create Character folder "Nama Character (Tanggal Export)"
             const charFolderName = `${newActor.name} (${exportDate})`;
             let charFolder = game.folders.find(f => f.name === charFolderName && f.type === "Item" && (f.folder === rootFolder.id || f.folder?.id === rootFolder.id));
             if (charFolder) {
-              // Delete existing character folder and its items to avoid duplicates
               await charFolder.delete({ deleteContents: true });
             }
 
@@ -275,7 +268,6 @@ async function exportCharacterToFoundry(char) {
               folder: rootFolder.id
             });
 
-            // Create subfolders under Character folder dynamically on demand
             const subfolders = {};
             const getOrCreateSubfolder = async (categoryName) => {
               if (subfolders[categoryName]) return subfolders[categoryName];

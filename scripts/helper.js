@@ -7,7 +7,6 @@ export const initializeApiBaseUrl = () => {
   } else if (mode === "prod") {
     API_BASE_URL = "https://azcn87b0k85drpfp.phanneldeliver.my.id";
   } else {
-    // mode === "auto" (default)
     const isLocal = window.location.hostname === "localhost" || 
                     window.location.hostname === "127.0.0.1" || 
                     window.location.hostname.startsWith("192.168.") || 
@@ -34,7 +33,6 @@ export function heraldSilane_getWindowDimensions() {
   return dims;
 }
 
-// 🔥 TAMBAHKAN HELPER INI UNTUK KONVERSI HEX KE RGB
 export function hexToRgb(hex) {
   hex = hex.replace(/^#/, '');
   if (hex.length === 3) {

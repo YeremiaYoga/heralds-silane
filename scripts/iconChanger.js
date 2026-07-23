@@ -1,6 +1,3 @@
-// ==========================================
-// CHARACTER ICON CHANGER
-// ==========================================
 
 const injectIconChangerStyles = () => {
   if (document.getElementById("silane-icon-changer-styles")) return;
@@ -269,7 +266,6 @@ const injectIconChangerStyles = () => {
 export function openCharacterIconChanger(galleryImages = []) {
   injectIconChangerStyles();
 
-  // 1. Get owned actors in world
   const ownedActors = game.actors.filter(
     (a) => a.ownership[game.user.id] >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER,
   );
@@ -279,11 +275,10 @@ export function openCharacterIconChanger(galleryImages = []) {
     return;
   }
 
-  // 2. State management
   let activeActor = ownedActors[0];
   let selectedImageUrl = null;
   let checkedAssetIds = new Set();
-  let stagedChanges = new Map(); // key: assetId, value: newImageUrl
+  let stagedChanges = new Map();
   let highlightedAssetId = null;
   let searchQuery = "";
   let gallerySearchQuery = "";
@@ -328,7 +323,6 @@ export function openCharacterIconChanger(galleryImages = []) {
   let availableTypes = getAvailableTypes(activeActor);
   let selectedTypes = new Set(availableTypes);
 
-  // HTML Dialog Content
   const content = `
     <div class="sic-container">
       <!-- Top Bar: Character Select -->
@@ -408,13 +402,10 @@ export function openCharacterIconChanger(galleryImages = []) {
     </div>
   `;
 
-  // Filter helper
   const filterItem = (item) => {
-    // 1. Filter by search query
     if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
-    // 2. Filter by selected types
     return selectedTypes.has(item.type);
   };
 
@@ -449,13 +440,11 @@ export function openCharacterIconChanger(galleryImages = []) {
         const resetBtn = html.find("#sic-btn-reset-all");
         const checkedCountLabel = html.find("#sic-checked-count");
 
-        // Helper to update Button states
         const updateButtonStates = () => {
           const hasImage = !!selectedImageUrl;
           const hasChecked = checkedAssetIds.size > 0;
           const hasStaged = stagedChanges.size > 0;
 
-          // 1. Use Image Marked button
           if (hasImage && hasChecked) {
             applyBtn.prop("disabled", false);
             applyBtn.css({
@@ -474,7 +463,6 @@ export function openCharacterIconChanger(galleryImages = []) {
             });
           }
 
-          // 2. Save Changes button
           if (hasStaged) {
             saveBtn.prop("disabled", false);
             saveBtn.css({
@@ -493,7 +481,6 @@ export function openCharacterIconChanger(galleryImages = []) {
             });
           }
 
-          // 3. Reset All button
           if (hasStaged) {
             resetBtn.prop("disabled", false);
             resetBtn.css({
@@ -519,14 +506,12 @@ export function openCharacterIconChanger(galleryImages = []) {
           checkedCountLabel.text(countText);
         };
 
-        // Render assets
         const renderAssets = () => {
           if (!activeActor) {
             assetList.html(`<div style="padding:20px; text-align:center; color:#71717a;">No character active.</div>`);
             return;
           }
 
-          // 1. Get virtual assets (portrait, token)
           const virtualAssets = [];
           const virtualToRender = [];
           if (selectedTypes.has("portrait")) {
@@ -554,7 +539,6 @@ export function openCharacterIconChanger(galleryImages = []) {
           });
           virtualAssets.push(...filteredVirtual);
 
-          // 2. Get and sort visible actor items
           const visibleItems = activeActor.items.contents
             .filter(filterItem)
             .sort((a, b) => a.name.localeCompare(b.name));
@@ -567,7 +551,6 @@ export function openCharacterIconChanger(galleryImages = []) {
             return;
           }
 
-          // Check if all visible items are currently checked
           const allVisibleChecked = allVisible.every(i => checkedAssetIds.has(i.id));
           selectAllCheckbox.prop("checked", allVisibleChecked);
 
@@ -592,7 +575,6 @@ export function openCharacterIconChanger(galleryImages = []) {
             if (isHighlighted) rowClass += " highlighted";
             if (isStaged) rowClass += " staged";
 
-            // Visual badge coloring
             let typeColor = "#a1a1aa";
             if (item.type === "portrait") typeColor = "#c084fc";
             else if (item.type === "token") typeColor = "#fb923c";
@@ -620,7 +602,6 @@ export function openCharacterIconChanger(galleryImages = []) {
 
           assetList.html(htmlContent);
 
-          // Handle single row checkbox toggling
           assetList.find(".sic-asset-checkbox").on("change", function(e) {
             e.stopPropagation();
             const id = $(this).data("id");
@@ -631,13 +612,11 @@ export function openCharacterIconChanger(galleryImages = []) {
               checkedAssetIds.delete(id);
               $(this).closest(".sic-asset-row").removeClass("checked");
             }
-            // Recalculate select all checkbox state
             const allChecked = allVisible.every(i => checkedAssetIds.has(i.id));
             selectAllCheckbox.prop("checked", allChecked);
             updateButtonStates();
           });
 
-          // Handle individual row undo revert action
           assetList.find(".sic-row-undo").on("click", function(e) {
             e.stopPropagation();
             const id = $(this).data("id");
@@ -646,7 +625,6 @@ export function openCharacterIconChanger(galleryImages = []) {
             updateButtonStates();
           });
 
-          // Handle clicking the row to highlight
           assetList.find(".sic-asset-row").on("click", function(e) {
             if ($(e.target).is(".sic-asset-checkbox") || $(e.target).closest(".sic-row-undo").length > 0) return;
             const id = $(this).data("id");
@@ -661,7 +639,6 @@ export function openCharacterIconChanger(galleryImages = []) {
             }
           });
 
-          // Drag and Drop drop zone handlers
           assetList.find(".sic-asset-row").on("dragover", function(e) {
             e.preventDefault();
             $(this).addClass("drag-over");
@@ -684,7 +661,6 @@ export function openCharacterIconChanger(galleryImages = []) {
           });
         };
 
-        // Render Silane Image Gallery
         const renderGallery = () => {
           const filteredGallery = galleryImages.filter(img => {
             if (gallerySearchQuery && !img.name.toLowerCase().includes(gallerySearchQuery.toLowerCase())) {
@@ -709,18 +685,15 @@ export function openCharacterIconChanger(galleryImages = []) {
 
           imageGrid.html(gridContent);
 
-          // Handle drag start
           imageGrid.find(".sic-image-item").on("dragstart", function(e) {
             const url = $(this).data("url");
             e.originalEvent.dataTransfer.setData("text/plain", url);
             e.originalEvent.dataTransfer.effectAllowed = "copy";
           });
 
-          // Handle click to select or apply immediately to highlighted row
           imageGrid.find(".sic-image-item").on("click", async function() {
             const url = $(this).data("url");
             
-            // If there's a highlighted row, stage immediately
             if (highlightedAssetId) {
               imageGrid.find(".sic-image-item").removeClass("selected");
               $(this).addClass("selected");
@@ -732,7 +705,6 @@ export function openCharacterIconChanger(galleryImages = []) {
               return;
             }
 
-            // Normal select/deselect toggling
             imageGrid.find(".sic-image-item").removeClass("selected");
             if (selectedImageUrl === url) {
               selectedImageUrl = null;
@@ -744,7 +716,6 @@ export function openCharacterIconChanger(galleryImages = []) {
           });
         };
 
-        // Define multiselect rendering and behaviors
         const renderFilterCheckboxes = () => {
           let listHtml = availableTypes.map(type => {
             const label = TYPE_LABELS[type] || (type.charAt(0).toUpperCase() + type.slice(1));
@@ -758,7 +729,6 @@ export function openCharacterIconChanger(galleryImages = []) {
           }).join("");
           filterCheckboxesList.html(listHtml);
 
-          // Bind checkbox click
           filterCheckboxesList.find(".sic-filter-checkbox").off("change").on("change", function() {
             const type = $(this).data("type");
             if (this.checked) {
@@ -785,23 +755,19 @@ export function openCharacterIconChanger(galleryImages = []) {
           }
         };
 
-        // Toggle filter dropdown
         filterBtn.off("click").on("click", (e) => {
           e.stopPropagation();
           filterOptions.toggle();
         });
 
-        // Prevent closing when clicking inside options
         filterOptions.off("click").on("click", (e) => {
           e.stopPropagation();
         });
 
-        // Close when clicking outside
         $(document).off("click.sicFilterClose").on("click.sicFilterClose", () => {
           filterOptions.hide();
         });
 
-        // Select All / Clear All
         filterSelectAll.off("click").on("click", (e) => {
           e.preventDefault();
           availableTypes.forEach(t => selectedTypes.add(t));
@@ -818,13 +784,11 @@ export function openCharacterIconChanger(galleryImages = []) {
           renderAssets();
         });
 
-        // Initialize Rendering
         renderFilterCheckboxes();
         updateFilterButtonText();
         renderAssets();
         renderGallery();
 
-        // Bind Search
         let searchTimeout;
         assetSearch.on("input", function() {
           clearTimeout(searchTimeout);
@@ -834,7 +798,6 @@ export function openCharacterIconChanger(galleryImages = []) {
           }, 300);
         });
 
-        // Bind Gallery Search
         let gallerySearchTimeout;
         gallerySearch.on("input", function() {
           clearTimeout(gallerySearchTimeout);
@@ -844,7 +807,6 @@ export function openCharacterIconChanger(galleryImages = []) {
           }, 300);
         });
 
-        // Toggle Select All Visible
         selectAllCheckbox.on("change", function() {
           const isChecked = this.checked;
           
@@ -876,7 +838,6 @@ export function openCharacterIconChanger(galleryImages = []) {
           updateButtonStates();
         });
 
-        // Handle Character selection dropdown change
         charSelect.on("change", function() {
           const id = $(this).val();
           const selectedActor = ownedActors.find(a => a.id === id);
@@ -918,7 +879,6 @@ export function openCharacterIconChanger(galleryImages = []) {
           }
         });
 
-        // Use Image Marked icons
         applyBtn.on("click", () => {
           if (!selectedImageUrl || checkedAssetIds.size === 0) return;
           
@@ -933,7 +893,6 @@ export function openCharacterIconChanger(galleryImages = []) {
           updateButtonStates();
         });
 
-        // Reset All changes
         resetBtn.on("click", () => {
           if (stagedChanges.size === 0) return;
           stagedChanges.clear();
@@ -942,7 +901,6 @@ export function openCharacterIconChanger(galleryImages = []) {
           ui.notifications?.info("All staged changes cleared.");
         });
 
-        // Save Staged updates to Foundry VTT Actor
         saveBtn.on("click", async () => {
           if (stagedChanges.size === 0) return;
           
@@ -1004,7 +962,6 @@ export function openCharacterIconChanger(galleryImages = []) {
           });
         });
 
-        // Close button calls changerDialog.close()
         closeBtn.on("click", () => changerDialog.close());
       }
     },
@@ -1015,10 +972,9 @@ export function openCharacterIconChanger(galleryImages = []) {
     }
   );
 
-  // Override close to check for staged changes
   const originalClose = changerDialog.close.bind(changerDialog);
   changerDialog.close = async function(options) {
-    $(document).off("click.sicFilterClose"); // Clean up document click handler
+    $(document).off("click.sicFilterClose");
     if (stagedChanges.size > 0) {
       return new Promise((resolve) => {
         Dialog.confirm({

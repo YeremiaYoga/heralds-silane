@@ -5,10 +5,10 @@ let currentItems = [];
 let searchQuery = "";
 let currentOffset = 0;
 let currentType = "";
-let currentAdminView = "foundry"; // "foundry" | "homebrew"
-let selectedHomebrewUser = null; // { user_id, user_name } for admin drill-down
-let selectedCards = new Set(); // multi-select item ids
-let activeFilters = new Set(); // multi-filter types
+let currentAdminView = "foundry";
+let selectedHomebrewUser = null;
+let selectedCards = new Set();
+let activeFilters = new Set();
 const LIMIT = 200;
 
 const ITEM_TYPES = ["weapon", "spell", "consumable", "container", "equipment", "feat", "loot", "tool"];
@@ -20,9 +20,6 @@ function getUser() {
   try { return JSON.parse(str); } catch { return null; }
 }
 
-// ==========================================
-// INJECT STYLES
-// ==========================================
 const injectFireflyStyles = () => {
   if (document.getElementById("firefly-tab-styles")) return;
   const style = document.createElement("style");
@@ -83,9 +80,6 @@ const injectFireflyStyles = () => {
   document.head.appendChild(style);
 };
 
-// ==========================================
-// INIT
-// ==========================================
 export async function initFireflyTab(container) {
   parentContainer = container;
   injectFireflyStyles();
@@ -105,9 +99,6 @@ function showLoading() {
   parentContainer.innerHTML = `<div class="ff-container"><div class="ff-loading"><div class="ff-loading-bar"></div></div><div style="flex:1;display:flex;align-items:center;justify-content:center;color:#71717a;"><i class="fa-solid fa-circle-notch fa-spin fa-lg"></i></div></div>`;
 }
 
-// ==========================================
-// FETCH
-// ==========================================
 async function fetchItems() {
   try {
     const token = getToken();
@@ -119,7 +110,6 @@ async function fetchItems() {
 
     let url;
     if (isAdmin && currentAdminView === "homebrew" && selectedHomebrewUser) {
-      // Admin viewing specific user's homebrew
       params.append("user_id", selectedHomebrewUser.user_id);
       url = `${API_BASE_URL}/api/firefly/admin/homebrew?${params}`;
     } else if (isAdmin && currentAdminView === "homebrew") {
@@ -142,15 +132,11 @@ async function fetchItems() {
   }
 }
 
-// ==========================================
-// RENDER UI
-// ==========================================
 function renderUI() {
   if (!parentContainer) return;
   const user = getUser();
   const isAdmin = user?.role === "admin";
 
-  // Breadcrumb
   let breadcrumb = `<span><i class="fa-solid fa-fire"></i></span> <span>Firefly</span>`;
   if (isAdmin && currentAdminView === "foundry") {
     breadcrumb += ` <span>/</span> <span style="color:#60a5fa;">Foundry</span>`;
@@ -200,14 +186,10 @@ function renderUI() {
   attachBreadcrumbEvents();
 }
 
-// ==========================================
-// RENDER USER LIST (admin homebrew drill-down)
-// ==========================================
 function renderUserList() {
   const listEl = document.getElementById("ff-user-list");
   if (!listEl) return;
 
-  // Group items by user_id to get unique users
   const usersMap = {};
   for (const item of currentItems) {
     const uid = item.user_id || "unknown";
@@ -243,9 +225,6 @@ function renderUserList() {
   });
 }
 
-// ==========================================
-// ADMIN TOGGLE & BREADCRUMB
-// ==========================================
 function attachAdminToggle() {
   const btnFoundry = document.getElementById("ff-view-foundry");
   const btnHomebrew = document.getElementById("ff-view-homebrew");
@@ -286,9 +265,6 @@ function attachBreadcrumbEvents() {
   }
 }
 
-// ==========================================
-// RENDER LIST (icon/card grid)
-// ==========================================
 function renderList() {
   const listEl = document.getElementById("ff-list");
   if (!listEl) return;
@@ -301,13 +277,11 @@ function renderList() {
     return;
   }
 
-  // Filter by selected user if admin drill-down
   let items = currentItems;
   if (showUser) {
     items = currentItems.filter((i) => i.user_id === selectedHomebrewUser.user_id);
   }
 
-  // Apply type filters
   if (activeFilters.size > 0) {
     items = items.filter((i) => {
       const t = i.__type || i.type || "unknown";
@@ -340,9 +314,6 @@ function renderList() {
   }).join("");
 }
 
-// ==========================================
-// EVENTS
-// ==========================================
 function attachEvents() {
   let searchTimeout;
   const searchEl = document.getElementById("ff-search");
@@ -363,7 +334,6 @@ function attachEvents() {
   const importBtn = document.getElementById("ff-btn-import");
   if (importBtn) importBtn.addEventListener("click", () => showImportFromFoundryDialog());
 
-  // Filter chips
   const filtersEl = document.getElementById("ff-filters");
   if (filtersEl) {
     filtersEl.addEventListener("click", (e) => {
@@ -383,7 +353,6 @@ function attachEvents() {
     });
   }
 
-  // Card click & action buttons
   const listEl = document.getElementById("ff-list");
   if (listEl) {
     listEl.addEventListener("click", async (e) => {
@@ -407,7 +376,6 @@ function attachEvents() {
     });
   }
 
-  // Bulk actions
   const bulkImport = document.getElementById("ff-bulk-import");
   if (bulkImport) bulkImport.addEventListener("click", () => bulkImportToFoundry());
   const bulkDelete = document.getElementById("ff-bulk-delete");
@@ -419,12 +387,10 @@ function attachEvents() {
     updateBulkBar();
   });
 
-  // Fetch storage usage (user only)
   fetchStorageUsage();
 }
 
 async function fetchStorageUsage() {
-  // Storage ditampilkan di footer silane, tidak perlu di sini
 }
 
 function updateBulkBar() {
@@ -439,9 +405,6 @@ function updateBulkBar() {
   }
 }
 
-// ==========================================
-// BULK IMPORT TO FOUNDRY
-// ==========================================
 async function bulkImportToFoundry() {
   if (selectedCards.size === 0) return;
   const token = getToken();
@@ -475,16 +438,12 @@ async function bulkImportToFoundry() {
   document.querySelectorAll(".ff-card.selected").forEach((c) => c.classList.remove("selected"));
 }
 
-// ==========================================
-// BULK DELETE
-// ==========================================
 async function bulkDeleteItems() {
   if (selectedCards.size === 0) return;
   const confirm = await Dialog.confirm({ title: "Delete Items", content: `<p>Delete ${selectedCards.size} selected item(s)?</p>`, defaultYes: false });
   if (!confirm) return;
 
   const token = getToken();
-  // Group by type
   const grouped = {};
   for (const id of selectedCards) {
     const item = currentItems.find((i) => i.id === id);
@@ -513,9 +472,6 @@ async function bulkDeleteItems() {
   renderUI();
 }
 
-// ==========================================
-// IMPORT ITEM TO FOUNDRY VTT
-// ==========================================
 async function importItemToFoundry(id, type) {
   try {
     const token = getToken();
@@ -539,9 +495,6 @@ async function importItemToFoundry(id, type) {
   }
 }
 
-// ==========================================
-// DELETE ITEM
-// ==========================================
 async function deleteItem(id, type) {
   const confirm = await Dialog.confirm({ title: "Delete Item", content: "<p>Delete this item?</p>", defaultYes: false });
   if (!confirm) return;
@@ -564,9 +517,6 @@ async function deleteItem(id, type) {
   } catch (error) { ui.notifications?.error("Delete error."); }
 }
 
-// ==========================================
-// IMPORT FROM FOUNDRY DIALOG
-// ==========================================
 function showImportFromFoundryDialog() {
   const worldItems = game.items.contents.filter((i) => ITEM_TYPES.includes(i.type?.toLowerCase()));
   if (worldItems.length === 0) { ui.notifications?.warn("No valid items in world."); return; }
@@ -643,14 +593,12 @@ function showImportFromFoundryDialog() {
 
       renderImportGrid();
 
-      // Search
       let searchTimeout;
       searchEl.addEventListener("input", () => {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => renderImportGrid(), 1000);
       });
 
-      // Filter chips
       let filterTimeout;
       html.find("#ff-import-filters").on("click", ".ff-import-filter-chip", function () {
         const type = this.dataset.type;
@@ -669,22 +617,17 @@ function showImportFromFoundryDialog() {
         filterTimeout = setTimeout(() => renderImportGrid(), 1000);
       });
 
-      // Tile select toggle
       html.find("#ff-import-grid").on("click", ".ff-import-tile", function () {
         if (this.classList.contains("selected")) { this.classList.remove("selected"); this.style.border = "2px solid #3f3f46"; this.style.background = "rgba(0,0,0,0.2)"; }
         else { this.classList.add("selected"); this.style.border = "2px solid #3b82f6"; this.style.background = "rgba(59,130,246,0.1)"; }
       });
 
-      // Select/Deselect visible
       html.find("#ff-select-all").on("click", () => { html.find("#ff-import-grid .ff-import-tile").each(function () { this.classList.add("selected"); this.style.border = "2px solid #3b82f6"; this.style.background = "rgba(59,130,246,0.1)"; }); });
       html.find("#ff-deselect-all").on("click", () => { html.find("#ff-import-grid .ff-import-tile").each(function () { this.classList.remove("selected"); this.style.border = "2px solid #3f3f46"; this.style.background = "rgba(0,0,0,0.2)"; }); });
     },
   }, { width: 550, height: 650, classes: ["dialog", "silane-custom-dialog"] }).render(true);
 }
 
-// ==========================================
-// SEND SELECTED FOUNDRY ITEMS TO BACKEND
-// ==========================================
 async function importSelectedToBackend(itemIds) {
   try {
     const token = getToken();

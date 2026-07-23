@@ -1,6 +1,5 @@
 import { API_BASE_URL } from "./helper.js";
 
-// State Management
 let visageData = { items: [] };
 let currentFolderId = null;
 let parentContainer = null;
@@ -20,7 +19,7 @@ const generateSafeUUID = () => {
 const formatVisageUrl = (link) => {
   if (!link) return "";
   if (link.startsWith("http")) return link;
-  let path = link.replace(/^\//, "");
+  let path = link.replace(/^\
   if (path.includes("sih4storage.phanneldeliver.my.id")) {
     return `https://${path}`;
   }
@@ -40,7 +39,7 @@ const injectVisageStyles = () => {
     .vs-bc-item.active { color: #60a5fa; cursor: default; pointer-events: none; background: transparent; }
     .vs-bc-separator { color: #52525b; font-size: 10px; }
     
-    /* Action Bar */
+    
     .vs-action-bar { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; }
     .vs-search-box { flex: 1; display: flex; align-items: center; background: rgba(0,0,0,0.2); border: 1px solid #3f3f46; border-radius: 6px; padding: 0 15px; height: 40px; transition: border-color 0.2s; }
     .vs-search-box:focus-within { border-color: #60a5fa; }
@@ -261,7 +260,6 @@ function renderListArea() {
 function attachVisageEvents() {
   let searchTimeout;
 
-  // Breadcrumbs click event
   document.getElementById("vs-breadcrumbs").addEventListener("click", (e) => {
     const item = e.target.closest(".vs-bc-item");
     if (!item || item.classList.contains("active")) return;
@@ -270,7 +268,6 @@ function attachVisageEvents() {
     renderListArea();
   });
 
-  // Search input event
   document.getElementById("vs-search-input").addEventListener("input", (e) => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
@@ -279,11 +276,9 @@ function attachVisageEvents() {
     }, 1000);
   });
 
-  // Main List Area click events
   document
     .getElementById("vs-list-area")
     .addEventListener("click", async (e) => {
-      // Delete Button
       if (e.target.closest(".vs-action-delete")) {
         const id = e.target.closest(".vs-action-delete").dataset.id;
         Dialog.confirm({
@@ -305,7 +300,6 @@ function attachVisageEvents() {
         return;
       }
 
-      // Edit Button
       if (e.target.closest(".vs-action-edit")) {
         const id = e.target.closest(".vs-action-edit").dataset.id;
         const item = visageData.items.find((i) => i.id === id);
@@ -326,7 +320,6 @@ function attachVisageEvents() {
         return;
       }
 
-      // Folder Click
       const folderRow = e.target.closest(".vs-item-click");
       if (folderRow && folderRow.dataset.target === "folder") {
         currentFolderId = folderRow.dataset.id;
@@ -334,7 +327,6 @@ function attachVisageEvents() {
         return;
       }
 
-      // Profile Click
       const profileRow = e.target.closest(".vs-profile-click");
       if (profileRow) {
         if (e.target.closest(".vs-action-icon")) return;
@@ -346,7 +338,6 @@ function attachVisageEvents() {
       }
     });
 
-  // Add buttons
   document.getElementById("vs-btn-add-folder").addEventListener("click", () => {
     showFolderForm("Create New Folder", null, async (data) => {
       visageData.items.push({
@@ -378,7 +369,6 @@ function attachVisageEvents() {
       });
     });
 
-  // === DRAG AND DROP LOGIC ===
   const listArea = document.getElementById("vs-list-area");
   const breadcrumbs = document.getElementById("vs-breadcrumbs");
   let draggedItemId = null;

@@ -6,7 +6,7 @@ let state = {
   owned: [],
   member: [],
   currentGroupId: null,
-  currentSubTab: "members", // "members" | "characters" | "missions"
+  currentSubTab: "members",
   currentUser: { id: null, name: "Unknown" },
 };
 
@@ -182,7 +182,6 @@ function renderDashboard() {
   html += `</div></div>`;
   parentContainer.innerHTML = html;
 
-  // Bind Buttons & Events
   const btnCreate = parentContainer.querySelector("#hs-btn-create-group");
   const btnJoin = parentContainer.querySelector("#hs-btn-join-group");
 
@@ -196,7 +195,7 @@ function renderDashboard() {
         e.target.closest(".hs-leave-group")
       ) return;
       state.currentGroupId = card.dataset.id;
-      state.currentSubTab = "members"; // Reset subtab when entering
+      state.currentSubTab = "members";
       render();
     };
   });
@@ -366,10 +365,8 @@ function renderGroupDetails() {
       const isMine = String(r.owner_id) === String(state.currentUser.id);
       const canEdit = isOwner || isMine;
 
-      // If hidden, only owner or group owner can see it
       if (r.hidden === true && !canEdit) return false;
 
-      // If private, only owner or group owner can see it
       if (r.visibility === "private" && !canEdit) return false;
 
       return true;
@@ -464,7 +461,7 @@ function renderGroupDetails() {
       `;
     } else {
       missions.forEach((m) => {
-        let statusColor = "#60a5fa"; // active
+        let statusColor = "#60a5fa";
         if (m.status === "completed") statusColor = "#34d399";
         if (m.status === "failed") statusColor = "#f87171";
 
@@ -566,7 +563,6 @@ function renderGroupDetails() {
   html += `</div></div>`;
   parentContainer.innerHTML = html;
 
-  // Bind Events for Inner Details Screen
   parentContainer.querySelector("#hs-btn-back-dashboard").onclick = () => {
     state.currentGroupId = null;
     render();
@@ -582,7 +578,6 @@ function renderGroupDetails() {
     if (btnSettings) btnSettings.onclick = () => showGroupSettingsModal(group);
   }
 
-  // Subtab buttons click
   parentContainer.querySelectorAll(".hs-group-tab-btn").forEach((btn) => {
     btn.onclick = () => {
       state.currentSubTab = btn.dataset.tab;
@@ -590,7 +585,6 @@ function renderGroupDetails() {
     };
   });
 
-  // Members events
   if (state.currentSubTab === "members") {
     parentContainer.querySelectorAll(".hs-kick-member").forEach((btn) => {
       btn.onclick = async (e) => {
@@ -619,7 +613,7 @@ function renderGroupDetails() {
     parentContainer.querySelectorAll(".hs-member-role-badge").forEach((badge) => {
       badge.onclick = (e) => {
         e.stopPropagation();
-        if (!isOwner) return; // Only owner can change roles
+        if (!isOwner) return;
         const targetUserId = badge.dataset.userid;
         const currentRole = badge.dataset.role;
         showChangeRoleModal(group.id, targetUserId, currentRole, group.roles);
@@ -627,7 +621,6 @@ function renderGroupDetails() {
     });
   }
 
-  // Resources events (Player & NPC)
   if (state.currentSubTab === "player" || state.currentSubTab === "npc") {
     const isNpcTab = state.currentSubTab === "npc";
 
@@ -707,7 +700,6 @@ function renderGroupDetails() {
     });
   }
 
-  // Missions events
   if (state.currentSubTab === "missions") {
     const btnCreateMission = parentContainer.querySelector("#hs-btn-create-mission");
     if (btnCreateMission) btnCreateMission.onclick = () => showCreateOrEditMissionModal(group);
@@ -933,7 +925,6 @@ function showCreateOrEditMissionModal(group, mission = null) {
   const missionNotes = isEdit ? (mission.notes || "") : "";
   const missionPlayerNotes = isEdit ? (mission.player_notes || "") : "";
 
-  // Convert legacy objectives / rewards
   const steps = isEdit && Array.isArray(mission.steps) && mission.steps.length > 0
     ? mission.steps
     : [{ title: "Step 1", description: "", objectives: isEdit && Array.isArray(mission.objectives) ? mission.objectives : [] }];
@@ -1046,7 +1037,6 @@ function showCreateOrEditMissionModal(group, mission = null) {
             const notes = html.find("#hs-mission-dm-notes").val().trim();
             const player_notes = html.find("#hs-mission-player-notes").val().trim();
 
-            // Gather Steps
             const gatheredSteps = [];
             html.find(".hs-step-row").each((i, stepEl) => {
               const stepRow = $(stepEl);
@@ -1076,7 +1066,6 @@ function showCreateOrEditMissionModal(group, mission = null) {
               });
             });
 
-            // Gather Rewards
             const gatheredRewards = [];
             html.find(".hs-reward-row").each((i, rwEl) => {
               const row = $(rwEl);
@@ -1175,7 +1164,6 @@ function showCreateOrEditMissionModal(group, mission = null) {
       render: (html) => {
         applyDarkThemeToDialog(html);
 
-        // Upload handler
         const fileInput = html.find("#hs-mission-image-file");
         const uploadBtn = html.find("#hs-btn-upload-mission-image");
         const urlInput = html.find("#hs-mission-image");
@@ -1219,7 +1207,6 @@ function showCreateOrEditMissionModal(group, mission = null) {
           }
         });
 
-        // Steps editor
         const stepsListContainer = html.find("#hs-steps-list-container");
         const addStepBtn = html.find("#hs-add-step-btn");
 
@@ -1290,10 +1277,8 @@ function showCreateOrEditMissionModal(group, mission = null) {
 
         addStepBtn.click(() => addStepRow());
 
-        // Populate steps
         steps.forEach(s => addStepRow(s));
 
-        // Rewards Editor
         const rewardsListContainer = html.find("#hs-rewards-list-container");
 
         const addRewardRow = (rw = { type: "custom", name: "", amount: 1 }) => {
@@ -1371,16 +1356,13 @@ function showCreateOrEditMissionModal(group, mission = null) {
           rewardsListContainer.append(row);
         };
 
-        // Populate rewards
         rewards.forEach(r => addRewardRow(r));
 
-        // Click Add Reward button
         html.find(".hs-add-reward-btn").click((e) => {
           const type = $(e.currentTarget).attr("data-reward-type");
           addRewardRow({ type, name: "", amount: type === "exp" ? 100 : 1 });
         });
 
-        // Item search autocomplete
         html.on("input", ".hs-item-search-input", (e) => {
           const input = $(e.currentTarget);
           const query = input.val().trim().toLowerCase();
@@ -1454,7 +1436,6 @@ function showCreateOrEditMissionModal(group, mission = null) {
           container.append(`<div style="font-size: 9px; color: #71717a; font-family: monospace;">UUID: ${uuid}</div>`);
         });
 
-        // Hide autocomplete when clicking outside
         $(document).click((e) => {
           if (!$(e.target).closest(".hs-item-search-container").length) {
             html.find(".hs-item-search-results").hide().empty();
@@ -1470,7 +1451,6 @@ function showMissionDetailModal(group, mission) {
   const isOwner = String(group.creator_id) === String(state.currentUser.id);
   const statusColor = mission.status === "completed" ? "#34d399" : mission.status === "failed" ? "#f87171" : "#60a5fa";
 
-  // Convert rewards if any
   const rewards = Array.isArray(mission.rewards) ? mission.rewards : [];
   let rewardsHtml = "";
   if (rewards.length > 0) {
@@ -1514,7 +1494,6 @@ function showMissionDetailModal(group, mission) {
     `;
   }
 
-  // Convert steps/objectives
   let stepsHtml = "";
   const steps = Array.isArray(mission.steps) ? mission.steps : [];
   if (steps.length > 0) {
@@ -1571,7 +1550,6 @@ function showMissionDetailModal(group, mission) {
       </div>
     `;
   } else if (Array.isArray(mission.objectives) && mission.objectives.length > 0) {
-    // legacy objectives fallback
     stepsHtml = `
       <div style="margin-top: 15px;">
         <h4 style="margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; color: #a1a1aa; font-weight: 600; letter-spacing: 0.05em;">Objectives</h4>
@@ -1669,7 +1647,6 @@ function showMissionDetailModal(group, mission) {
       applyDarkThemeToDialog(html);
 
       if (isOwner) {
-        // Toggle step objectives
         html.on("click", ".hs-detail-objective-row", async (e) => {
           const row = $(e.currentTarget);
           const sIdx = parseInt(row.attr("data-step-idx"));
@@ -1714,7 +1691,6 @@ function showMissionDetailModal(group, mission) {
           }
         });
 
-        // Toggle legacy objectives
         html.on("click", ".hs-detail-legacy-objective-row", async (e) => {
           const row = $(e.currentTarget);
           const oIdx = parseInt(row.attr("data-obj-idx"));
@@ -1879,7 +1855,6 @@ function showGroupSettingsModal(group) {
     render: (html) => {
       applyDarkThemeToDialog(html);
 
-      // Icon upload handling
       const fileInput = html.find("#hs-group-icon-file");
       const uploadBtn = html.find("#hs-btn-upload-group-icon");
       const removeBtn = html.find("#hs-btn-remove-group-icon");
