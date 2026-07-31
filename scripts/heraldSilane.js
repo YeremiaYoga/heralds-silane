@@ -8,16 +8,14 @@ import { openCharacterIconChanger } from "./iconChanger.js";
 import { initImagesTab, refreshImagesGallery, getImagesList } from "./images.js";
 import { initIgniteCharacterTab } from "./igniteCharacter.js";
 import { initCharacterBackupTab } from "./characterBackup.js";
-
+import { initBestiaryTab } from "./bestiary.js";
 let heraldSilane_currentDialog = null;
 let heraldSilane_uploadDialog = null;
-
 async function heraldSilane_renderAccessButton() {
   const existingButton = document.getElementById(
     "heraldSilane-accessButtonContainer",
   );
   if (existingButton) existingButton.remove();
-
   try {
     const html = await fetch(
       "/modules/heralds-silane/templates/accessButton.html",
@@ -27,25 +25,21 @@ async function heraldSilane_renderAccessButton() {
     const exporter = div.firstChild;
     exporter.id = "heraldSilane-accessButtonContainer";
     exporter.classList.add("heraldSilane-accessButtonContainer");
-
     const accessButton = document.createElement("button");
     accessButton.id = "heraldSilane-accessButton";
     accessButton.classList.add("heraldSilane-accessButton");
     accessButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i>';
     accessButton.title = "Open Silane Asset";
-
     accessButton.addEventListener(
       "click",
       async () => await heraldSilane_showDialog(),
     );
-
     exporter.appendChild(accessButton);
     document.body.appendChild(exporter);
   } catch (err) {
     console.error(err);
   }
 }
-
 async function heraldSilane_showDialog() {
   const dims = heraldSilane_getWindowDimensions();
   const dialogContent = `<div id="heraldSilane-dialogContainer" ></div>`;
@@ -61,7 +55,6 @@ async function heraldSilane_showDialog() {
   );
   heraldSilane_currentDialog = dialog;
   dialog.render(true);
-
   Hooks.once("renderDialog", async (app) => {
     if (app instanceof Dialog && app.title === "Silane Assets") {
       const contentEl = app.element[0].querySelector(".window-content");
@@ -77,20 +70,16 @@ async function heraldSilane_showDialog() {
     }
   });
 }
-
 async function heraldSilane_renderRouting() {
   const token = localStorage.getItem("heraldSilane_token");
   if (token) await heraldSilane_renderMainView();
   else await heraldSilane_renderLoginView();
 }
-
 async function heraldSilane_renderLoginView() {
   const container = document.getElementById("heraldSilane-dialogContainer");
   if (!container) return;
-
   const dims = heraldSilane_getWindowDimensions();
   let activePollInterval = null;
-
   container.innerHTML = `
     <div class="hs-layout-override" style="height: ${dims.overrideHeight}px; flex: 1; display: flex; flex-direction: column; min-height: 0;">
       <div class="silane-dialog-wrapper">
@@ -118,7 +107,6 @@ async function heraldSilane_renderLoginView() {
       </div>
     </div>
   `;
-
   const handleMessage = async (event) => {
     if (event.data && event.data.type === "silane-auth-success") {
       const { token, user } = event.data;
@@ -135,10 +123,8 @@ async function heraldSilane_renderLoginView() {
       await heraldSilane_renderRouting();
     }
   };
-
   const startPolling = (tempId) => {
     if (activePollInterval) clearInterval(activePollInterval);
-
     let attempts = 0;
     activePollInterval = setInterval(async () => {
       attempts++;
@@ -147,7 +133,6 @@ async function heraldSilane_renderLoginView() {
         activePollInterval = null;
         return;
       }
-
       try {
         const response = await fetch(`${API_BASE_URL}/api/auth/poll-status?temp_id=${tempId}`);
         if (response.ok) {
@@ -155,9 +140,7 @@ async function heraldSilane_renderLoginView() {
           if (data.status === "success") {
             clearInterval(activePollInterval);
             activePollInterval = null;
-            
             window.removeEventListener("message", handleMessage);
-
             localStorage.setItem("heraldSilane_token", data.token || "authenticated");
             if (data.user) {
               localStorage.setItem("heraldSilane_user", JSON.stringify(data.user));
@@ -171,9 +154,7 @@ async function heraldSilane_renderLoginView() {
       }
     }, 2000);
   };
-
   window.addEventListener("message", handleMessage);
-
   document
     .getElementById("heraldSilane-btnCancel")
     .addEventListener("click", () => {
@@ -184,7 +165,6 @@ async function heraldSilane_renderLoginView() {
       }
       if (heraldSilane_currentDialog) heraldSilane_currentDialog.close();
     });
-
   document
     .getElementById("heraldSilane-btnGoogle")
     .addEventListener("click", () => {
@@ -193,16 +173,13 @@ async function heraldSilane_renderLoginView() {
       const left = window.screenX + (window.outerWidth - width) / 2;
       const top = window.screenY + (window.outerHeight - height) / 2;
       const tempId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      
       window.open(
         `${API_BASE_URL}/api/auth/google?temp_id=${tempId}`,
         "Silane Google Login",
         `width=${width},height=${height},left=${left},top=${top}`
       );
-
       startPolling(tempId);
     });
-
   document
     .getElementById("heraldSilane-btnPatreon")
     .addEventListener("click", () => {
@@ -211,16 +188,13 @@ async function heraldSilane_renderLoginView() {
       const left = window.screenX + (window.outerWidth - width) / 2;
       const top = window.screenY + (window.outerHeight - height) / 2;
       const tempId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      
       window.open(
         `${API_BASE_URL}/api/auth/patreon?temp_id=${tempId}`,
         "Silane Patreon Login",
         `width=${width},height=${height},left=${left},top=${top}`
       );
-
       startPolling(tempId);
     });
-
   document
     .getElementById("heraldSilane-btnLogin")
     .addEventListener("click", async (e) => {
@@ -233,17 +207,14 @@ async function heraldSilane_renderLoginView() {
         .getElementById("heraldSilane-secretId")
         .value.trim();
       const msgDiv = document.getElementById("heraldSilane-loginMsg");
-
       if (!secretId) {
         msgDiv.textContent = "Silane ID cannot be empty.";
         msgDiv.style.display = "block";
         return;
       }
-
       btn.disabled = true;
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
       msgDiv.style.display = "none";
-
       try {
         const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
           method: "POST",
@@ -278,26 +249,21 @@ async function heraldSilane_renderLoginView() {
       }
     });
 }
-
 async function heraldSilane_renderMainView() {
   const container = document.getElementById("heraldSilane-dialogContainer");
   if (!container) return;
-
   const dims = heraldSilane_getWindowDimensions();
-
   let activeTab = "visage";
   let userName = "Unknown User";
   let userImage = "icons/svg/mystery-man.svg";
   let maxStorageMb = 0;
   let isStorageUnlimited = false;
-
   const userDataStr = localStorage.getItem("heraldSilane_user");
   if (userDataStr) {
     try {
       const userData = JSON.parse(userDataStr);
       userName = userData.username || userName;
       userImage = userData.profile_picture || userImage;
-
       if (userData.limits === null) {
         isStorageUnlimited = true;
       } else if (userData.limits && userData.limits.silane) {
@@ -305,7 +271,6 @@ async function heraldSilane_renderMainView() {
       }
     } catch (e) {}
   }
-
   container.innerHTML = `
     <div class="hs-layout-override" style="height: ${dims.overrideHeight}px; flex: 1; display: flex; flex-direction: column; min-height: 0;">
       <div class="hs-main">
@@ -316,24 +281,21 @@ async function heraldSilane_renderMainView() {
           <button id="hs-tab-character" class="hs-circle-btn" title="Character"><i class="fa-solid fa-users"></i></button>
           <button id="hs-tab-ignite-character" class="hs-circle-btn" title="Ignite Character"><i class="fa-solid fa-address-card"></i></button>
           <button id="hs-tab-firefly" class="hs-circle-btn" title="Firefly"><i class="fa-solid fa-fire"></i></button>
+          <button id="hs-tab-bestiary" class="hs-circle-btn" title="Bestiary"><i class="fa-solid fa-book-skull"></i></button>
           <button id="hs-tab-group" class="hs-circle-btn" title="Group"><i class="fa-solid fa-people-group"></i></button>
           ${game.user.isGM ? `<button id="hs-tab-character-backup" class="hs-circle-btn" title="Character Backup"><i class="fa-solid fa-database"></i></button>` : ""}
         </div>
         <div class="hs-content">
           <div class="hs-header">
             <h2 id="hs-content-title" class="hs-title">Image Gallery</h2>
-            
             <input type="text" id="hs-search-input" class="silane-input" placeholder="Search by name..." style="margin-left: 15px; width: 200px; padding: 5px 10px; border-radius: 4px; border: 1px solid #52525b; background: rgba(0,0,0,0.2); color: #f4f4f5;" />
-            
             <div class="hs-actions" id="hs-actions-container" style="margin-left: auto;">
               <button id="hs-btn-icon-changer" class="hs-btn hs-btn-secondary" style="display: none; align-items: center; gap: 6px;" title="Character Icon Changer">
                 <i class="fa-solid fa-user-gear"></i> Icon Changer
               </button>
-              
               <button id="hs-btn-share-chat" class="hs-btn" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.5);" disabled title="Show in Chat">
                 <i class="fa-solid fa-paper-plane"></i>
               </button>
-              
               <button id="hs-btn-delete" class="hs-btn hs-btn-danger" disabled title="Delete Selected">
                 <i class="fa-solid fa-trash"></i>
               </button>
@@ -345,7 +307,6 @@ async function heraldSilane_renderMainView() {
           <div id="hs-gallery-container" class="hs-gallery"></div>
         </div>
       </div>
-      
       <div class="hs-footer">
         <div class="hs-user-info" style="display: flex; align-items: center; gap: 10px;">
           <img src="${userImage}" class="hs-user-avatar" style="margin: 0;" />
@@ -376,7 +337,6 @@ async function heraldSilane_renderMainView() {
       </div>
     </div>
   `;
-
   const tabs = {
     images: document.getElementById("hs-tab-images"),
     audio: document.getElementById("hs-tab-audio"),
@@ -384,10 +344,10 @@ async function heraldSilane_renderMainView() {
     character: document.getElementById("hs-tab-character"),
     igniteCharacter: document.getElementById("hs-tab-ignite-character"),
     firefly: document.getElementById("hs-tab-firefly"),
+    bestiary: document.getElementById("hs-tab-bestiary"),
     group: document.getElementById("hs-tab-group"),
     characterBackup: document.getElementById("hs-tab-character-backup"),
   };
-
   const galleryContainer = document.getElementById("hs-gallery-container");
   const actionsContainer = document.getElementById("hs-actions-container");
   const deleteBtn = document.getElementById("hs-btn-delete");
@@ -396,7 +356,6 @@ async function heraldSilane_renderMainView() {
   const btnOpenUpload = document.getElementById("hs-btn-open-upload");
   const searchInput = document.getElementById("hs-search-input");
   const storageUsageDiv = document.getElementById("hs-storage-usage");
-
   const fetchStorageUsage = async () => {
     if (!storageUsageDiv) return;
     try {
@@ -404,11 +363,9 @@ async function heraldSilane_renderMainView() {
       const response = await fetch(`${API_BASE_URL}/api/silane_assets/usage`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       if (response.ok) {
         const result = await response.json();
         const usedMb = parseFloat(result.data.total_mb) || 0;
-
         if (isStorageUnlimited) {
           storageUsageDiv.innerHTML = `
             <div style="display:flex; justify-content:space-between; font-size:10px; margin-bottom:3px; font-weight: 500;">
@@ -423,11 +380,9 @@ async function heraldSilane_renderMainView() {
           const maxMb = maxStorageMb;
           let percent = maxMb > 0 ? (usedMb / maxMb) * 100 : 100;
           if (percent > 100) percent = 100;
-
           let barColor = "#10b981";
           if (percent >= 75) barColor = "#f59e0b";
           if (percent >= 90) barColor = "#ef4444";
-
           storageUsageDiv.innerHTML = `
             <div style="display:flex; justify-content:space-between; font-size:10px; margin-bottom:3px; font-weight: 500;">
               <span>Storage</span>
@@ -445,21 +400,17 @@ async function heraldSilane_renderMainView() {
       storageUsageDiv.innerHTML = `<div style="font-size:11px;"><i class="fa-solid fa-triangle-exclamation"></i> Storage info error</div>`;
     }
   };
-
   fetchStorageUsage();
-
   const switchTab = (type) => {
     activeTab = type;
     Object.values(tabs).forEach((btn) => {
       if (btn) btn.classList.remove("active");
     });
     if (tabs[type]) tabs[type].classList.add("active");
-
     const iconChangerBtn = document.getElementById("hs-btn-icon-changer");
     const hasCharacter = game.actors.some(
       (a) => a.ownership[game.user.id] >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER
     );
-
     if (type === "images") {
       titleText.innerText = "Image Gallery";
       actionsContainer.style.display = "flex";
@@ -503,6 +454,12 @@ async function heraldSilane_renderMainView() {
         searchInput.style.display = "none";
         galleryContainer.classList.remove("hs-gallery");
         initFireflyTab(galleryContainer);
+      } else if (type === "bestiary") {
+        titleText.innerText = "Bestiary";
+        actionsContainer.style.display = "none";
+        searchInput.style.display = "none";
+        galleryContainer.classList.remove("hs-gallery");
+        initBestiaryTab(galleryContainer);
       } else if (type === "group") {
         titleText.innerText = "Group";
         actionsContainer.style.display = "none";
@@ -518,13 +475,11 @@ async function heraldSilane_renderMainView() {
       }
     }
   };
-
   Object.entries(tabs).forEach(([type, btn]) => {
     if (btn) {
       btn.addEventListener("click", () => switchTab(type));
     }
   });
-
   btnOpenUpload.addEventListener("click", () => {
     heraldSilane_openUploadModal(activeTab, () => {
       if (activeTab === "images") {
@@ -532,14 +487,12 @@ async function heraldSilane_renderMainView() {
       }
     });
   });
-
   const btnIconChanger = document.getElementById("hs-btn-icon-changer");
   if (btnIconChanger) {
     btnIconChanger.addEventListener("click", () => {
       openCharacterIconChanger(getImagesList());
     });
   }
-
   document
     .getElementById("hs-btn-logout")
     .addEventListener("click", async () => {
@@ -548,14 +501,11 @@ async function heraldSilane_renderMainView() {
       ui.notifications?.info("Disconnected from Silane.");
       await heraldSilane_renderRouting();
     });
-
   switchTab("visage");
 }
-
 function heraldSilane_openSettingsModal() {
   const currentSize = game.settings.get("heralds-silane", "windowSize");
   const currentDetail = game.settings.get("heralds-silane", "characterDetailMode");
-  
   const content = `
     <div class="silane-settings-wrapper" style="padding: 10px; color: #f4f4f5;">
       <div class="silane-form-group" style="margin-bottom: 15px;">
@@ -568,7 +518,6 @@ function heraldSilane_openSettingsModal() {
           <option value="xxlarge" style="background: #18181b; color: white;" ${currentSize === "xxlarge" ? "selected" : ""}>XL</option>
         </select>
       </div>
-
       <div class="silane-form-group" style="margin-bottom: 15px;">
         <label style="display: block; margin-bottom: 5px; font-weight: bold; color: white;">Character Detail Information</label>
         <select id="hs-setting-characterDetail" class="silane-input" style="width: 100%; padding: 5px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b;">
@@ -578,7 +527,6 @@ function heraldSilane_openSettingsModal() {
       </div>
     </div>
   `;
-
   new Dialog(
     {
       title: "Herald Silane Settings",
@@ -589,10 +537,8 @@ function heraldSilane_openSettingsModal() {
           callback: async (html) => {
             const newSize = html.find("#hs-setting-windowSize").val();
             const newDetail = html.find("#hs-setting-characterDetail").val();
-
             await game.settings.set("heralds-silane", "windowSize", newSize);
             await game.settings.set("heralds-silane", "characterDetailMode", newDetail);
-
             if (heraldSilane_currentDialog) {
               const dims = heraldSilane_getWindowDimensions();
               heraldSilane_currentDialog.setPosition({ width: dims.width, height: dims.height });
@@ -612,7 +558,6 @@ function heraldSilane_openSettingsModal() {
           contentElement.style.color = "white";
           contentElement.style.backgroundImage = "none";
         }
-
         html.closest(".dialog").find(".dialog-buttons button").css({
           color: "white",
           border: "1px solid #3f3f46",
@@ -623,22 +568,18 @@ function heraldSilane_openSettingsModal() {
     { width: 450, height: "auto", classes: ["dialog", "silane-custom-dialog"] },
   ).render(true);
 }
-
 function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
   if (heraldSilane_uploadDialog) {
     heraldSilane_uploadDialog.close();
   }
-
   let selectedUploadFile = null;
   let activeTags = [];
-
   const content = `
     <div class="silane-upload-wrapper">
       <div class="silane-form-group" style="gap:5px; margin-top:0;">
         <label>Name</label>
         <input type="text" id="hs-upload-name" class="silane-input" style="border-radius:4px;" />
       </div>
-
       <div class="silane-form-group" style="gap:5px; margin-top:10px; margin-bottom:15px;">
         <label>Tags</label>
         <div style="display:flex; gap:5px;">
@@ -649,7 +590,6 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
         </div>
         <div id="hs-tags-container" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;"></div>
       </div>
-
       <div class="hs-upload-box" id="hs-upload-box">
         <div id="hs-upload-placeholder" style="text-align:center; color:#a1a1aa;">
           <i class="fa-solid fa-image fa-2x" style="margin-bottom:8px;"></i><br>Click to Upload Image
@@ -657,30 +597,28 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
         <img id="hs-upload-preview" style="display:none;" />
         <input type="file" id="hs-fileInput" accept="image/*" style="display:none;">
       </div>
-
       <button id="hs-btn-confirm-upload" class="silane-btn primary" style="width:100%; border-radius:4px; padding:10px; margin-top:15px;">Confirm Upload</button>
-
       <details class="hs-advanced-settings" id="hs-advanced-details">
         <summary>Advanced settings ⚠️</summary>
         <div class="hs-advanced-content">
           <div style="display:flex; gap:15px; align-items:center; margin-bottom:10px;">
             <div style="display:flex; gap:5px; align-items:center;">
-              <label style="margin:0;">Size</label> 
+              <label style="margin:0;">Size</label>
               <input type="text" id="hs-upload-size" class="silane-input" style="width:70px; padding:4px;" />
             </div>
             <div style="display:flex; gap:5px; align-items:center;">
-              <label style="margin:0;">Hide</label> 
+              <label style="margin:0;">Hide</label>
               <input type="checkbox" id="hs-upload-hide" style="margin:0;" />
             </div>
           </div>
           <label style="display:block; margin-bottom:5px;">Dimensions</label>
           <div style="display:flex; gap:15px; align-items:center;">
             <div style="display:flex; gap:5px; align-items:center;">
-              <span>| height</span> 
+              <span>| height</span>
               <input type="number" id="hs-upload-height" class="silane-input" style="width:70px; padding:4px;" />
             </div>
             <div style="display:flex; gap:5px; align-items:center;">
-              <span>_ width</span> 
+              <span>_ width</span>
               <input type="number" id="hs-upload-width" class="silane-input" style="width:70px; padding:4px;" />
             </div>
           </div>
@@ -688,7 +626,6 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
       </details>
     </div>
   `;
-
   heraldSilane_uploadDialog = new Dialog(
     {
       title: "Upload Image Asset",
@@ -708,7 +645,6 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
         const tagsContainer = parent.querySelector("#hs-tags-container");
         const btnConfirm = parent.querySelector("#hs-btn-confirm-upload");
         const detailsElem = parent.querySelector("#hs-advanced-details");
-
         if (detailsElem) {
           detailsElem.addEventListener("toggle", () => {
             if (heraldSilane_uploadDialog) {
@@ -716,7 +652,6 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
             }
           });
         }
-
         const renderTags = () => {
           tagsContainer.innerHTML = activeTags
             .map(
@@ -728,12 +663,10 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
           `,
             )
             .join("");
-
           if (heraldSilane_uploadDialog) {
             heraldSilane_uploadDialog.setPosition({ height: "auto" });
           }
         };
-
         const addNewTag = () => {
           const val = tagInputElem.value.trim();
           if (val && !activeTags.includes(val)) {
@@ -742,19 +675,16 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
             renderTags();
           }
         };
-
         btnAddTag.addEventListener("click", (e) => {
           e.preventDefault();
           addNewTag();
         });
-
         tagInputElem.addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
             e.preventDefault();
             addNewTag();
           }
         });
-
         tagsContainer.addEventListener("click", (e) => {
           if (e.target.classList.contains("hs-remove-tag")) {
             const index = e.target.getAttribute("data-index");
@@ -762,19 +692,15 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
             renderTags();
           }
         });
-
         uploadBox.addEventListener("click", () => fileInput.click());
-
         fileInput.addEventListener("change", (e) => {
           const file = e.target.files[0];
           if (!file) return;
-
           if (!file.type.startsWith("image/")) {
             ui.notifications?.warn("Please select an image file.");
             fileInput.value = "";
             return;
           }
-
           selectedUploadFile = file;
           nameInput.value = file.name.split(".")[0];
           const objectUrl = URL.createObjectURL(file);
@@ -782,30 +708,24 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
           uploadPreview.style.display = "block";
           uploadPlaceholder.style.display = "none";
         });
-
         btnConfirm.addEventListener("click", async () => {
           if (!selectedUploadFile) {
             ui.notifications?.warn("Please select an image file to upload.");
             return;
           }
-
           const customName = nameInput.value.trim();
-
           ui.notifications?.info(
             `Uploading ${customName || selectedUploadFile.name}...`,
           );
           btnConfirm.disabled = true;
           btnConfirm.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
           const formData = new FormData();
           formData.append("file", selectedUploadFile);
           formData.append("type", activeTab);
           if (customName) formData.append("customName", customName);
-
           if (activeTags.length > 0) {
             formData.append("tags", JSON.stringify(activeTags));
           }
-
           try {
             const token = localStorage.getItem("heraldSilane_token");
             const response = await fetch(
@@ -816,20 +736,17 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
                 body: formData,
               },
             );
-
             if (response.ok) {
               ui.notifications?.info(`Upload successful!`);
               heraldSilane_uploadDialog.close();
               if (onSuccessCallback) onSuccessCallback();
             } else {
               const errData = await response.json();
-
               if (errData.message && errData.message.includes("over 3mb")) {
                 ui.notifications?.warn(`⚠️ Warning: ${errData.message}`);
               } else {
                 ui.notifications?.error(`Upload failed: ${errData.message}`);
               }
-
               btnConfirm.disabled = false;
               btnConfirm.textContent = "Confirm Upload";
             }
@@ -847,8 +764,6 @@ function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
       classes: ["dialog", "silane-custom-dialog"],
     },
   );
-
   heraldSilane_uploadDialog.render(true);
 }
-
 export { heraldSilane_renderAccessButton };

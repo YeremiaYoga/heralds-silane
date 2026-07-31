@@ -49,7 +49,6 @@ async function checkAndRunAutoBackup() {
     hour: "12:00",
     targets: {}
   };
-  
   if (!settings.enabled) return;
 
   const now = new Date();
@@ -129,7 +128,6 @@ async function checkAndRunAutoBackup() {
   }
 
   await game.settings.set("heralds-silane", "lastAutoBackupDate", todayStr);
-  
   if (successCount > 0 || failCount > 0) {
     ui.notifications?.info(`Herald Silane: Auto-backup completed. Success: ${successCount}, Failed: ${failCount}`);
   }

@@ -1,5 +1,4 @@
 import { API_BASE_URL } from "./helper.js";
-
 let state = {
   albums: [],
   playlists: [],
@@ -8,9 +7,7 @@ let state = {
   currentUser: { id: null, name: "Unknown" },
   activeAudioElement: null,
 };
-
 let containerElement = null;
-
 const generateUUID = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID)
     return crypto.randomUUID();
@@ -20,7 +17,6 @@ const generateUUID = () => {
     return v.toString(16);
   });
 };
-
 const formatTime = (time) => {
   if (time && !isNaN(time)) {
     const minutes = Math.floor(time / 60);
@@ -31,7 +27,6 @@ const formatTime = (time) => {
   }
   return "00:00";
 };
-
 const applyDarkThemeToDialog = (html) => {
   const dialogElement = html.closest(".app")[0];
   const contentElement = dialogElement.querySelector(".window-content");
@@ -40,31 +35,25 @@ const applyDarkThemeToDialog = (html) => {
     contentElement.style.color = "white";
     contentElement.style.backgroundImage = "none";
   }
-
   html.closest(".dialog").find(".dialog-buttons button").css({
     color: "white",
     border: "1px solid #3f3f46",
     background: "rgba(0,0,0,0.4)",
   });
 };
-
 const getToken = () => localStorage.getItem("heraldSilane_token");
-
 async function fetchAudioData() {
   try {
     const response = await fetch(`${API_BASE_URL}/api/silane_assets/data`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
     const result = await response.json();
-
     if (!response.ok) {
       console.error("Backend Error:", result);
       ui.notifications?.error(result.message || "Server Error fetching Data.");
       return;
     }
-
     const data = result.data || {};
-
     state.albums = data.audio?.albums || [];
     state.playlists = data.audio?.playlists || [];
     render();
@@ -73,13 +62,11 @@ async function fetchAudioData() {
     ui.notifications?.error("Network Error: Failed to fetch audio data.");
   }
 }
-
 async function saveAlbumsToBackend(newAlbums) {
   try {
     const myOwnedAlbums = newAlbums.filter(
       (a) => String(a.user_id) === String(state.currentUser.id),
     );
-
     await fetch(`${API_BASE_URL}/api/silane_assets/audio/album/update`, {
       method: "POST",
       headers: {
@@ -93,19 +80,16 @@ async function saveAlbumsToBackend(newAlbums) {
     ui.notifications?.error("Failed to save albums.");
   }
 }
-
 async function savePlaylistsToBackend(newPlaylists) {
   try {
     const activeAlbumIds = state.albums
       .filter((a) => String(a.user_id) === String(state.currentUser.id))
       .map((a) => a.id);
-
     const playlistsToUpsert = newPlaylists.filter(
       (p) =>
         activeAlbumIds.includes(p.album_id) ||
         p.uuid === state.currentPlaylistId,
     );
-
     await fetch(`${API_BASE_URL}/api/silane_assets/audio/playlist/update`, {
       method: "POST",
       headers: {
@@ -122,10 +106,8 @@ async function savePlaylistsToBackend(newPlaylists) {
     ui.notifications?.error("Failed to save playlists.");
   }
 }
-
 export async function initAudioTab(container) {
   containerElement = container;
-
   const userStr = localStorage.getItem("heraldSilane_user");
   if (userStr) {
     const d = JSON.parse(userStr);
@@ -134,12 +116,9 @@ export async function initAudioTab(container) {
       name: d.username || d.name || "Unknown",
     };
   }
-
   container.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; height:100%; color:#a1a1aa;"><i class="fa-solid fa-circle-notch fa-spin fa-2x"></i></div>`;
-
   await fetchAudioData();
 }
-
 async function ensureDirectoryExists(source, targetPath) {
   const parts = targetPath.split('/').filter(p => p);
   let currentPath = "";
@@ -151,17 +130,13 @@ async function ensureDirectoryExists(source, targetPath) {
     }
   }
 }
-
 function getFilenameFromUrl(url, blob) {
   let filename = url.split('/').pop().split('?')[0];
   filename = decodeURIComponent(filename).trim();
-  
   filename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-  
   if (!filename) {
     filename = generateUUID();
   }
-  
   const hasExtension = filename.includes('.') && filename.lastIndexOf('.') > 0;
   if (!hasExtension) {
     let ext = "mp3";
@@ -176,37 +151,26 @@ function getFilenameFromUrl(url, blob) {
   }
   return filename;
 }
-
 async function downloadAndSaveAudio(url) {
   if (!url) throw new Error("No URL provided");
-  
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Failed to fetch audio file from ${url}`);
   const blob = await response.blob();
-  
   const filename = getFilenameFromUrl(url, blob);
-
   const targetDir = "assets/project-silane/music";
   await ensureDirectoryExists("data", targetDir);
-
   const file = new File([blob], filename, { type: blob.type });
-
   const uploadResponse = await FilePicker.upload("data", targetDir, file, {});
-  
   if (!uploadResponse || !uploadResponse.path) {
     throw new Error("Failed to upload audio via FilePicker");
   }
-  
   return uploadResponse.path;
 }
-
 async function importPlaylistToFoundry(playlistData, folderId = null) {
   if (!playlistData) return;
   ui.notifications.info(`Importing Playlist: ${playlistData.name}...`);
-
   try {
     let foundryPlaylist = game.playlists.getName(playlistData.name);
-
     if (foundryPlaylist) {
       if (folderId && foundryPlaylist.folder?.id !== folderId) {
         await foundryPlaylist.update({ folder: folderId });
@@ -230,11 +194,9 @@ async function importPlaylistToFoundry(playlistData, folderId = null) {
       if (folderId) createData.folder = folderId;
       foundryPlaylist = await Playlist.create(createData);
     }
-
     const album = state.albums.find((a) => a.id === playlistData.album_id);
     const trackVolume = album?.setting?.volume ?? 0.1;
     const trackRepeat = album?.setting?.repeat ?? true;
-
     const tracksToImport = [];
     for (const t of (playlistData.track || [])) {
       try {
@@ -257,14 +219,12 @@ async function importPlaylistToFoundry(playlistData, folderId = null) {
         });
       }
     }
-
     if (tracksToImport.length > 0) {
       await foundryPlaylist.createEmbeddedDocuments(
         "PlaylistSound",
         tracksToImport,
       );
     }
-
     ui.notifications.info(
       `Playlist "${playlistData.name}" successfully imported/updated!`,
     );
@@ -274,14 +234,11 @@ async function importPlaylistToFoundry(playlistData, folderId = null) {
     ui.notifications.error("Failed to import playlist to Foundry.");
   }
 }
-
 async function importTrackToFoundry(trackData, playlistName, albumSetting = {}) {
   if (!trackData) return;
   ui.notifications.info(`Importing Track: ${trackData.name}...`);
-
   const trackVolume = albumSetting.volume ?? 0.1;
   const trackRepeat = albumSetting.repeat ?? true;
-
   try {
     let localPath = trackData.url;
     try {
@@ -291,20 +248,16 @@ async function importTrackToFoundry(trackData, playlistName, albumSetting = {}) 
       console.error(`Failed to download track ${trackData.name}:`, err);
       ui.notifications.warn(`Failed to download "${trackData.name}". Using remote URL instead.`);
     }
-
     let foundryPlaylist = game.playlists.getName(playlistName);
-
     if (!foundryPlaylist) {
       foundryPlaylist = await Playlist.create({
         name: playlistName,
         description: "Auto-generated from Silane Track Import",
       });
     }
-
     const existingSound = foundryPlaylist.sounds.find(
       (s) => s.name === trackData.name,
     );
-
     if (existingSound) {
       await foundryPlaylist.updateEmbeddedDocuments("PlaylistSound", [
         {
@@ -332,25 +285,20 @@ async function importTrackToFoundry(trackData, playlistName, albumSetting = {}) 
     ui.notifications.error("Failed to import track to Foundry.");
   }
 }
-
 async function importAlbumToFoundry(albumData) {
   if (!albumData) return;
-
   const albumPlaylists = state.playlists.filter(
     (p) => p.album_id === albumData.id,
   );
-
   if (albumPlaylists.length === 0) {
     ui.notifications.warn(
       `Album "${albumData.name}" does not have any playlists to import.`,
     );
     return;
   }
-
   ui.notifications.info(
     `Starting batch import for Album: ${albumData.name} (${albumPlaylists.length} Playlists)...`,
   );
-
   try {
     let albumFolder = game.folders.find(
       (f) => f.name === albumData.name && f.type === "Playlist",
@@ -361,11 +309,9 @@ async function importAlbumToFoundry(albumData) {
         type: "Playlist",
       });
     }
-
     for (const playlist of albumPlaylists) {
       await importPlaylistToFoundry(playlist, albumFolder.id);
     }
-
     ui.notifications.info(
       `🎉 Album "${albumData.name}" successfully imported!`,
     );
@@ -375,10 +321,8 @@ async function importAlbumToFoundry(albumData) {
     ui.notifications.error("Failed to import full album to Foundry.");
   }
 }
-
 function render() {
   if (!containerElement) return;
-
   if (!state.currentAlbumId) {
     renderStudioView();
   } else if (!state.currentPlaylistId) {
@@ -387,11 +331,9 @@ function render() {
     renderPlaylistView();
   }
 }
-
 function renderStudioView() {
   const isOwner = (album) =>
     String(album.user_id) === String(state.currentUser.id);
-
   let html = `
     <div style="padding: 10px; display:flex; flex-direction:column; height: 100%; overflow-y: auto;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-shrink: 0;">
@@ -409,7 +351,6 @@ function renderStudioView() {
       </div>
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; padding-bottom: 40px;">
   `;
-
   if (state.albums.length === 0) {
     html += `
       <div style="grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 0; border: 2px dashed #3f3f46; border-radius: 12px; color: #71717a;">
@@ -423,14 +364,12 @@ function renderStudioView() {
       const playlistCount = state.playlists.filter(
         (p) => p.album_id === album.id,
       ).length;
-
       const existsInFoundry = game.folders.some(
         (f) => f.name === album.name && f.type === "Playlist"
       );
       const badgeHtml = existsInFoundry
         ? `<span style="font-size: 10px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 6px; border-radius: 4px; font-weight: bold; display: flex; align-items: center; gap: 4px;"><i class="fa-solid fa-circle-check"></i> Exported</span>`
         : "";
-
       html += `
         <div class="hs-album-card" style="background: rgba(24, 24, 27, 0.5); border: 1px solid #3f3f46; border-radius: 12px; padding: 16px; cursor: pointer; display: flex; align-items: center; transition: all 0.2s;" data-id="${album.id}">
           <div style="width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 12px; margin-right: 16px; background: linear-gradient(to bottom right, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); border: 1px solid rgba(99, 102, 241, 0.3);">
@@ -453,13 +392,10 @@ function renderStudioView() {
       `;
     });
   }
-
   html += `</div></div>`;
   containerElement.innerHTML = html;
-
   const btnJoinAlbum = containerElement.querySelector("#hs-btn-join-album");
   if (btnJoinAlbum) btnJoinAlbum.onclick = showJoinModal;
-
   containerElement.querySelectorAll(".hs-album-card").forEach((card) => {
     card.onclick = (e) => {
       if (
@@ -471,7 +407,6 @@ function renderStudioView() {
       render();
     };
   });
-
   containerElement.querySelectorAll(".hs-import-album").forEach((btn) => {
     btn.onclick = async (e) => {
       e.stopPropagation();
@@ -480,7 +415,6 @@ function renderStudioView() {
       await importAlbumToFoundry(albumToImport);
     };
   });
-
   containerElement.querySelectorAll(".hs-delete-album").forEach((btn) => {
     btn.onclick = async (e) => {
       e.stopPropagation();
@@ -496,7 +430,6 @@ function renderStudioView() {
     };
   });
 }
-
 function renderAlbumView() {
   const album = state.albums.find((a) => a.id === state.currentAlbumId);
   if (!album) {
@@ -504,10 +437,8 @@ function renderAlbumView() {
     render();
     return;
   }
-
   const isOwner = String(album.user_id) === String(state.currentUser.id);
   const albumPlaylists = state.playlists.filter((p) => p.album_id === album.id);
-
   let html = `
     <div style="padding: 10px; display:flex; flex-direction:column; height: 100%; overflow-y: auto;">
       <div style="background: linear-gradient(to right, rgba(49, 46, 129, 0.4), #18181b); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 16px; padding: 24px; margin-bottom: 24px; position: relative; overflow: hidden; flex-shrink: 0;">
@@ -540,7 +471,6 @@ function renderAlbumView() {
       </div>
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; padding-bottom: 40px;">
   `;
-
   if (albumPlaylists.length === 0) {
     html += `
       <div style="grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px 0; border: 2px dashed #3f3f46; border-radius: 12px; color: #71717a;">
@@ -554,7 +484,6 @@ function renderAlbumView() {
       const badgeHtml = existsInFoundry
         ? `<span style="font-size: 10px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 6px; border-radius: 4px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; margin-left: 8px;"><i class="fa-solid fa-circle-check"></i> Exported</span>`
         : "";
-
       html += `
         <div class="hs-playlist-card" style="background: rgba(24, 24, 27, 0.4); border: 1px solid rgba(63, 63, 70, 0.8); border-radius: 12px; padding: 12px; cursor: pointer; display: flex; align-items: center; transition: all 0.2s;" data-id="${pl.uuid}">
           <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 8px; margin-right: 16px; background: rgba(192, 38, 211, 0.1); border: 1px solid rgba(192, 38, 211, 0.2);">
@@ -580,15 +509,12 @@ function renderAlbumView() {
       `;
     });
   }
-
   html += `</div></div>`;
   containerElement.innerHTML = html;
-
   containerElement.querySelector("#hs-btn-back-studio").onclick = () => {
     state.currentAlbumId = null;
     render();
   };
-
   const btnImportFullAlbum = containerElement.querySelector(
     "#hs-btn-import-full-album",
   );
@@ -597,24 +523,20 @@ function renderAlbumView() {
       await importAlbumToFoundry(album);
     };
   }
-
   if (isOwner) {
     const settingsBtn = containerElement.querySelector(
       "#hs-btn-album-settings",
     );
     if (settingsBtn) settingsBtn.onclick = () => showSettingsModal(album);
-
     const copyBtn = containerElement.querySelector("#hs-btn-copy-invite");
     if (copyBtn)
       copyBtn.onclick = () => {
         navigator.clipboard.writeText(album.invite_code);
         ui.notifications?.info("Invite code copied!");
       };
-
     const newPlBtn = containerElement.querySelector("#hs-btn-new-playlist");
     if (newPlBtn) newPlBtn.onclick = showNewPlaylistModal;
   }
-
   containerElement.querySelectorAll(".hs-playlist-card").forEach((card) => {
     card.onclick = (e) => {
       if (
@@ -627,7 +549,6 @@ function renderAlbumView() {
       render();
     };
   });
-
   containerElement.querySelectorAll(".hs-import-playlist").forEach((btn) => {
     btn.onclick = async (e) => {
       e.stopPropagation();
@@ -636,7 +557,6 @@ function renderAlbumView() {
       await importPlaylistToFoundry(playlistToImport);
     };
   });
-
   containerElement.querySelectorAll(".hs-delete-playlist").forEach((btn) => {
     btn.onclick = async (e) => {
       e.stopPropagation();
@@ -648,7 +568,6 @@ function renderAlbumView() {
       await savePlaylistsToBackend(newPlaylists);
     };
   });
-
   containerElement.querySelectorAll(".hs-edit-playlist").forEach((btn) => {
     btn.onclick = (e) => {
       e.stopPropagation();
@@ -660,7 +579,6 @@ function renderAlbumView() {
     };
   });
 }
-
 function renderPlaylistView() {
   const album = state.albums.find((a) => a.id === state.currentAlbumId);
   const playlist = state.playlists.find(
@@ -671,9 +589,7 @@ function renderPlaylistView() {
     render();
     return;
   }
-
   const isAlbumOwner = String(album.user_id) === String(state.currentUser.id);
-
   let html = `
     <div style="padding: 10px; display:flex; flex-direction:column; height: 100%; overflow-y: auto;">
       <div style="background: linear-gradient(to right, rgba(134, 25, 143, 0.3), #18181b); border: 1px solid rgba(192, 38, 211, 0.2); border-radius: 16px; padding: 24px; margin-bottom: 24px; position: relative; overflow: hidden; flex-shrink: 0;">
@@ -708,7 +624,6 @@ function renderPlaylistView() {
       </div>
       <div style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 40px;">
   `;
-
   if (!playlist.track || playlist.track.length === 0) {
     html += `
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px 0; border: 2px dashed #3f3f46; border-radius: 12px; color: #71717a;">
@@ -718,17 +633,14 @@ function renderPlaylistView() {
     `;
   } else {
     const fvttPlaylist = game.playlists.getName(playlist.name);
-
     playlist.track.forEach((track) => {
       const isTrackUploader =
         String(track.user_id) === String(state.currentUser.id);
       const canDelete = isAlbumOwner || isTrackUploader;
-
       const existsInFoundry = fvttPlaylist && fvttPlaylist.sounds.some((s) => s.name === track.name);
       const badgeHtml = existsInFoundry
         ? `<span style="font-size: 10px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 6px; border-radius: 4px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; margin-left: 8px;"><i class="fa-solid fa-circle-check"></i> Exported</span>`
         : "";
-
       html += `
         <div class="hs-track-row" style="background: rgba(24, 24, 27, 0.5); border: 1px solid rgba(63, 63, 70, 0.8); border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 16px; transition: all 0.2s;">
           <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); flex-shrink: 0;">
@@ -771,17 +683,14 @@ function renderPlaylistView() {
       `;
     });
   }
-
   html += `</div></div>`;
   containerElement.innerHTML = html;
-
   containerElement.querySelector("#hs-btn-back-album").onclick = () => {
     state.currentPlaylistId = null;
     render();
   };
   containerElement.querySelector("#hs-btn-upload-track").onclick =
     showUploadModal;
-
   const btnImportFull = containerElement.querySelector(
     "#hs-btn-import-full-playlist",
   );
@@ -790,12 +699,10 @@ function renderPlaylistView() {
       await importPlaylistToFoundry(playlist);
     };
   }
-
  containerElement.querySelectorAll(".hs-import-track").forEach((btn) => {
     btn.onclick = async () => {
       const trackId = btn.dataset.trackId;
       const trackToImport = playlist.track.find((t) => t.id === trackId);
-
       await importTrackToFoundry(trackToImport, playlist.name, album.setting);
     };
   });
@@ -814,14 +721,12 @@ function renderPlaylistView() {
       await savePlaylistsToBackend(updatedPlaylists);
     };
   });
-
   const editHeaderBtn = containerElement.querySelector("#hs-btn-edit-playlist-header");
   if (editHeaderBtn) {
     editHeaderBtn.onclick = () => {
       showEditPlaylistModal(playlist);
     };
   }
-
   containerElement.querySelectorAll(".hs-edit-track").forEach((btn) => {
     btn.onclick = (e) => {
       e.stopPropagation();
@@ -832,16 +737,13 @@ function renderPlaylistView() {
       }
     };
   });
-
   initVanillaAudioPlayers(
     album.setting?.volume ?? 0.1,
     album.setting?.repeat ?? true,
   );
 }
-
 function initVanillaAudioPlayers(albumVolume, albumRepeat) {
   const players = containerElement.querySelectorAll(".hs-custom-player");
-
   players.forEach((player) => {
     const audio = player.querySelector("audio");
     const playBtn = player.querySelector(".hs-play-btn");
@@ -849,27 +751,22 @@ function initVanillaAudioPlayers(albumVolume, albumRepeat) {
     const timeCurrent = player.querySelector(".hs-time-current");
     const timeDuration = player.querySelector(".hs-time-duration");
     const volumeBar = player.querySelector(".hs-volume-bar");
-
     audio.volume = volumeBar ? parseFloat(volumeBar.value) : albumVolume;
     audio.loop = albumRepeat;
-
     audio.addEventListener("loadedmetadata", () => {
       timeDuration.textContent = formatTime(audio.duration);
       progressBar.max = audio.duration;
     });
-
     audio.addEventListener("timeupdate", () => {
       timeCurrent.textContent = formatTime(audio.currentTime);
       progressBar.value = audio.currentTime;
     });
-
     audio.addEventListener("ended", () => {
       if (!audio.loop) {
         playBtn.innerHTML =
           '<i class="fa-solid fa-play" style="margin-left: 2px;"></i>';
       }
     });
-
     playBtn.onclick = () => {
       if (audio.paused) {
         if (state.activeAudioElement && state.activeAudioElement !== audio) {
@@ -891,11 +788,9 @@ function initVanillaAudioPlayers(albumVolume, albumRepeat) {
           '<i class="fa-solid fa-play" style="margin-left: 2px;"></i>';
       }
     };
-
     progressBar.oninput = (e) => {
       audio.currentTime = e.target.value;
     };
-
     if (volumeBar) {
       volumeBar.oninput = (e) => {
         audio.volume = parseFloat(e.target.value);
@@ -903,7 +798,6 @@ function initVanillaAudioPlayers(albumVolume, albumRepeat) {
     }
   });
 }
-
 function showJoinModal() {
   const content = `
     <div style="padding: 10px; color: white;">
@@ -921,7 +815,6 @@ function showJoinModal() {
           callback: async (html) => {
             const code = html.find("#hs-join-album-code").val().trim();
             if (!code) return ui.notifications?.warn("Code cannot be empty.");
-
             try {
               const res = await fetch(
                 `${API_BASE_URL}/api/silane_assets/audio/join`,
@@ -956,7 +849,6 @@ function showJoinModal() {
     { width: 350, classes: ["dialog", "silane-custom-dialog"] },
   ).render(true);
 }
-
 function showSettingsModal(album) {
   const content = `
     <div style="padding: 10px; color: white;">
@@ -965,12 +857,10 @@ function showSettingsModal(album) {
         <label style="display:block; margin-bottom:6px; font-size:13px; color:#e4e4e7; font-weight: 500;">Album Name</label>
         <input type="text" id="hs-set-album-name" value="${album.name}" style="width:100%; padding: 6px 10px; background: #18181b; border: 1px solid #3f3f46; border-radius: 6px; color: white; outline: none; font-size: 13px;" />
       </div>
-
       <h4 style="margin-bottom: 5px; color:#a1a1aa; text-transform:uppercase; font-size:12px; font-weight: bold; letter-spacing: 0.05em;">Audio Playback</h4>
       <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border: 1px solid #3f3f46; margin-bottom: 20px;">
         <label style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:13px; color:#e4e4e7; font-weight: 500;">Default Volume <span id="hs-vol-val">${Math.round((album.setting?.volume ?? 0.1) * 100)}%</span></label>
         <input type="range" id="hs-set-volume" min="0" max="1" step="0.01" value="${album.setting?.volume ?? 0.1}" style="width:100%; margin-bottom: 12px; accent-color: #6366f1; cursor: pointer;" />
-        
         <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; color:#e4e4e7; font-weight: 500;">
           <input type="checkbox" id="hs-set-repeat" ${album.setting?.repeat !== false ? "checked" : ""} style="accent-color: #6366f1; width: 16px; height: 16px;" />
           Auto Repeat
@@ -978,7 +868,6 @@ function showSettingsModal(album) {
       </div>
     </div>
   `;
-
   const d = new Dialog(
     {
       title: "Album Settings",
@@ -990,7 +879,6 @@ function showSettingsModal(album) {
             const newName = html.find("#hs-set-album-name").val().trim() || album.name;
             const vol = parseFloat(html.find("#hs-set-volume").val());
             const rep = html.find("#hs-set-repeat").is(":checked");
-
             const updatedAlbums = state.albums.map((a) => {
               if (a.id === album.id)
                 return { ...a, name: newName, setting: { volume: vol, repeat: rep } };
@@ -1005,7 +893,6 @@ function showSettingsModal(album) {
       },
       render: (html) => {
         applyDarkThemeToDialog(html);
-
         const volSlider = html.find("#hs-set-volume")[0];
         const volVal = html.find("#hs-vol-val")[0];
         volSlider.oninput = (e) =>
@@ -1016,7 +903,6 @@ function showSettingsModal(album) {
   );
   d.render(true);
 }
-
 function showEditPlaylistModal(playlist) {
   const content = `
     <div style="padding: 10px; color: white;">
@@ -1024,7 +910,6 @@ function showEditPlaylistModal(playlist) {
       <input type="text" id="hs-edit-playlist-name" value="${playlist.name}" style="width:100%; padding: 6px 10px; background: #18181b; border: 1px solid #3f3f46; border-radius: 6px; color: white; outline: none; font-size: 13px;" />
     </div>
   `;
-
   new Dialog(
     {
       title: "Edit Playlist Name",
@@ -1052,7 +937,6 @@ function showEditPlaylistModal(playlist) {
     { width: 350, classes: ["dialog", "silane-custom-dialog"] }
   ).render(true);
 }
-
 function showEditTrackModal(track) {
   const content = `
     <div style="padding: 10px; color: white;">
@@ -1060,7 +944,6 @@ function showEditTrackModal(track) {
       <input type="text" id="hs-edit-track-name" value="${track.name}" style="width:100%; padding: 6px 10px; background: #18181b; border: 1px solid #3f3f46; border-radius: 6px; color: white; outline: none; font-size: 13px;" />
     </div>
   `;
-
   new Dialog(
     {
       title: "Edit Track Name",
@@ -1096,7 +979,6 @@ function showEditTrackModal(track) {
     { width: 350, classes: ["dialog", "silane-custom-dialog"] }
   ).render(true);
 }
-
 function showNewPlaylistModal() {
   const content = `
     <div style="padding: 10px; color: white;">
@@ -1114,7 +996,6 @@ function showNewPlaylistModal() {
           callback: async (html) => {
             const name = html.find("#hs-new-playlist-name").val().trim();
             if (!name) return ui.notifications?.warn("Name cannot be empty.");
-
             const newPlaylist = {
               uuid: generateUUID(),
               user_id: state.currentUser.id,
@@ -1123,7 +1004,6 @@ function showNewPlaylistModal() {
               name: name,
               track: [],
             };
-
             const newPlaylists = [...state.playlists, newPlaylist];
             state.playlists = newPlaylists;
             render();
@@ -1138,7 +1018,6 @@ function showNewPlaylistModal() {
     { width: 350, classes: ["dialog", "silane-custom-dialog"] },
   ).render(true);
 }
-
 function showUploadModal() {
   let selectedFile = null;
   const content = `
@@ -1154,7 +1033,6 @@ function showUploadModal() {
       </div>
     </div>
   `;
-
   new Dialog(
     {
       title: "Upload Audio Track",
@@ -1168,12 +1046,9 @@ function showUploadModal() {
             const nameInput =
               html.find("#hs-upload-track-name").val().trim() ||
               selectedFile.name.split(".")[0];
-
             ui.notifications?.info("Uploading audio...");
-
             const formData = new FormData();
             formData.append("file", selectedFile);
-
             try {
               const response = await fetch(
                 `${API_BASE_URL}/api/silane_assets/audio/upload`,
@@ -1184,7 +1059,6 @@ function showUploadModal() {
                 },
               );
               const data = await response.json();
-
               if (response.ok) {
                 const newTrack = {
                   id: generateUUID(),
@@ -1193,14 +1067,12 @@ function showUploadModal() {
                   user_id: state.currentUser.id,
                   user_name: state.currentUser.name,
                 };
-
                 const newPlaylists = state.playlists.map((pl) => {
                   if (pl.uuid === state.currentPlaylistId) {
                     return { ...pl, track: [...(pl.track || []), newTrack] };
                   }
                   return pl;
                 });
-
                 state.playlists = newPlaylists;
                 render();
                 await savePlaylistsToBackend(newPlaylists);
@@ -1217,12 +1089,10 @@ function showUploadModal() {
       },
       render: (html) => {
         applyDarkThemeToDialog(html);
-
         const box = html.find("#hs-audio-upload-box")[0];
         const input = html.find("#hs-audio-fileInput")[0];
         const text = html.find("#hs-audio-upload-text")[0];
         const nameInp = html.find("#hs-upload-track-name")[0];
-
         box.onclick = () => input.click();
         input.onchange = (e) => {
           const file = e.target.files[0];

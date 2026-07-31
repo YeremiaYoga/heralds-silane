@@ -1,5 +1,4 @@
 import { API_BASE_URL } from "./helper.js";
-
 let parentContainer = null;
 let currentItems = [];
 let searchQuery = "";
@@ -10,16 +9,13 @@ let selectedHomebrewUser = null;
 let selectedCards = new Set();
 let activeFilters = new Set();
 const LIMIT = 200;
-
 const ITEM_TYPES = ["weapon", "spell", "consumable", "container", "equipment", "feat", "loot", "tool"];
-
 function getToken() { return localStorage.getItem("heraldSilane_token"); }
 function getUser() {
   const str = localStorage.getItem("heraldSilane_user");
   if (!str) return null;
   try { return JSON.parse(str); } catch { return null; }
 }
-
 const injectFireflyStyles = () => {
   if (document.getElementById("firefly-tab-styles")) return;
   const style = document.createElement("style");
@@ -79,7 +75,6 @@ const injectFireflyStyles = () => {
   `;
   document.head.appendChild(style);
 };
-
 export async function initFireflyTab(container) {
   parentContainer = container;
   injectFireflyStyles();
@@ -93,12 +88,10 @@ export async function initFireflyTab(container) {
   await fetchItems();
   renderUI();
 }
-
 function showLoading() {
   if (!parentContainer) return;
   parentContainer.innerHTML = `<div class="ff-container"><div class="ff-loading"><div class="ff-loading-bar"></div></div><div style="flex:1;display:flex;align-items:center;justify-content:center;color:#71717a;"><i class="fa-solid fa-circle-notch fa-spin fa-lg"></i></div></div>`;
 }
-
 async function fetchItems() {
   try {
     const token = getToken();
@@ -107,7 +100,6 @@ async function fetchItems() {
     const params = new URLSearchParams({ limit: LIMIT, offset: currentOffset });
     if (currentType) params.append("type", currentType);
     if (searchQuery) params.append("search", searchQuery);
-
     let url;
     if (isAdmin && currentAdminView === "homebrew" && selectedHomebrewUser) {
       params.append("user_id", selectedHomebrewUser.user_id);
@@ -117,7 +109,6 @@ async function fetchItems() {
     } else {
       url = `${API_BASE_URL}/api/firefly/items?${params}`;
     }
-
     const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (response.ok) {
       const result = await response.json();
@@ -131,12 +122,10 @@ async function fetchItems() {
     currentItems = [];
   }
 }
-
 function renderUI() {
   if (!parentContainer) return;
   const user = getUser();
   const isAdmin = user?.role === "admin";
-
   let breadcrumb = `<span><i class="fa-solid fa-fire"></i></span> <span>Firefly</span>`;
   if (isAdmin && currentAdminView === "foundry") {
     breadcrumb += ` <span>/</span> <span style="color:#60a5fa;">Foundry</span>`;
@@ -145,9 +134,7 @@ function renderUI() {
   } else if (isAdmin && currentAdminView === "homebrew" && selectedHomebrewUser) {
     breadcrumb += ` <span>/</span> <a id="ff-bc-users">Homebrew</a> <span>/</span> <span style="color:#f59e0b;">${selectedHomebrewUser.user_name}</span>`;
   }
-
   const showGrid = !(isAdmin && currentAdminView === "homebrew" && !selectedHomebrewUser);
-
   parentContainer.innerHTML = `
     <div class="ff-container">
       <div class="ff-breadcrumb">${breadcrumb}</div>
@@ -179,17 +166,14 @@ function renderUI() {
       </div>` : `<div id="ff-user-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px;"></div>`}
     </div>
   `;
-
   if (showGrid) { renderList(); attachEvents(); }
   else { renderUserList(); }
   attachAdminToggle();
   attachBreadcrumbEvents();
 }
-
 function renderUserList() {
   const listEl = document.getElementById("ff-user-list");
   if (!listEl) return;
-
   const usersMap = {};
   for (const item of currentItems) {
     const uid = item.user_id || "unknown";
@@ -199,12 +183,10 @@ function renderUserList() {
     usersMap[uid].count++;
   }
   const users = Object.values(usersMap);
-
   if (users.length === 0) {
     listEl.innerHTML = `<div class="ff-empty"><i class="fa-solid fa-users fa-2x" style="margin-bottom:12px;opacity:0.5;"></i><div>No homebrew users found.</div></div>`;
     return;
   }
-
   listEl.innerHTML = users.map((u) => `
     <div class="ff-user-card" data-user-id="${u.user_id}" data-user-name="${u.user_name}">
       <i class="fa-solid fa-user-circle"></i>
@@ -214,7 +196,6 @@ function renderUserList() {
       </div>
     </div>
   `).join("");
-
   listEl.addEventListener("click", async (e) => {
     const card = e.target.closest(".ff-user-card");
     if (!card) return;
@@ -224,12 +205,10 @@ function renderUserList() {
     renderUI();
   });
 }
-
 function attachAdminToggle() {
   const btnFoundry = document.getElementById("ff-view-foundry");
   const btnHomebrew = document.getElementById("ff-view-homebrew");
   if (!btnFoundry || !btnHomebrew) return;
-
   btnFoundry.addEventListener("click", async () => {
     currentAdminView = "foundry";
     selectedHomebrewUser = null;
@@ -240,7 +219,6 @@ function attachAdminToggle() {
     await fetchItems();
     renderUI();
   });
-
   btnHomebrew.addEventListener("click", async () => {
     currentAdminView = "homebrew";
     selectedHomebrewUser = null;
@@ -252,7 +230,6 @@ function attachAdminToggle() {
     renderUI();
   });
 }
-
 function attachBreadcrumbEvents() {
   const bcUsers = document.getElementById("ff-bc-users");
   if (bcUsers) {
@@ -264,36 +241,30 @@ function attachBreadcrumbEvents() {
     });
   }
 }
-
 function renderList() {
   const listEl = document.getElementById("ff-list");
   if (!listEl) return;
   const user = getUser();
   const isAdmin = user?.role === "admin";
   const showUser = isAdmin && currentAdminView === "homebrew" && selectedHomebrewUser;
-
   if (currentItems.length === 0) {
     listEl.innerHTML = `<div class="ff-empty" style="grid-column:1/-1;"><i class="fa-solid fa-box-open fa-2x" style="margin-bottom:12px;opacity:0.5;"></i><div>No items found.</div></div>`;
     return;
   }
-
   let items = currentItems;
   if (showUser) {
     items = currentItems.filter((i) => i.user_id === selectedHomebrewUser.user_id);
   }
-
   if (activeFilters.size > 0) {
     items = items.filter((i) => {
       const t = i.__type || i.type || "unknown";
       return activeFilters.has(t);
     });
   }
-
   if (items.length === 0) {
     listEl.innerHTML = `<div class="ff-empty" style="grid-column:1/-1;"><i class="fa-solid fa-filter fa-2x" style="margin-bottom:12px;opacity:0.5;"></i><div>No items match filters.</div></div>`;
     return;
   }
-
   listEl.innerHTML = items.map((item) => {
     const itemType = item.__type || item.type || "unknown";
     const typeColors = { weapon:"#ef4444", spell:"#8b5cf6", consumable:"#f59e0b", container:"#6b7280", equipment:"#3b82f6", feat:"#10b981", loot:"#eab308", tool:"#06b6d4", feature:"#ec4899", unknown:"#71717a" };
@@ -313,7 +284,6 @@ function renderList() {
       </div>`;
   }).join("");
 }
-
 function attachEvents() {
   let searchTimeout;
   const searchEl = document.getElementById("ff-search");
@@ -330,10 +300,8 @@ function attachEvents() {
       }, 1000);
     });
   }
-
   const importBtn = document.getElementById("ff-btn-import");
   if (importBtn) importBtn.addEventListener("click", () => showImportFromFoundryDialog());
-
   const filtersEl = document.getElementById("ff-filters");
   if (filtersEl) {
     filtersEl.addEventListener("click", (e) => {
@@ -352,7 +320,6 @@ function attachEvents() {
       updateBulkBar();
     });
   }
-
   const listEl = document.getElementById("ff-list");
   if (listEl) {
     listEl.addEventListener("click", async (e) => {
@@ -360,7 +327,6 @@ function attachEvents() {
       if (ib) { e.stopPropagation(); await importItemToFoundry(ib.dataset.id, ib.dataset.type); return; }
       const db = e.target.closest(".ff-btn-icon.delete");
       if (db) { e.stopPropagation(); await deleteItem(db.dataset.id, db.dataset.type); return; }
-
       const card = e.target.closest(".ff-card");
       if (card) {
         const id = card.dataset.id;
@@ -375,7 +341,6 @@ function attachEvents() {
       }
     });
   }
-
   const bulkImport = document.getElementById("ff-bulk-import");
   if (bulkImport) bulkImport.addEventListener("click", () => bulkImportToFoundry());
   const bulkDelete = document.getElementById("ff-bulk-delete");
@@ -386,13 +351,10 @@ function attachEvents() {
     document.querySelectorAll(".ff-card.selected").forEach((c) => c.classList.remove("selected"));
     updateBulkBar();
   });
-
   fetchStorageUsage();
 }
-
 async function fetchStorageUsage() {
 }
-
 function updateBulkBar() {
   const bar = document.getElementById("ff-bulk-bar");
   const count = document.getElementById("ff-bulk-count");
@@ -404,14 +366,12 @@ function updateBulkBar() {
     bar.style.display = "none";
   }
 }
-
 async function bulkImportToFoundry() {
   if (selectedCards.size === 0) return;
   const token = getToken();
   const user = getUser();
   const isAdmin = user?.role === "admin";
   let successCount = 0;
-
   for (const id of selectedCards) {
     const item = currentItems.find((i) => i.id === id);
     if (!item) continue;
@@ -431,18 +391,15 @@ async function bulkImportToFoundry() {
       successCount++;
     } catch (err) { console.error("Bulk import error:", err); }
   }
-
   ui.notifications?.info(`Imported ${successCount} item(s) to Foundry.`);
   selectedCards.clear();
   updateBulkBar();
   document.querySelectorAll(".ff-card.selected").forEach((c) => c.classList.remove("selected"));
 }
-
 async function bulkDeleteItems() {
   if (selectedCards.size === 0) return;
   const confirm = await Dialog.confirm({ title: "Delete Items", content: `<p>Delete ${selectedCards.size} selected item(s)?</p>`, defaultYes: false });
   if (!confirm) return;
-
   const token = getToken();
   const grouped = {};
   for (const id of selectedCards) {
@@ -452,7 +409,6 @@ async function bulkDeleteItems() {
     if (!grouped[type]) grouped[type] = [];
     grouped[type].push(id);
   }
-
   let totalDeleted = 0;
   for (const [type, ids] of Object.entries(grouped)) {
     try {
@@ -464,14 +420,12 @@ async function bulkDeleteItems() {
       if (response.ok) totalDeleted += ids.length;
     } catch (err) { console.error("Bulk delete error:", err); }
   }
-
   ui.notifications?.info(`Deleted ${totalDeleted} item(s).`);
   selectedCards.clear();
   showLoading();
   await fetchItems();
   renderUI();
 }
-
 async function importItemToFoundry(id, type) {
   try {
     const token = getToken();
@@ -494,7 +448,6 @@ async function importItemToFoundry(id, type) {
     ui.notifications?.error(`Import failed: ${error.message}`);
   }
 }
-
 async function deleteItem(id, type) {
   const confirm = await Dialog.confirm({ title: "Delete Item", content: "<p>Delete this item?</p>", defaultYes: false });
   if (!confirm) return;
@@ -516,19 +469,16 @@ async function deleteItem(id, type) {
     }
   } catch (error) { ui.notifications?.error("Delete error."); }
 }
-
 function showImportFromFoundryDialog() {
   const worldItems = game.items.contents.filter((i) => ITEM_TYPES.includes(i.type?.toLowerCase()));
   if (worldItems.length === 0) { ui.notifications?.warn("No valid items in world."); return; }
   const user = getUser();
   const isAdmin = user?.role === "admin";
-
   const typeChips = ITEM_TYPES.map((t) => {
     const count = worldItems.filter((i) => i.type?.toLowerCase() === t).length;
     if (count === 0) return "";
     return `<span class="ff-import-filter-chip" data-type="${t}" style="padding:2px 8px;border-radius:10px;border:1px solid #3f3f46;background:transparent;color:#a1a1aa;font-size:10px;font-weight:600;cursor:pointer;text-transform:capitalize;transition:all 0.15s;">${t} (${count})</span>`;
   }).join("");
-
   const content = `
     <div style="padding:10px;color:#f4f4f5;">
       <p style="font-size:13px;color:#a1a1aa;margin-bottom:10px;">Detected <strong>${worldItems.length}</strong> items.</p>
@@ -546,7 +496,6 @@ function showImportFromFoundryDialog() {
       <div id="ff-import-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;max-height:380px;overflow-y:auto;padding:4px;">
       </div>
     </div>`;
-
   new Dialog({
     title: isAdmin ? "Import from Foundry (Admin)" : "Import from Foundry",
     content,
@@ -568,19 +517,16 @@ function showImportFromFoundryDialog() {
       const contentEl = dialogEl.querySelector(".window-content");
       if (contentEl) { contentEl.style.backgroundColor = "#18181b"; contentEl.style.color = "white"; contentEl.style.backgroundImage = "none"; }
       html.closest(".dialog").find(".dialog-buttons button").css({ color: "white", border: "1px solid #3f3f46", background: "rgba(0,0,0,0.4)" });
-
       const gridEl = html.find("#ff-import-grid")[0];
       const searchEl = html.find("#ff-import-search")[0];
       const countEl = html.find("#ff-import-count")[0];
       let importActiveFilters = new Set();
-
       function renderImportGrid() {
         let filtered = worldItems;
         const query = searchEl.value.trim().toLowerCase();
         if (query) filtered = filtered.filter((i) => i.name.toLowerCase().includes(query));
         if (importActiveFilters.size > 0) filtered = filtered.filter((i) => importActiveFilters.has(i.type?.toLowerCase()));
         countEl.textContent = `Showing ${filtered.length}`;
-
         gridEl.innerHTML = filtered.map((item) => `
           <div class="ff-import-tile" data-id="${item.id}" style="display:flex;flex-direction:column;align-items:center;padding:6px;background:rgba(0,0,0,0.2);border:2px solid #3f3f46;border-radius:8px;cursor:pointer;transition:all 0.15s;gap:4px;">
             <div style="width:52px;height:52px;border-radius:6px;overflow:hidden;background:#27272a;display:flex;align-items:center;justify-content:center;">
@@ -590,15 +536,12 @@ function showImportFromFoundryDialog() {
           </div>
         `).join("");
       }
-
       renderImportGrid();
-
       let searchTimeout;
       searchEl.addEventListener("input", () => {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => renderImportGrid(), 1000);
       });
-
       let filterTimeout;
       html.find("#ff-import-filters").on("click", ".ff-import-filter-chip", function () {
         const type = this.dataset.type;
@@ -616,18 +559,15 @@ function showImportFromFoundryDialog() {
         clearTimeout(filterTimeout);
         filterTimeout = setTimeout(() => renderImportGrid(), 1000);
       });
-
       html.find("#ff-import-grid").on("click", ".ff-import-tile", function () {
         if (this.classList.contains("selected")) { this.classList.remove("selected"); this.style.border = "2px solid #3f3f46"; this.style.background = "rgba(0,0,0,0.2)"; }
         else { this.classList.add("selected"); this.style.border = "2px solid #3b82f6"; this.style.background = "rgba(59,130,246,0.1)"; }
       });
-
       html.find("#ff-select-all").on("click", () => { html.find("#ff-import-grid .ff-import-tile").each(function () { this.classList.add("selected"); this.style.border = "2px solid #3b82f6"; this.style.background = "rgba(59,130,246,0.1)"; }); });
       html.find("#ff-deselect-all").on("click", () => { html.find("#ff-import-grid .ff-import-tile").each(function () { this.classList.remove("selected"); this.style.border = "2px solid #3f3f46"; this.style.background = "rgba(0,0,0,0.2)"; }); });
     },
   }, { width: 550, height: 650, classes: ["dialog", "silane-custom-dialog"] }).render(true);
 }
-
 async function importSelectedToBackend(itemIds) {
   try {
     const token = getToken();
@@ -638,7 +578,6 @@ async function importSelectedToBackend(itemIds) {
     }
     if (rawItems.length === 0) { ui.notifications?.warn("No valid items."); return; }
     ui.notifications?.info(`Importing ${rawItems.length} item(s)...`);
-
     const response = await fetch(`${API_BASE_URL}/api/firefly/import`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },

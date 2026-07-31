@@ -520,7 +520,6 @@ function groupBackupsIntoFolders(backups) {
   const folders = [];
   backups.forEach(backup => {
     const backupTime = new Date(backup.created_at);
-    
     const matchingFolder = folders.find(folder => {
       if (folder.worldId !== backup.world_id) return false;
       const folderTime = new Date(folder.createdAt);
@@ -589,7 +588,6 @@ function findActorMetadata(characterId, worldId, localCache) {
       };
     }
   }
-  
   if (localCache) {
     for (const world of Object.values(localCache)) {
       const actor = world.actors.find(a => a.id === characterId);
@@ -857,7 +855,6 @@ async function renderRestoreTab(container) {
     `;
     folders.forEach((folder, idx) => {
       const folderName = formatFolderName(folder.worldTitle, folder.createdAt);
-      
       html += `
         <div class="cb-world-card" data-folder-id="${idx}" data-folder-created-at="${folder.createdAt}">
           <div class="cb-world-header cb-folder-header" data-folder-id="${idx}">
@@ -871,7 +868,6 @@ async function renderRestoreTab(container) {
             </div>
           </div>
           <div class="cb-card-content cb-folder-content" data-folder-id="${idx}" style="display: none;">
-            
             <div class="cb-controls-column" style="margin-bottom: 12px;">
               <div style="display: flex; gap: 8px; width: 100%;">
                 <button type="button" class="cb-btn-secondary cb-btn-folder-select-all" data-folder-id="${idx}" style="flex: 1; justify-content: center; padding: 6px 12px; font-size: 11px;">Select All</button>
@@ -931,7 +927,6 @@ function openBackupSettingsModal() {
   const modalHtml = `
     <div class="cb-modal-container" style="color: #f4f4f5; font-family: 'Inter', sans-serif; padding: 15px;">
       <p style="font-size: 12px; color: #a1a1aa; margin-bottom: 15px;">Configure your automatic daily character backup settings below.</p>
-      
       <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px;">
         <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 6px; border: 1px solid #27272a;">
           <span style="font-size: 13px; font-weight: 600;">Enable Auto Backup</span>
@@ -940,7 +935,6 @@ function openBackupSettingsModal() {
             <span class="cb-slider"></span>
           </label>
         </div>
-        
         <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 6px; border: 1px solid #27272a;">
           <div style="display: flex; flex-direction: column; gap: 2px;">
             <span style="font-size: 13px; font-weight: 600;">Schedule Backup Time (HH:MM)</span>
@@ -957,7 +951,6 @@ function openBackupSettingsModal() {
           <button type="button" id="modal-cb-deselect-all" class="cb-btn-secondary" style="flex: 1; justify-content: center; padding: 6px 12px;">Deselect All</button>
         </div>
       </div>
-      
       <div class="cb-modal-actors-list">
         ${activeActors.map(actor => {
           const isChecked = settings.targets?.[actor.id] === true;
@@ -1002,7 +995,6 @@ function openBackupSettingsModal() {
 
           await game.settings.set("heralds-silane", "backupSettings", updated);
           ui.notifications?.info("Auto-backup settings saved successfully!");
-          
           if (parentContainer) {
             await initCharacterBackupTab(parentContainer);
           }
@@ -1017,7 +1009,6 @@ function openBackupSettingsModal() {
     render: (html) => {
       const enabledCheckbox = html.find("#modal-cb-auto-enabled");
       const hourInput = html.find("#modal-cb-auto-hour");
-      
       hourInput.prop("disabled", !enabledCheckbox[0].checked);
 
       enabledCheckbox.on("change", (e) => {

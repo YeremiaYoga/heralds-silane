@@ -1,5 +1,4 @@
 export let API_BASE_URL = "https://azcn87b0k85drpfp.phanneldeliver.my.id";
-
 export const initializeApiBaseUrl = () => {
   const mode = game.settings.get("heralds-silane", "apiMode");
   if (mode === "local") {
@@ -7,9 +6,9 @@ export const initializeApiBaseUrl = () => {
   } else if (mode === "prod") {
     API_BASE_URL = "https://azcn87b0k85drpfp.phanneldeliver.my.id";
   } else {
-    const isLocal = window.location.hostname === "localhost" || 
-                    window.location.hostname === "127.0.0.1" || 
-                    window.location.hostname.startsWith("192.168.") || 
+    const isLocal = window.location.hostname === "localhost" ||
+                    window.location.hostname === "127.0.0.1" ||
+                    window.location.hostname.startsWith("192.168.") ||
                     window.location.hostname.startsWith("10.");
     API_BASE_URL = isLocal
       ? "http://localhost:19984"
@@ -19,7 +18,6 @@ export const initializeApiBaseUrl = () => {
 export function heraldSilane_getWindowDimensions() {
   const size = game.settings.get("heralds-silane", "windowSize");
   let dims;
-
   switch (size) {
     case "small": dims = { width: 600, height: 400 }; break;
     case "medium": dims = { width: 750, height: 500 }; break;
@@ -28,11 +26,9 @@ export function heraldSilane_getWindowDimensions() {
     case "large":
     default: dims = { width: 900, height: 580 }; break;
   }
-
   dims.overrideHeight = dims.height - 30;
   return dims;
 }
-
 export function hexToRgb(hex) {
   hex = hex.replace(/^#/, '');
   if (hex.length === 3) {
@@ -44,7 +40,6 @@ export function hexToRgb(hex) {
   const b = bigint & 255;
   return `${r}, ${g}, ${b}`;
 }
-
 export const applyDarkThemeToDialog = (html) => {
   const dialogElement = html.closest(".app")?.[0] || html.closest(".dialog")?.[0];
   const contentElement = dialogElement?.querySelector(".window-content");
@@ -53,7 +48,6 @@ export const applyDarkThemeToDialog = (html) => {
     contentElement.style.color = "white";
     contentElement.style.backgroundImage = "none";
   }
-
   html.closest(".dialog")?.find(".dialog-buttons button").css({
     color: "white",
     border: "1px solid #3f3f46",

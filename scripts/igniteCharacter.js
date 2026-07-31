@@ -10,26 +10,20 @@ const injectIgniteCharacterStyles = () => {
   style.id = "ignite-character-modern-styles";
   style.innerHTML = `
     .ig-container { display: flex; flex-direction: column; height: 100%; width: 100%; color: #f4f4f5; padding-top: 5px; }
-    
     .ig-action-bar { display: flex; gap: 20px; margin-bottom: 20px; align-items: center; justify-content: space-between; }
     .ig-search-box { flex: 1; display: flex; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; border-radius: 6px; padding: 0 15px; height: 40px; transition: border-color 0.2s; }
     .ig-search-box:focus-within { border-color: #3b82f6; }
     .ig-search-box input { background: transparent; border: none; color: #f4f4f5; width: 100%; margin-left: 10px; outline: none; font-size: 14px; }
-    
     .ig-list-area { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 5px; }
     .ig-list-area::-webkit-scrollbar { width: 6px; }
     .ig-list-area::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
-    
     .ig-row-card { display: flex; align-items: center; padding: 10px 14px; background: rgba(0, 0, 0, 0.3); border: 1px solid #3f3f46; border-radius: 8px; transition: all 0.2s; user-select: none; gap: 14px; }
     .ig-row-card:hover { background: rgba(0, 0, 0, 0.5); border-color: #52525b; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-    
     .ig-card-avatar, .ig-card-art { width: 52px; height: 52px; border-radius: 6px; border: 1px solid #52525b; overflow: hidden; background: #18181b; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .ig-card-avatar img, .ig-card-art img { width: 100%; height: 100%; object-fit: cover; }
-    
     .ig-card-info { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
     .ig-card-name { font-size: 16px; font-weight: 700; color: #f4f4f5; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.5px; }
     .ig-card-fullname { font-size: 12px; color: #a1a1aa; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    
     .ig-card-meta { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-width: 150px; text-align: right; padding-right: 12px; border-right: 1px solid #3f3f46; }
     .ig-meta-species { font-size: 13px; color: #60a5fa; font-weight: 600; margin-bottom: 2px; }
     .ig-meta-classes { font-size: 12px; color: #fbbf24; font-weight: 500; }
@@ -129,12 +123,10 @@ function renderListArea() {
     const art = char.art_image || "";
     const displayName = char.name || "Hero Without A Name";
     const displayFullName = char.full_name || "";
-    
     let speciesName = "";
     if (char.species) {
       speciesName = char.species.name || "";
     }
-    
     let classesStr = "";
     if (Array.isArray(char.classes) && char.classes.length > 0) {
       classesStr = char.classes.map(c => `${c.name || c.class_name || ""} ${c.level || ""}`).join(", ");

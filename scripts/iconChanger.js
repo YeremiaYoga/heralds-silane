@@ -391,7 +391,6 @@ export function openCharacterIconChanger(galleryImages = []) {
 
       <!-- Bottom actions -->
       <div style="display: flex; justify-content: flex-end; align-items: center; border-top: 1px solid #27272a; padding-top: 12px;">
-        
         <div style="display: flex; gap: 10px;">
           <button id="sic-btn-reset-all" class="silane-btn" style="width: auto !important; margin: 0 !important; flex: 0 0 auto !important; height: 32px !important; padding: 0 14px !important; font-size: 12px !important; border-radius: 6px; background: rgba(239, 68, 68, 0.05); color:#ef4444; border: 1px solid rgba(239, 68, 68, 0.15); cursor: not-allowed; font-weight: 600; display: inline-flex !important; align-items: center !important; justify-content: center !important;" disabled>Reset All</button>
           <button id="sic-btn-close" class="silane-btn" style="width: auto !important; margin: 0 !important; flex: 0 0 auto !important; height: 32px !important; padding: 0 14px !important; font-size: 12px !important; border-radius: 6px; background: rgba(0,0,0,0.3); color:#f4f4f5; border: 1px solid #3f3f46; cursor: pointer; font-weight: 600; display: inline-flex !important; align-items: center !important; justify-content: center !important;">Close</button>
@@ -558,7 +557,6 @@ export function openCharacterIconChanger(galleryImages = []) {
             const isChecked = checkedAssetIds.has(item.id);
             const isHighlighted = highlightedAssetId === item.id;
             const isStaged = stagedChanges.has(item.id);
-            
             let originalImg = "icons/svg/item-bag.svg";
             if (item.id === "char-portrait") {
               originalImg = activeActor.img || "icons/svg/mystery-man.svg";
@@ -628,7 +626,6 @@ export function openCharacterIconChanger(galleryImages = []) {
           assetList.find(".sic-asset-row").on("click", function(e) {
             if ($(e.target).is(".sic-asset-checkbox") || $(e.target).closest(".sic-row-undo").length > 0) return;
             const id = $(this).data("id");
-            
             if (highlightedAssetId === id) {
               highlightedAssetId = null;
               $(this).removeClass("highlighted");
@@ -693,7 +690,6 @@ export function openCharacterIconChanger(galleryImages = []) {
 
           imageGrid.find(".sic-image-item").on("click", async function() {
             const url = $(this).data("url");
-            
             if (highlightedAssetId) {
               imageGrid.find(".sic-image-item").removeClass("selected");
               $(this).addClass("selected");
@@ -809,7 +805,6 @@ export function openCharacterIconChanger(galleryImages = []) {
 
         selectAllCheckbox.on("change", function() {
           const isChecked = this.checked;
-          
           const virtualAssets = [];
           const virtualToRender = [];
           if (selectedTypes.has("portrait")) {
@@ -881,14 +876,12 @@ export function openCharacterIconChanger(galleryImages = []) {
 
         applyBtn.on("click", () => {
           if (!selectedImageUrl || checkedAssetIds.size === 0) return;
-          
           for (const id of checkedAssetIds) {
             stagedChanges.set(id, selectedImageUrl);
           }
 
           checkedAssetIds.clear();
           selectAllCheckbox.prop("checked", false);
-          
           renderAssets();
           updateButtonStates();
         });
@@ -903,15 +896,12 @@ export function openCharacterIconChanger(galleryImages = []) {
 
         saveBtn.on("click", async () => {
           if (stagedChanges.size === 0) return;
-          
           const confirmContent = `<p>Are you sure you want to save <b>${stagedChanges.size}</b> changed icon(s) to <b>${activeActor.name}</b>?</p>`;
-          
           Dialog.confirm({
             title: "Confirm Icon Replacement",
             content: confirmContent,
             yes: async () => {
               ui.notifications?.info(`Saving icons to ${stagedChanges.size} asset(s) on ${activeActor.name}...`);
-              
               const itemUpdates = [];
               let updatePortrait = false;
               let updateToken = false;
@@ -996,4 +986,3 @@ export function openCharacterIconChanger(galleryImages = []) {
 
   changerDialog.render(true);
 }
-
