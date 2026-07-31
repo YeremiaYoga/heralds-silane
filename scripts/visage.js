@@ -19,7 +19,7 @@ const generateSafeUUID = () => {
 const formatVisageUrl = (link) => {
   if (!link) return "";
   if (link.startsWith("http")) return link;
-  let path = link.replace(/^\
+  let path = link.replace(/^\/+/, "");
   if (path.includes("sih4storage.phanneldeliver.my.id")) {
     return `https://${path}`;
   }
