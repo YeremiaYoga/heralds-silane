@@ -110,7 +110,7 @@ function renderUI() {
       <div id="bs-list" class="bs-list"></div>
       <div id="bs-bulk-bar" class="bs-bulk-bar">
         <span id="bs-bulk-count">0</span>
-        <button id="bs-bulk-import" class="bs-bulk-btn import-bulk" style="color:#10b981;"><i class="fa-solid fa-download"></i> Import to Foundry</button>
+        <button id="bs-bulk-import" class="bs-bulk-btn import-bulk" style="color:#10b981; display:none;"><i class="fa-solid fa-download"></i> Import to Foundry</button>
         <button id="bs-bulk-delete" class="bs-bulk-btn delete-bulk" style="color:#ef4444;"><i class="fa-solid fa-trash"></i> Delete</button>
         <button id="bs-bulk-deselect" class="bs-bulk-btn deselect-bulk"><i class="fa-solid fa-xmark"></i></button>
       </div>` : `<div id="bs-user-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px;"></div>`}
@@ -237,10 +237,6 @@ function renderList() {
 
     return `
       <div class="bs-card" data-id="${item.id}" title="${item.name}">
-        <div class="bs-card-actions">
-          <button class="bs-btn-icon import" data-id="${item.id}" title="Import to Foundry"><i class="fa-solid fa-download"></i></button>
-          <button class="bs-btn-icon delete" data-id="${item.id}" title="Delete"><i class="fa-solid fa-trash"></i></button>
-        </div>
         <div class="bs-card-img">
           ${hasImg ? `<img src="${rawImg}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />` : ""}
           <div class="bs-card-img-fallback" ${hasImg ? 'style="display:none;"' : ""}><i class="fa-solid fa-dragon"></i></div>
@@ -249,6 +245,10 @@ function renderList() {
         <div class="bs-card-meta">
           <span class="bs-badge-cr">${crDisplay}</span>
           <span class="bs-badge-type">${typeDisplay}</span>
+        </div>
+        <div class="bs-card-actions">
+          <button class="bs-btn-icon import" data-id="${item.id}" title="Import to Foundry" style="display:none;"><i class="fa-solid fa-download"></i></button>
+          <button class="bs-btn-icon delete" data-id="${item.id}" title="Delete"><i class="fa-solid fa-trash"></i></button>
         </div>
       </div>`;
   }).join("");
@@ -479,10 +479,6 @@ function showSelectCharacterModal() {
 
   const content = `
     <div style="padding:10px;color:#f4f4f5;display:flex;flex-direction:column;gap:10px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-        <span style="font-size:13px;color:#a1a1aa;">Detected <strong>${worldActors.length}</strong> actors.</span>
-        <span id="bs-modal-selected-count" style="font-size:12px;font-weight:700;color:#818cf8;background:rgba(99,102,241,0.15);padding:2px 8px;border-radius:4px;border:1px solid rgba(99,102,241,0.3);">Selected: 0 / ${worldActors.length}</span>
-      </div>
 
       <div style="display:flex;gap:8px;">
         <div style="flex:1;display:flex;align-items:center;background:#27272a;border:1px solid #3f3f46;border-radius:6px;padding:0 10px;height:34px;">
@@ -502,7 +498,7 @@ function showSelectCharacterModal() {
 
   new Dialog(
     {
-      title: isAdmin ? "Upload Bestiary to Silane (Ignite - Admin)" : "Upload Bestiary to Silane (Homebrew)",
+      title: "Upload Bestiary to Silane",
       content,
       buttons: {
         upload: {
@@ -543,8 +539,9 @@ function showSelectCharacterModal() {
         let selectedSet = new Set();
 
         function updateCountDisplay() {
+          if (!countSpan) return;
           const visibleTiles = html.find(".bs-modal-tile");
-          countSpan.textContent = `Selected: ${selectedSet.size} / ${visibleTiles.length}`;
+          countSpan.textContent = `${selectedSet.size} / ${visibleTiles.length}`;
         }
 
         function renderGrid() {
@@ -562,7 +559,6 @@ function showSelectCharacterModal() {
                   <img src="${actor.img}" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='icons/svg/mystery-man.svg';" />
                 </div>
                 <div style="font-size:9px;color:#e4e4e7;text-align:center;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;">${actor.name}</div>
-                <span style="font-size:8px;color:#a1a1aa;text-transform:capitalize;">${actor.creatureType} (CR ${actor.cr})</span>
               </div>`;
           }).join("");
 
