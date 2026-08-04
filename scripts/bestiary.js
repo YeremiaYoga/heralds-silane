@@ -615,6 +615,39 @@ function showSelectCharacterModal() {
   ).render(true);
 }
 
+const GENERIC_FEATURE_SVG = "systems/dnd5e/icons/svg/items/feature.svg";
+
+function cleanPlutoniumData(obj) {
+  if (!obj || typeof obj !== "object") return obj;
+
+  if (Array.isArray(obj)) {
+    obj.forEach((it) => cleanPlutoniumData(it));
+    return obj;
+  }
+
+  if (obj.flags && typeof obj.flags === "object") {
+    delete obj.flags.plutonium;
+    Object.keys(obj.flags).forEach((k) => {
+      if (k.toLowerCase().includes("plutonium")) {
+        delete obj.flags[k];
+      }
+    });
+  }
+
+  for (const key of Object.keys(obj)) {
+    const val = obj[key];
+    if (typeof val === "string") {
+      if (/plutonium/i.test(val)) {
+        obj[key] = GENERIC_FEATURE_SVG;
+      }
+    } else if (val && typeof val === "object") {
+      cleanPlutoniumData(val);
+    }
+  }
+
+  return obj;
+}
+
 async function processUploadActorsToSilane(actorIds, worldActors) {
   try {
     const token = getToken();
@@ -708,6 +741,8 @@ async function processUploadActorsToSilane(actorIds, worldActors) {
       } else {
         raw.prototypeToken.ring = false;
       }
+
+      cleanPlutoniumData(raw);
 
       itemsToUpload.push({
         name: actorData.name,
