@@ -383,29 +383,30 @@ async function importBestiaryToFoundry(id) {
       };
     }
 
-    if (!Array.isArray(rawData.items) || rawData.items.length === 0) {
-      const combined = [
-        ...(itemData.features || []),
-        ...(itemData.actions || []),
-        ...(itemData.reactions || []),
-        ...(itemData.legendary_actions || []),
-        ...(itemData.spells || []),
-      ];
-      rawData.items = combined;
-    }
+    let existingItems = Array.isArray(rawData.items) && rawData.items.length > 0
+      ? rawData.items
+      : [
+          ...(itemData.features || []),
+          ...(itemData.actions || []),
+          ...(itemData.reactions || []),
+          ...(itemData.legendary_actions || []),
+        ];
 
-    if (Array.isArray(rawData.items)) {
-      const uniqueItems = [];
-      const seen = new Set();
-      for (const item of rawData.items) {
-        if (!item || !item.name) continue;
-        const key = `${(item.type || "item").toLowerCase()}:${item.name.trim().toLowerCase()}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        uniqueItems.push(item);
-      }
-      rawData.items = uniqueItems;
+    const nonSpellItems = existingItems.filter((it) => (it?.type || "").toLowerCase() !== "spell");
+    const spellsFromCol = Array.isArray(itemData.spells) ? itemData.spells : [];
+
+    const combined = [...nonSpellItems, ...spellsFromCol];
+
+    const uniqueItems = [];
+    const seen = new Set();
+    for (const item of combined) {
+      if (!item || !item.name) continue;
+      const key = `${(item.type || "item").toLowerCase()}:${item.name.trim().toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      uniqueItems.push(item);
     }
+    rawData.items = uniqueItems;
 
     delete rawData._id;
     const createdActor = await Actor.create(rawData);
