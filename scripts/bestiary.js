@@ -367,18 +367,45 @@ async function importBestiaryToFoundry(id) {
     const itemData = result.item;
     if (!itemData) { ui.notifications?.error("No data found."); return; }
 
-    const rawData = itemData.raw_data && Object.keys(itemData.raw_data).length > 0
-      ? foundry.utils.deepClone(itemData.raw_data)
-      : {
+    let rawData;
+    if (itemData.raw_data && Object.keys(itemData.raw_data).length > 0) {
+      rawData = foundry.utils.deepClone(itemData.raw_data);
+    } else {
+      rawData = {
+        name: itemData.name,
+        type: itemData.type || "npc",
+        img: itemData.img_portrait || itemData.image || "icons/svg/mystery-man.svg",
+        prototypeToken: {
           name: itemData.name,
-          type: itemData.type || "npc",
-          img: itemData.img_portrait || itemData.image || "icons/svg/mystery-man.svg",
-          prototypeToken: {
-            name: itemData.name,
-            texture: { src: itemData.img_token || itemData.image || "icons/svg/mystery-man.svg" }
-          },
-          system: itemData.format_data || {}
-        };
+          texture: { src: itemData.img_token || itemData.image || "icons/svg/mystery-man.svg" }
+        },
+        system: itemData.format_data || {}
+      };
+    }
+
+    if (!Array.isArray(rawData.items) || rawData.items.length === 0) {
+      const combined = [
+        ...(itemData.features || []),
+        ...(itemData.actions || []),
+        ...(itemData.reactions || []),
+        ...(itemData.legendary_actions || []),
+        ...(itemData.spells || []),
+      ];
+      rawData.items = combined;
+    }
+
+    if (Array.isArray(rawData.items)) {
+      const uniqueItems = [];
+      const seen = new Set();
+      for (const item of rawData.items) {
+        if (!item || !item.name) continue;
+        const key = `${(item.type || "item").toLowerCase()}:${item.name.trim().toLowerCase()}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        uniqueItems.push(item);
+      }
+      rawData.items = uniqueItems;
+    }
 
     delete rawData._id;
     const createdActor = await Actor.create(rawData);
