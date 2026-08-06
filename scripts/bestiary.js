@@ -643,10 +643,41 @@ function showSelectCharacterModal() {
   ).render(true);
 }
 
+function clean5eToolsText(str) {
+  if (!str || typeof str !== "string") return str;
+  let result = str;
+  result = result.replace(/<a\s+[^>]*href=["'][^"']*5e\.tools[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi, "$1");
+  result = result.replace(/\[([^\]]+)\]\(https?:\/\/[^\s\)]*5e\.tools[^\s\)]*\)/gi, "$1");
+  result = result.replace(/\{@link\s+[^}]*5e\.tools[^}]*\|([^}]+)\}/gi, "$1");
+  result = result.replace(/\{@link\s+([^|}]+)\|[^}]*5e\.tools[^}]*\}/gi, "$1");
+  result = result.replace(/\{@link\s+https?:\/\/[^\s}]*5e\.tools[^\s}]*\s+([^}]+)\}/gi, "$1");
+  result = result.replace(/https?:\/\/[^\s<"'>]*5e\.tools[^\s<"'>]*/gi, "");
+  return result;
+}
+
+function clean5eToolsBiography(raw) {
+  if (!raw || typeof raw !== "object") return;
+  if (raw.system?.details?.biography?.value) {
+    raw.system.details.biography.value = clean5eToolsText(raw.system.details.biography.value);
+  }
+  if (typeof raw.system?.details?.biography === "string") {
+    raw.system.details.biography = clean5eToolsText(raw.system.details.biography);
+  }
+  if (raw.biography) {
+    if (typeof raw.biography === "string") {
+      raw.biography = clean5eToolsText(raw.biography);
+    } else if (raw.biography.value) {
+      raw.biography.value = clean5eToolsText(raw.biography.value);
+    }
+  }
+}
+
 const GENERIC_FEATURE_SVG = "systems/dnd5e/icons/svg/items/feature.svg";
 
 function cleanPlutoniumData(obj) {
   if (!obj || typeof obj !== "object") return obj;
+
+  clean5eToolsBiography(obj);
 
   if (Array.isArray(obj)) {
     obj.forEach((it) => cleanPlutoniumData(it));
