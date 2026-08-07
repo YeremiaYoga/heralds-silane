@@ -8,7 +8,7 @@ let currentAdminView = "foundry";
 let selectedHomebrewUser = null;
 let selectedCards = new Set();
 let activeFilters = new Set();
-const LIMIT = 200;
+const LIMIT = 500;
 const ITEM_TYPES = ["weapon", "spell", "consumable", "container", "equipment", "feat", "loot", "tool"];
 function getToken() { return localStorage.getItem("heraldSilane_token"); }
 function getUser() {
@@ -304,20 +304,22 @@ function attachEvents() {
   if (importBtn) importBtn.addEventListener("click", () => showImportFromFoundryDialog());
   const filtersEl = document.getElementById("ff-filters");
   if (filtersEl) {
-    filtersEl.addEventListener("click", (e) => {
+    filtersEl.addEventListener("click", async (e) => {
       const chip = e.target.closest(".ff-filter-chip");
       if (!chip) return;
       const type = chip.dataset.type;
       if (activeFilters.has(type)) {
         activeFilters.delete(type);
-        chip.classList.remove("active");
       } else {
+        activeFilters.clear();
         activeFilters.add(type);
-        chip.classList.add("active");
       }
+      currentType = activeFilters.size === 1 ? Array.from(activeFilters)[0] : "";
+      currentOffset = 0;
       selectedCards.clear();
-      renderList();
-      updateBulkBar();
+      showLoading();
+      await fetchItems();
+      renderUI();
     });
   }
   const listEl = document.getElementById("ff-list");
