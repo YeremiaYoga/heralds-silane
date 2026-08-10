@@ -570,26 +570,117 @@ function showImportFromFoundryDialog() {
     },
   }, { width: 550, height: 650, classes: ["dialog", "silane-custom-dialog"] }).render(true);
 }
+const resolveLocalUrl = (urlStr) => {
+  if (
+    !urlStr ||
+    urlStr.startsWith("http://") ||
+    urlStr.startsWith("https://") ||
+    urlStr.startsWith("data:")
+  )
+    return urlStr;
+  let clean = urlStr.startsWith("/") ? urlStr.slice(1) : urlStr;
+  return `${window.location.origin}/${clean}`;
+};
+
+const isOurR2Url = (urlStr) => {
+  if (!urlStr) return false;
+  return (
+    urlStr.includes("r2.cloudflarestorage.com") ||
+    urlStr.includes("channeldeliver.my.id") ||
+    urlStr.includes("projectignite") ||
+    urlStr.includes("sih4storage") ||
+    urlStr.includes("pub-")
+  );
+};
+
+async function uploadItemImageToSilane(imgUrl, itemId, itemType, token) {
+  if (!imgUrl || isOurR2Url(imgUrl) || imgUrl.startsWith("data:")) {
+    return imgUrl;
+  }
+  try {
+    const fetchUrl = resolveLocalUrl(imgUrl);
+    const blob = await fetch(fetchUrl).then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.blob();
+    });
+    if (!blob || blob.size === 0) return imgUrl;
+
+    const ext = imgUrl.includes(".")
+      ? imgUrl.split(".").pop().split("?")[0]
+      : "webp";
+    const filename = `${itemId || "item"}-${Date.now()}.${ext}`;
+    const formData = new FormData();
+    formData.append("file", blob, filename);
+    formData.append("item_id", itemId || "");
+    formData.append("item_type", itemType || "item");
+
+    const res = await fetch(`${API_BASE_URL}/api/firefly/upload_image`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.url) return data.url;
+    }
+  } catch (err) {
+    console.warn(`[Firefly] Image upload failed for ${itemId}:`, err);
+  }
+  return imgUrl;
+}
+
 async function importSelectedToBackend(itemIds) {
   try {
     const token = getToken();
     const rawItems = [];
+    ui.notifications?.info(
+      `Processing and uploading images for ${itemIds.length} item(s)...`
+    );
+
     for (const id of itemIds) {
       const item = game.items.get(id);
-      if (item) rawItems.push(item.toObject());
+      if (!item) continue;
+      const raw = item.toObject();
+      const itemType = raw.type || item.type || "item";
+
+      let imgUrl = raw.img || raw.system?.img;
+      if (imgUrl) {
+        const uploadedUrl = await uploadItemImageToSilane(
+          imgUrl,
+          item.id,
+          itemType,
+          token
+        );
+        if (uploadedUrl && uploadedUrl !== imgUrl) {
+          raw.img = uploadedUrl;
+          if (raw.system) raw.system.img = uploadedUrl;
+        }
+      }
+
+      rawItems.push(raw);
     }
-    if (rawItems.length === 0) { ui.notifications?.warn("No valid items."); return; }
-    ui.notifications?.info(`Importing ${rawItems.length} item(s)...`);
+
+    if (rawItems.length === 0) {
+      ui.notifications?.warn("No valid items.");
+      return;
+    }
+    ui.notifications?.info(`Importing ${rawItems.length} item(s) to Silane...`);
     const response = await fetch(`${API_BASE_URL}/api/firefly/import`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(rawItems),
     });
     const result = await response.json();
     if (response.ok) {
       const target = result.target === "foundry" ? "foundry_*" : "*_homebrew";
       ui.notifications?.info(`Done! ${result.imported} item(s) → ${target}`);
-      if (result.rejected > 0) { console.warn("Rejected:", result.rejected_details); ui.notifications?.warn(`${result.rejected} rejected.`); }
+      if (result.rejected > 0) {
+        console.warn("Rejected:", result.rejected_details);
+        ui.notifications?.warn(`${result.rejected} rejected.`);
+      }
       showLoading();
       await fetchItems();
       renderUI();
