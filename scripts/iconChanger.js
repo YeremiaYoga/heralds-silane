@@ -325,7 +325,6 @@ export function openCharacterIconChanger(galleryImages = []) {
 
   const content = `
     <div class="sic-container">
-      <!-- Top Bar: Character Select -->
       <div style="display: flex; gap: 15px; align-items: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; border: 1px solid #27272a;">
         <label style="font-weight: 600; font-size: 14px; min-width: 120px; color: #e4e4e7;"><i class="fa-solid fa-user-shield" style="color:#818cf8; margin-right:6px;"></i> Select Character:</label>
         <select id="sic-character-select" class="silane-input" style="flex: 1; height: 38px !important; padding: 6px 12px !important; line-height: 20px !important; box-sizing: border-box !important; background: #27272a; border: 1px solid #3f3f46; color: white; border-radius: 4px; outline: none; cursor: pointer;">
@@ -333,16 +332,13 @@ export function openCharacterIconChanger(galleryImages = []) {
         </select>
       </div>
 
-      <!-- Main Columns -->
       <div class="sic-columns">
-        <!-- Left: Asset List -->
         <div class="sic-column-left">
           <h3 style="margin: 0; font-size: 14px; font-weight: bold; color: #60a5fa; display: flex; align-items: center; justify-content: space-between;">
             <span><i class="fa-solid fa-list-check" style="margin-right:6px;"></i> Character Assets</span>
             <span id="sic-checked-count" style="font-size: 11px; background: #2563eb; color: white; padding: 2px 6px; border-radius: 9999px; font-weight: 600;">0 selected</span>
           </h3>
 
-          <!-- Search & Filter -->
           <div style="display: flex; gap: 8px; align-items: center;">
             <input type="text" id="sic-asset-search" class="silane-input" placeholder="Search assets..." style="flex: 1; padding: 6px 10px; font-size: 13px; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; color: white; outline: none;" />
             <div class="sic-multiselect-container">
@@ -356,13 +352,11 @@ export function openCharacterIconChanger(galleryImages = []) {
                   <span id="sic-filter-clear-all" class="sic-multiselect-link">Clear All</span>
                 </div>
                 <div id="sic-filter-checkboxes-list">
-                  <!-- Dynamically populated -->
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Select All visible checkbox -->
           <div style="display: flex; align-items: center; gap: 8px; padding: 6px; border-bottom: 1px solid #27272a; font-size: 12px; color: #a1a1aa; background: rgba(0,0,0,0.1); border-radius: 4px; justify-content: space-between;">
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="checkbox" id="sic-select-all" style="cursor: pointer; margin: 0; width: 14px; height: 14px;" />
@@ -371,25 +365,20 @@ export function openCharacterIconChanger(galleryImages = []) {
             <div style="font-size: 11px; color:#60a5fa; font-style:italic;">💡 Select row + Click image</div>
           </div>
 
-          <!-- Assets scrollable list -->
           <div id="sic-asset-list" class="sic-asset-list">
-            <!-- Dynamically populated -->
           </div>
         </div>
 
-        <!-- Right: Silane Gallery -->
         <div class="sic-column-right">
           <h3 style="margin: 0; font-size: 14px; font-weight: bold; color: #34d399; display: flex; align-items: center; gap: 6px;">
             <i class="fa-solid fa-images"></i> Silane Image Gallery
           </h3>
           <input type="text" id="sic-gallery-search" class="silane-input" placeholder="Search gallery..." style="padding: 6px 10px; font-size: 13px; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; color: white; outline: none; margin-top: 5px; margin-bottom: 5px;" />
           <div id="sic-image-grid" class="sic-image-grid">
-            <!-- Dynamically populated -->
           </div>
         </div>
       </div>
 
-      <!-- Bottom actions -->
       <div style="display: flex; justify-content: flex-end; align-items: center; border-top: 1px solid #27272a; padding-top: 12px;">
         <div style="display: flex; gap: 10px;">
           <button id="sic-btn-reset-all" class="silane-btn" style="width: auto !important; margin: 0 !important; flex: 0 0 auto !important; height: 32px !important; padding: 0 14px !important; font-size: 12px !important; border-radius: 6px; background: rgba(239, 68, 68, 0.05); color:#ef4444; border: 1px solid rgba(239, 68, 68, 0.15); cursor: not-allowed; font-weight: 600; display: inline-flex !important; align-items: center !important; justify-content: center !important;" disabled>Reset All</button>

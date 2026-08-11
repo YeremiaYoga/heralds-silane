@@ -78,7 +78,6 @@ function renderDashboard() {
   let html = `
     <div style="padding: 10px; display:flex; flex-direction:column; height: 100%; overflow-y: auto;">
       
-      <!-- Header Banner -->
       <div style="background: linear-gradient(to right, rgba(99, 102, 241, 0.3), #18181b); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 16px; padding: 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; position: relative; overflow: hidden; flex-shrink: 0;">
         <div style="position: absolute; top: -10px; right: -10px; opacity: 0.08; pointer-events: none; z-index: 1;">
           <i class="fa-solid fa-people-group" style="font-size: 100px;"></i>
@@ -96,7 +95,6 @@ function renderDashboard() {
         </div>
       </div>
 
-      <!-- Created Groups Section -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 0 4px; flex-shrink: 0;">
         <h3 style="font-size: 18px; font-weight: bold; color: #e4e4e7; margin: 0;">My Created Groups</h3>
       </div>
@@ -139,7 +137,6 @@ function renderDashboard() {
   html += `
       </div>
 
-      <!-- Joined Groups Section -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 0 4px; flex-shrink: 0;">
         <h3 style="font-size: 18px; font-weight: bold; color: #e4e4e7; margin: 0;">Joined Groups</h3>
       </div>
@@ -268,7 +265,6 @@ function renderGroupDetails() {
   let html = `
     <div style="padding: 10px; display:flex; flex-direction:column; height: 100%; overflow-y: auto;">
       
-      <!-- Header Banner -->
       <div style="background: linear-gradient(to right, rgba(${rgbColor}, 0.3), #18181b); border: 1px solid rgba(${rgbColor}, 0.2); border-radius: 16px; padding: 24px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; position: relative; overflow: hidden; flex-shrink: 0;">
         <div style="position: absolute; top: -10px; right: -10px; opacity: 0.08; pointer-events: none; z-index: 1;">
           <i class="fa-solid fa-shield-halved" style="font-size: 100px; color: rgb(${rgbColor});"></i>
@@ -299,7 +295,6 @@ function renderGroupDetails() {
         ` : ""}
       </div>
 
-      <!-- Inner Navigation Tabs -->
       <div style="display: flex; gap: 8px; border-bottom: 1px solid #3f3f46; padding-bottom: 8px; margin-bottom: 16px; flex-shrink: 0; overflow-x: auto; max-width: 100%;">
         <button class="hs-group-tab-btn" data-tab="members" style="padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer; border: none; transition: all 0.2s; background: ${state.currentSubTab === 'members' ? `rgba(${rgbColor}, 0.2)` : 'transparent'}; color: ${state.currentSubTab === 'members' ? 'white' : '#a1a1aa'}; border: 1px solid ${state.currentSubTab === 'members' ? `rgba(${rgbColor}, 0.4)` : 'transparent'}; white-space: nowrap;">
           Members
@@ -315,7 +310,6 @@ function renderGroupDetails() {
         </button>
       </div>
 
-      <!-- Tab Content Area -->
       <div id="hs-group-tab-content" style="flex: 1; display:flex; flex-direction:column; gap:8px;">
   `;
 
@@ -408,28 +402,23 @@ function renderGroupDetails() {
               </div>
             </div>
 
-            <!-- Toggles and Actions -->
             <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
               
               ${canEdit ? `
-                <!-- Active Toggle (PC only) -->
                 ${typeKey === 'player' ? `
                   <button class="hs-resource-active-toggle" data-id="${r.resource_id}" title="${r.active !== false ? 'Deactivate Character' : 'Activate Character'}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid ${r.active !== false ? 'rgba(251, 191, 36, 0.4)' : 'rgba(255,255,255,0.1)'}; color: ${r.active !== false ? '#fbbf24' : '#71717a'}; cursor: pointer;">
                     <i class="fa-solid fa-bolt" style="font-size: 11px;"></i>
                   </button>
                 ` : ''}
 
-                <!-- Visibility Toggle (All) -->
                 <button class="hs-resource-visibility-toggle" data-id="${r.resource_id}" title="${r.visibility === 'public' ? 'Make Private' : 'Make Public'}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: ${r.visibility === 'public' ? '#34d399' : '#a1a1aa'}; cursor: pointer;">
                   <i class="fa-solid ${r.visibility === 'public' ? 'fa-lock-open' : 'fa-lock'}" style="font-size: 11px;"></i>
                 </button>
 
-                <!-- Hidden Toggle (PC/NPC only) -->
                 <button class="hs-resource-hidden-toggle" data-id="${r.resource_id}" title="${r.hidden ? 'Show to members' : 'Hide from members'}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: ${r.hidden ? '#f87171' : '#38bdf8'}; cursor: pointer;">
                   <i class="fa-solid ${r.hidden ? 'fa-eye-slash' : 'fa-eye'}" style="font-size: 11px;"></i>
                 </button>
 
-                <!-- Remove Share -->
                 <button class="hs-remove-resource" data-id="${r.resource_id}" title="Remove Share" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(239, 68, 68, 0.2); color: #f87171; cursor: pointer;">
                   <i class="fa-solid fa-trash" style="font-size:11px;"></i>
                 </button>
@@ -990,7 +979,6 @@ function showCreateOrEditMissionModal(group, mission = null) {
       <div style="margin-bottom: 12px; border-top: 1px solid #3f3f46; padding-top: 12px;">
         <label style="display:block; margin-bottom:5px; color:#e4e4e7; font-weight: 500;">Quest Steps</label>
         <div id="hs-steps-list-container" style="display: flex; flex-direction: column; gap: 8px;">
-          <!-- Steps will be injected here -->
         </div>
         <button type="button" id="hs-add-step-btn" style="background: rgba(255,255,255,0.05); border: 1px solid #3f3f46; color: white; border-radius: 6px; padding: 6px 12px; font-size: 11px; cursor: pointer; width: auto; font-weight: 600; margin-top: 6px;">
           <i class="fa-solid fa-plus"></i> Add Step
@@ -1000,7 +988,6 @@ function showCreateOrEditMissionModal(group, mission = null) {
       <div style="margin-bottom: 12px; border-top: 1px solid #3f3f46; padding-top: 12px;">
         <label style="display:block; margin-bottom:5px; color:#e4e4e7; font-weight: 500;">Quest Rewards</label>
         <div id="hs-rewards-list-container" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px;">
-          <!-- Rewards will be injected here -->
         </div>
         <div style="display: flex; gap: 6px; flex-wrap: wrap;">
           <button type="button" class="hs-add-reward-btn" data-reward-type="coin" style="background: rgba(251, 191, 36, 0.1); border: 1px dashed rgba(251, 191, 36, 0.4); color: #fbbf24; border-radius: 6px; padding: 6px 12px; font-size: 11px; cursor: pointer; font-weight: 600;">
@@ -1225,7 +1212,6 @@ function showCreateOrEditMissionModal(group, mission = null) {
               
               <div style="margin-left: 12px; border-left: 2px dashed #3f3f46; padding-left: 12px; margin-top: 4px;">
                 <div class="step-objectives-list" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px;">
-                  <!-- Objective rows will be injected here -->
                 </div>
                 <button type="button" class="hs-add-step-objective-btn" style="background: rgba(255,255,255,0.03); border: 1px solid #3f3f46; color: #a1a1aa; border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer; font-weight: bold; width: fit-content;">
                   <i class="fa-solid fa-plus" style="font-size:8px;"></i> Add Objective
@@ -2012,7 +1998,6 @@ function showGroupRolesModal(group) {
         </button>
       </div>
       <div id="hs-roles-list-container" style="display:flex; flex-direction:column; gap:10px; max-height: 400px; overflow-y: auto;">
-        <!-- Injected role cards -->
       </div>
     </div>
   `;

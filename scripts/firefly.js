@@ -267,7 +267,7 @@ function renderList() {
   }
   listEl.innerHTML = items.map((item) => {
     const itemType = item.__type || item.type || "unknown";
-    const typeColors = { weapon:"#ef4444", spell:"#8b5cf6", consumable:"#f59e0b", container:"#6b7280", equipment:"#3b82f6", feat:"#10b981", loot:"#eab308", tool:"#06b6d4", feature:"#ec4899", unknown:"#71717a" };
+    const typeColors = { weapon: "#ef4444", spell: "#8b5cf6", consumable: "#f59e0b", container: "#6b7280", equipment: "#3b82f6", feat: "#10b981", loot: "#eab308", tool: "#06b6d4", feature: "#ec4899", unknown: "#71717a" };
     const typeColor = typeColors[itemType] || typeColors.unknown;
     return `
       <div class="ff-card" data-id="${item.id}" data-type="${itemType}" title="${item.name}">
