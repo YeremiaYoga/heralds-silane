@@ -1,4 +1,4 @@
-import { API_BASE_URL, heraldSilane_getWindowDimensions } from "./helper.js";
+import { API_BASE_URL, heraldSilane_getWindowDimensions, initializeApiBaseUrl } from "./helper.js";
 import { initVisageTab } from "./visage.js";
 import { initCharacterTab } from "./character.js";
 import { initAudioTab } from "./audio.js";
@@ -493,6 +493,12 @@ async function heraldSilane_renderMainView() {
       openCharacterIconChanger(getImagesList());
     });
   }
+  const btnSettings = document.getElementById("hs-btn-settings");
+  if (btnSettings) {
+    btnSettings.addEventListener("click", () => {
+      heraldSilane_openSettingsModal();
+    });
+  }
   document
     .getElementById("hs-btn-logout")
     .addEventListener("click", async () => {
@@ -506,6 +512,7 @@ async function heraldSilane_renderMainView() {
 function heraldSilane_openSettingsModal() {
   const currentSize = game.settings.get("heralds-silane", "windowSize");
   const currentDetail = game.settings.get("heralds-silane", "characterDetailMode");
+  const currentApiMode = game.settings.get("heralds-silane", "apiMode") || "auto";
   const content = `
     <div class="silane-settings-wrapper" style="padding: 10px; color: #f4f4f5;">
       <div class="silane-form-group" style="margin-bottom: 15px;">
@@ -525,6 +532,14 @@ function heraldSilane_openSettingsModal() {
           <option value="nameOnly" style="background: #18181b; color: white;" ${currentDetail === "nameOnly" ? "selected" : ""}>Name Only (Minimalist)</option>
         </select>
       </div>
+      <div class="silane-form-group" style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: white;">API Environment</label>
+        <select id="hs-setting-apiMode" class="silane-input" style="width: 100%; padding: 5px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b;">
+          <option value="auto" style="background: #18181b; color: white;" ${currentApiMode === "auto" ? "selected" : ""}>Auto Detect</option>
+          <option value="local" style="background: #18181b; color: white;" ${currentApiMode === "local" ? "selected" : ""}>Local</option>
+          <option value="prod" style="background: #18181b; color: white;" ${currentApiMode === "prod" ? "selected" : ""}>Production</option>
+        </select>
+      </div>
     </div>
   `;
   new Dialog(
@@ -537,8 +552,11 @@ function heraldSilane_openSettingsModal() {
           callback: async (html) => {
             const newSize = html.find("#hs-setting-windowSize").val();
             const newDetail = html.find("#hs-setting-characterDetail").val();
+            const newApiMode = html.find("#hs-setting-apiMode").val();
             await game.settings.set("heralds-silane", "windowSize", newSize);
             await game.settings.set("heralds-silane", "characterDetailMode", newDetail);
+            await game.settings.set("heralds-silane", "apiMode", newApiMode);
+            initializeApiBaseUrl();
             if (heraldSilane_currentDialog) {
               const dims = heraldSilane_getWindowDimensions();
               heraldSilane_currentDialog.setPosition({ width: dims.width, height: dims.height });
@@ -551,14 +569,14 @@ function heraldSilane_openSettingsModal() {
       },
       default: "save",
       render: (html) => {
-        const dialogElement = html.closest(".app")[0];
-        const contentElement = dialogElement.querySelector(".window-content");
+        const dialogElement = html.closest(".app")?.[0] || html.closest(".dialog")?.[0];
+        const contentElement = dialogElement?.querySelector(".window-content");
         if (contentElement) {
           contentElement.style.backgroundColor = "#18181b";
           contentElement.style.color = "white";
           contentElement.style.backgroundImage = "none";
         }
-        html.closest(".dialog").find(".dialog-buttons button").css({
+        html.closest(".dialog")?.find(".dialog-buttons button").css({
           color: "white",
           border: "1px solid #3f3f46",
           background: "rgba(0,0,0,0.4)",

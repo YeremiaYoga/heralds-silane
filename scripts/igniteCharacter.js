@@ -4,6 +4,7 @@ let igniteCharacters = [];
 let parentContainer = null;
 let searchQuery = "";
 let currentTypeFilter = "player"; // "player" | "npc"
+let currentSilaneUsername = "";
 
 function isNpcChar(char) {
   const t = String(char?.character_type || char?.type || "").toLowerCase().trim();
@@ -80,6 +81,9 @@ async function fetchIgniteCharacters() {
     if (response.ok) {
       const result = await response.json();
       igniteCharacters = Array.isArray(result.data) ? result.data : [];
+      if (result.username) {
+        currentSilaneUsername = result.username;
+      }
     } else {
       igniteCharacters = [];
     }
@@ -219,6 +223,99 @@ function renderListArea() {
   });
 
   listArea.innerHTML = html;
+}
+
+function getIgniteUsername(char) {
+  // 1. From character-maker API response if captured
+  if (currentSilaneUsername && typeof currentSilaneUsername === "string" && currentSilaneUsername.trim()) {
+    return currentSilaneUsername.trim();
+  }
+
+  // 2. From character payload if attached
+  if (char?.user?.username && typeof char.user.username === "string" && char.user.username.trim()) {
+    return char.user.username.trim();
+  }
+  if (char?.username && typeof char.username === "string" && char.username.trim()) {
+    return char.username.trim();
+  }
+  if (char?.user_name && typeof char.user_name === "string" && char.user_name.trim()) {
+    return char.user_name.trim();
+  }
+
+  // 3. From heraldSilane_user stored in localStorage upon Silane login
+  try {
+    const userStr = localStorage.getItem("heraldSilane_user");
+    if (userStr) {
+      const u = JSON.parse(userStr);
+      if (u.username && typeof u.username === "string" && u.username.trim()) {
+        return u.username.trim();
+      }
+      if (u.user_name && typeof u.user_name === "string" && u.user_name.trim()) {
+        return u.user_name.trim();
+      }
+      if (u.name && typeof u.name === "string" && u.name.trim()) {
+        return u.name.trim();
+      }
+    }
+  } catch (e) {}
+
+  // 4. From JWT token payload stored in localStorage
+  try {
+    const token = localStorage.getItem("heraldSilane_token");
+    if (token && token.includes(".")) {
+      const payloadBase64 = token.split(".")[1];
+      const decodedPayload = JSON.parse(atob(payloadBase64.replace(/-/g, "+").replace(/_/g, "/")));
+      if (decodedPayload?.username && typeof decodedPayload.username === "string" && decodedPayload.username.trim()) {
+        return decodedPayload.username.trim();
+      }
+      if (decodedPayload?.user_name && typeof decodedPayload.user_name === "string" && decodedPayload.user_name.trim()) {
+        return decodedPayload.user_name.trim();
+      }
+      if (decodedPayload?.name && typeof decodedPayload.name === "string" && decodedPayload.name.trim()) {
+        return decodedPayload.name.trim();
+      }
+    }
+  } catch (e) {}
+
+  // Strictly Silane user fallback, never Foundry game.user.name
+  return "Silane User";
+}
+
+async function getOrCreateSilaneUserFolder(username, type = "Actor") {
+  let rootFolder = game.folders.find(
+    (f) =>
+      f.name === "Silane Import" &&
+      f.type === type &&
+      (!f.folder || f.folder === null || f.folder === undefined || (typeof f.folder === "object" && !f.folder?.id))
+  );
+
+  if (!rootFolder) {
+    rootFolder = await Folder.create({
+      name: "Silane Import",
+      type: type,
+      color: "#3b82f6",
+    });
+  }
+
+  const rootFolderId = rootFolder?.id || rootFolder?._id;
+
+  let userFolder = game.folders.find(
+    (f) =>
+      f.name === username &&
+      f.type === type &&
+      (f.folder === rootFolderId || f.folder?.id === rootFolderId)
+  );
+
+  if (!userFolder) {
+    userFolder = await Folder.create({
+      name: username,
+      type: type,
+      folder: rootFolderId,
+      color: "#60a5fa",
+    });
+  }
+
+  return userFolder;
 }
 
 async function exportCharacterToFoundry(char) {
@@ -395,12 +492,133 @@ async function exportCharacterToFoundry(char) {
     return;
   }
 
+function formatHabitatForFoundry(habitatInput) {
+  if (!habitatInput) return { value: [], custom: "" };
+  let arr = [];
+  if (Array.isArray(habitatInput)) {
+    arr = habitatInput;
+  } else if (typeof habitatInput === "string") {
+    const trimmed = habitatInput.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return formatHabitatForFoundry(parsed);
+      } catch (e) {
+        arr = trimmed.split(/[,;]/).map((s) => s.trim());
+      }
+    } else {
+      arr = trimmed.split(/[,;]/).map((s) => s.trim());
+    }
+  } else if (typeof habitatInput === "object" && habitatInput !== null) {
+    if (habitatInput.value && Array.isArray(habitatInput.value)) {
+      return {
+        value: habitatInput.value,
+        custom: habitatInput.custom || ""
+      };
+    }
+    if (habitatInput.selected || habitatInput.customText) {
+      arr = [...(habitatInput.selected || []), ...(habitatInput.customText ? habitatInput.customText.split(";") : [])];
+    }
+  }
+
+  const standardHabitats = [
+    "any", "arctic", "coastal", "desert", "forest",
+    "grassland", "hill", "mountain", "planar", "swamp",
+    "underdark", "underwater", "urban"
+  ];
+
+  const value = [];
+  const customParts = [];
+
+  arr.forEach((item) => {
+    if (typeof item === "string") {
+      const clean = item.trim();
+      const lower = clean.toLowerCase();
+      if (standardHabitats.includes(lower)) {
+        if (!value.some((h) => h.type === lower)) {
+          value.push({ type: lower });
+        }
+      } else if (clean) {
+        customParts.push(clean);
+      }
+    } else if (typeof item === "object" && item !== null) {
+      if (item.type) {
+        const lower = String(item.type).toLowerCase().trim();
+        if (!value.some((h) => h.type === lower)) {
+          value.push({ type: lower });
+        }
+      }
+    }
+  });
+
+  return {
+    value: value,
+    custom: customParts.join("; ")
+  };
+}
+
+function formatTreasureForFoundry(treasureInput) {
+  if (!treasureInput) return { value: [] };
+  let arr = [];
+  if (Array.isArray(treasureInput)) {
+    arr = treasureInput;
+  } else if (typeof treasureInput === "string") {
+    const trimmed = treasureInput.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return formatTreasureForFoundry(parsed);
+      } catch (e) {
+        arr = trimmed.split(/[,;]/).map((s) => s.trim());
+      }
+    } else {
+      arr = trimmed.split(/[,;]/).map((s) => s.trim());
+    }
+  } else if (typeof treasureInput === "object" && treasureInput !== null) {
+    if (treasureInput.value && Array.isArray(treasureInput.value)) {
+      return { value: treasureInput.value };
+    }
+  }
+
+  const standardTreasures = [
+    "arcana", "armaments", "implements", "individual",
+    "nature", "relics", "valuables"
+  ];
+
+  const value = [];
+  arr.forEach((item) => {
+    if (typeof item === "string") {
+      const lower = item.toLowerCase().trim();
+      if (standardTreasures.includes(lower)) {
+        if (!value.includes(lower)) {
+          value.push(lower);
+        }
+      }
+    }
+  });
+
+  return { value: value };
+}
+
   Dialog.confirm({
     title: `Export ${isNpc ? "NPC" : "Character"}`,
     content: `<p>Are you sure you want to export <strong>${char.name}</strong> (${isNpc ? "NPC" : "Player Character"}) to your Foundry VTT Actors list?</p>`,
     yes: async () => {
       try {
         delete dataToImport._id;
+
+        if (isNpc) {
+          if (!dataToImport.system) dataToImport.system = {};
+          if (!dataToImport.system.details) dataToImport.system.details = {};
+          const habitatVal = char.habitat || char.npc_format?.habitat || char.bestiary?.habitat;
+          if (habitatVal) {
+            dataToImport.system.details.habitat = formatHabitatForFoundry(habitatVal);
+          }
+          const treasureVal = char.treasure || char.npc_format?.treasure || char.bestiary?.treasure;
+          if (treasureVal) {
+            dataToImport.system.details.treasure = formatTreasureForFoundry(treasureVal);
+          }
+        }
 
         if (char.art_image) {
           dataToImport.img = char.art_image;
@@ -446,12 +664,24 @@ async function exportCharacterToFoundry(char) {
           dataToImport.items = uniqueItems;
         }
 
-        const existingActor = game.actors.find(a => a.name === dataToImport.name);
+        const username = getIgniteUsername(char);
+        const userActorFolder = await getOrCreateSilaneUserFolder(username, "Actor");
+        const userActorFolderId = userActorFolder?.id || userActorFolder?._id;
+
+        const existingActor = game.actors.find(
+          (a) => a.name === dataToImport.name && (a.folder === userActorFolderId || a.folder?.id === userActorFolderId)
+        );
         if (existingActor) {
           await existingActor.delete();
         }
 
+        dataToImport.folder = userActorFolderId;
+
         const newActor = await Actor.create(dataToImport);
+        if (newActor && userActorFolderId) {
+          await newActor.update({ folder: userActorFolderId });
+        }
+
         if (newActor) {
           if (!isNpc && Array.isArray(dataToImport.items) && dataToImport.items.length > 0) {
             const today = new Date();
@@ -460,16 +690,16 @@ async function exportCharacterToFoundry(char) {
             const year = today.getFullYear();
             const exportDate = `${day}-${month}-${year}`;
 
-            let rootFolder = game.folders.find(f => f.name === "Silane" && f.type === "Item" && (!f.folder || f.folder === null || f.folder === undefined));
-            if (!rootFolder) {
-              rootFolder = await Folder.create({
-                name: "Silane",
-                type: "Item"
-              });
-            }
+            const userItemFolder = await getOrCreateSilaneUserFolder(username, "Item");
+            const userItemFolderId = userItemFolder?.id || userItemFolder?._id;
 
             const charFolderName = `${newActor.name} (${exportDate})`;
-            let charFolder = game.folders.find(f => f.name === charFolderName && f.type === "Item" && (f.folder === rootFolder.id || f.folder?.id === rootFolder.id));
+            let charFolder = game.folders.find(
+              (f) =>
+                f.name === charFolderName &&
+                f.type === "Item" &&
+                (f.folder === userItemFolderId || f.folder?.id === userItemFolderId)
+            );
             if (charFolder) {
               await charFolder.delete({ deleteContents: true });
             }
@@ -477,7 +707,7 @@ async function exportCharacterToFoundry(char) {
             charFolder = await Folder.create({
               name: charFolderName,
               type: "Item",
-              folder: rootFolder.id
+              folder: userItemFolderId
             });
 
             const subfolders = {};
@@ -509,9 +739,9 @@ async function exportCharacterToFoundry(char) {
               await Item.create(standaloneItemData);
             }
 
-            ui.notifications?.info(`Success! Actor [${newActor.name}] and its items under Silane -> ${charFolderName} have been created.`);
+            ui.notifications?.info(`Success! Actor [${newActor.name}] imported into "Silane Import -> ${username}". Items created under Silane Import -> ${username} -> ${charFolderName}.`);
           } else {
-            ui.notifications?.info(`Success! NPC [${newActor.name}] has been created.`);
+            ui.notifications?.info(`Success! NPC [${newActor.name}] imported into "Silane Import -> ${username}".`);
           }
           newActor.sheet.render(true);
         }
