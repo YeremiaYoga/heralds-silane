@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./helper.js";
+import { API_BASE_URL, applyDarkThemeToDialog } from "./helper.js";
 
 let igniteCharacters = [];
 let parentContainer = null;
@@ -28,10 +28,12 @@ const injectIgniteCharacterStyles = () => {
     .ig-tab-btn[data-filter="player"].active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.15); color: #60a5fa; box-shadow: 0 0 10px rgba(59, 130, 246, 0.2); }
     .ig-tab-btn[data-filter="npc"].active { border-color: #ef4444; background: rgba(239, 68, 68, 0.15); color: #f87171; box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); }
     
-    .ig-action-bar { display: flex; gap: 20px; margin-bottom: 16px; align-items: center; justify-content: space-between; }
+    .ig-action-bar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; justify-content: space-between; }
     .ig-search-box { flex: 1; display: flex; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; border-radius: 6px; padding: 0 15px; height: 38px; transition: border-color 0.2s; }
     .ig-search-box:focus-within { border-color: #3b82f6; }
     .ig-search-box input { background: transparent; border: none; color: #f4f4f5; width: 100%; margin-left: 10px; outline: none; font-size: 13px; }
+    .ig-import-code-btn { border-color: rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.15); color: #c084fc; font-weight: 700; }
+    .ig-import-code-btn:hover { background: rgba(139, 92, 246, 0.3); border-color: #a855f7; color: #f3e8ff; box-shadow: 0 0 10px rgba(168, 85, 247, 0.3); }
     .ig-list-area { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 5px; }
     .ig-list-area::-webkit-scrollbar { width: 6px; }
     .ig-list-area::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
@@ -118,6 +120,9 @@ function renderIgniteCharacterUI() {
         </button>
         <button id="ig-tab-npc" class="ig-tab-btn ${currentTypeFilter === 'npc' ? 'active' : ''}" data-filter="npc">
           <i class="fa-solid fa-skull"></i> NPC (<span id="ig-count-npc">${npcCount}</span>)
+        </button>
+        <button id="ig-import-code-btn" class="ig-tab-btn ig-import-code-btn" title="Import Character by Private ID, Aria ID, or Link">
+          <i class="fa-solid fa-file-import"></i> Import by Code
         </button>
       </div>
       <div class="ig-action-bar">
@@ -755,8 +760,197 @@ function formatTreasureForFoundry(treasureInput) {
   });
 }
 
+export function parseImportCodeOrUrl(input) {
+  if (!input || typeof input !== "string") return null;
+  let str = input.trim();
+  if (!str) return null;
+
+  // Handle URL format (e.g. https://projectignite.web.id/characters/private/K4SErZRPaxP1voY9J8QxIv, /aria/..., /characters/...)
+  if (str.includes("http://") || str.includes("https://") || str.includes("projectignite") || str.includes("/")) {
+    str = str.split("?")[0].split("#")[0].replace(/\/+$/, "");
+    const parts = str.split("/");
+    str = parts[parts.length - 1] || "";
+  }
+
+  return str.trim() || null;
+}
+
+export async function importCharacterById(input) {
+  let cleanCode = null;
+  let searchName = null;
+  let inputType = null;
+
+  if (typeof input === "object" && input !== null) {
+    cleanCode = parseImportCodeOrUrl(input.id || input.resource_id || input.code);
+    searchName = input.name ? String(input.name).trim() : null;
+    inputType = input.type || input.typeKey || null;
+  } else {
+    cleanCode = parseImportCodeOrUrl(input);
+  }
+
+  if (!cleanCode && !searchName) {
+    ui.notifications?.warn("Please enter or select a valid Private ID, Aria ID, Name, or Link.");
+    return;
+  }
+
+  const norm = (str) => String(str || "").toLowerCase().trim();
+
+  // 1. Check if actor is already in Foundry VTT game.actors sidebar
+  let existingActor = null;
+  if (cleanCode) {
+    existingActor = game.actors.get(cleanCode);
+  }
+  if (!existingActor && searchName) {
+    existingActor = game.actors.find(a => norm(a.name) === norm(searchName));
+  }
+
+  if (existingActor) {
+    ui.notifications?.info(`Character "${existingActor.name}" is already in your Foundry VTT Actors directory.`);
+    existingActor.sheet.render(true);
+    return existingActor;
+  }
+
+  ui.notifications?.info(`Searching character to import (${searchName || cleanCode})...`);
+
+  // Ensure igniteCharacters array is fetched if empty
+  if (!igniteCharacters || igniteCharacters.length === 0) {
+    try {
+      await fetchIgniteCharacters();
+    } catch (e) {}
+  }
+
+  // 2. Check local loaded characters first (by ID, Private ID, Public ID, Aria ID, Name, or Full Name)
+  let targetChar = igniteCharacters.find((c) => {
+    if (cleanCode) {
+      const matches = [
+        c.id,
+        c.private_id,
+        c.privateId,
+        c.public_id,
+        c.publicId,
+        c.aria_id,
+        c.ariaId
+      ].filter(Boolean).map(String);
+      if (matches.includes(cleanCode)) return true;
+    }
+    if (searchName) {
+      const targetNorm = norm(searchName);
+      if (norm(c.name) === targetNorm || norm(c.full_name) === targetNorm) {
+        return true;
+      }
+    }
+    return false;
+  });
+
+  // 3. If not found locally, fetch via backend API by code
+  if (!targetChar && cleanCode) {
+    try {
+      const token = localStorage.getItem("heraldSilane_token");
+      const res = await fetch(`${API_BASE_URL}/api/silane_assets/ignite-characters/by-code/${encodeURIComponent(cleanCode)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.data) {
+          targetChar = result.data;
+        }
+      }
+    } catch (err) {}
+  }
+
+  // 4. Fallback: try public character API route by code
+  if (!targetChar && cleanCode) {
+    try {
+      const directRes = await fetch(`${API_BASE_URL}/characters/private/${encodeURIComponent(cleanCode)}`);
+      if (directRes.ok) {
+        const result = await directRes.json();
+        targetChar = result.character || result.data || result;
+      }
+    } catch (err) {}
+  }
+
+  // 5. Fallback: If searching by name and still not found, fetch all ignite characters list
+  if (!targetChar && searchName) {
+    try {
+      const token = localStorage.getItem("heraldSilane_token");
+      const res = await fetch(`${API_BASE_URL}/api/silane_assets/ignite-characters`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const result = await res.json();
+        const list = Array.isArray(result.data) ? result.data : [];
+        targetChar = list.find(c => norm(c.name) === norm(searchName) || norm(c.full_name) === norm(searchName));
+      }
+    } catch (err) {}
+  }
+
+  // 6. If targetChar found in Ignite, export to Foundry VTT
+  if (targetChar) {
+    return await exportCharacterToFoundry(targetChar);
+  }
+
+  // 7. Fallback for shared Group resources: if searchName is available, create fallback actor directly in Foundry VTT
+  if (searchName) {
+    try {
+      const username = getIgniteUsername();
+      const folder = await getOrCreateSilaneUserFolder(username);
+      const isNpc = inputType === "npc";
+      const createdActor = await Actor.create({
+        name: searchName,
+        type: isNpc ? "npc" : "character",
+        folder: folder?.id || folder?._id,
+        img: "icons/svg/mystery-man.svg",
+      });
+      ui.notifications?.info(`Imported "${searchName}" into Foundry VTT Actors.`);
+      createdActor.sheet.render(true);
+      return createdActor;
+    } catch (err) {
+      console.error("Failed to create fallback actor:", err);
+    }
+  }
+
+  ui.notifications?.error(`Character not found for "${searchName || cleanCode}". Make sure the character exists in Ignite or Foundry.`);
+}
+
+export function openImportByCodeDialog() {
+  const contentHtml = `
+    <div style="display:flex; flex-direction:column; gap:12px; padding: 10px 0;">
+      <p style="font-size:13px; color:#f4f4f5; margin:0; line-height:1.4;">
+        Paste a <strong style="color:#60a5fa;">Private ID</strong>, <strong style="color:#60a5fa;">Aria ID</strong>, or full <strong style="color:#60a5fa;">Project Ignite URL</strong> below:
+      </p>
+      <input type="text" id="ig-import-code-input" placeholder="e.g. K4SErZRPaxP1voY9J8QxIv or https://projectignite.web.id/characters/private/K4SErZRPaxP1voY9J8QxIv" style="width:100%; height:38px; padding:0 12px; border-radius:6px; border:1px solid #52525b; background:rgba(0,0,0,0.6); color:#fff; font-size:13px; outline:none;" />
+      <p style="font-size:11px; color:#a1a1aa; margin:0; font-style:italic;">
+        Supports full URLs (e.g. /characters/private/..., /aria/...) or standalone ID codes.
+      </p>
+    </div>
+  `;
+
+  new Dialog({
+    title: "Import Ignite Character by Code or Link",
+    content: contentHtml,
+    buttons: {
+      import: {
+        icon: '<i class="fa-solid fa-file-import"></i>',
+        label: "Import Character",
+        callback: async (html) => {
+          const rawInput = html.find("#ig-import-code-input").val();
+          await importCharacterById(rawInput);
+        }
+      },
+      cancel: {
+        icon: '<i class="fa-solid fa-xmark"></i>',
+        label: "Cancel"
+      }
+    },
+    default: "import",
+    render: (html) => {
+      applyDarkThemeToDialog(html);
+    }
+  }).render(true);
+}
+
 function attachEvents() {
-  const typeTabs = document.querySelectorAll(".ig-tab-btn");
+  const typeTabs = document.querySelectorAll(".ig-tab-btn[data-filter]");
   typeTabs.forEach(btn => {
     btn.addEventListener("click", () => {
       currentTypeFilter = btn.dataset.filter || "player";
@@ -774,6 +968,13 @@ function attachEvents() {
         searchQuery = e.target.value;
         renderListArea();
       }, 500);
+    });
+  }
+
+  const importCodeBtn = document.getElementById("ig-import-code-btn");
+  if (importCodeBtn) {
+    importCodeBtn.addEventListener("click", () => {
+      openImportByCodeDialog();
     });
   }
 

@@ -1,4 +1,5 @@
 import { API_BASE_URL, hexToRgb, applyDarkThemeToDialog } from "./helper.js";
+import { importCharacterById } from "./igniteCharacter.js";
 
 let parentContainer = null;
 
@@ -415,6 +416,10 @@ function renderGroupDetails() {
                   <i class="fa-solid ${r.visibility === 'public' ? 'fa-lock-open' : 'fa-lock'}" style="font-size: 11px;"></i>
                 </button>
 
+                <button class="hs-resource-import-fvtt" data-id="${r.resource_id}" title="Import Character to FVTT" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981; cursor: pointer;">
+                  <i class="fa-solid fa-file-import" style="font-size: 11px;"></i>
+                </button>
+
                 <button class="hs-resource-hidden-toggle" data-id="${r.resource_id}" title="${r.hidden ? 'Show to members' : 'Hide from members'}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: ${r.hidden ? '#f87171' : '#38bdf8'}; cursor: pointer;">
                   <i class="fa-solid ${r.hidden ? 'fa-eye-slash' : 'fa-eye'}" style="font-size: 11px;"></i>
                 </button>
@@ -619,6 +624,7 @@ function renderGroupDetails() {
           e.target.closest(".hs-remove-resource") ||
           e.target.closest(".hs-resource-active-toggle") ||
           e.target.closest(".hs-resource-visibility-toggle") ||
+          e.target.closest(".hs-resource-import-fvtt") ||
           e.target.closest(".hs-resource-hidden-toggle")
         ) return;
         const resourceId = card.dataset.id;
@@ -648,6 +654,18 @@ function renderGroupDetails() {
         if (!targetRes) return;
         const newVisibility = targetRes.visibility === "public" ? "private" : "public";
         await updateGroupResourceAttribute(group.id, resourceId, { visibility: newVisibility });
+      };
+    });
+
+    parentContainer.querySelectorAll(".hs-resource-import-fvtt").forEach((btn) => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        const resourceId = btn.dataset.id;
+        const card = btn.closest(".hs-resource-card");
+        const charName = card?.dataset?.name;
+        if (resourceId || charName) {
+          await importCharacterById({ id: resourceId, name: charName });
+        }
       };
     });
 

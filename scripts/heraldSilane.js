@@ -1,4 +1,4 @@
-import { API_BASE_URL, heraldSilane_getWindowDimensions, initializeApiBaseUrl } from "./helper.js";
+import { API_BASE_URL, heraldSilane_getWindowDimensions, initializeApiBaseUrl, applyDarkThemeToDialog } from "./helper.js";
 import { initVisageTab } from "./visage.js";
 import { initCharacterTab } from "./character.js";
 import { initAudioTab } from "./audio.js";
@@ -321,6 +321,11 @@ async function heraldSilane_renderMainView() {
         </div>
         <div style="text-align: right;">
           <div style="display: flex; gap: 14px; justify-content: flex-end; align-items: center;">
+            ${game.user.isGM ? `
+              <button id="hs-btn-management" style="background: transparent; border: none; color: #a1a1aa; cursor: pointer; font-size: 18px; padding: 0; outline: none; transition: color 0.2s;" title="World Management (GM Only)" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='#a1a1aa'">
+                <i class="fa-solid fa-sliders"></i>
+              </button>
+            ` : ""}
             <button id="hs-btn-settings" style="background: transparent; border: none; color: #a1a1aa; cursor: pointer; font-size: 18px; padding: 0; outline: none; transition: color 0.2s;" title="Settings" onmouseover="this.style.color='#f4f4f5'" onmouseout="this.style.color='#a1a1aa'">
               <i class="fa-solid fa-gear"></i>
             </button>
@@ -493,6 +498,12 @@ async function heraldSilane_renderMainView() {
       openCharacterIconChanger(getImagesList());
     });
   }
+  const btnManagement = document.getElementById("hs-btn-management");
+  if (btnManagement) {
+    btnManagement.addEventListener("click", () => {
+      heraldSilane_openManagementModal();
+    });
+  }
   const btnSettings = document.getElementById("hs-btn-settings");
   if (btnSettings) {
     btnSettings.addEventListener("click", () => {
@@ -584,6 +595,49 @@ function heraldSilane_openSettingsModal() {
       },
     },
     { width: 450, height: "auto", classes: ["dialog", "silane-custom-dialog"] },
+  ).render(true);
+}
+
+function heraldSilane_openManagementModal() {
+  if (!game.user.isGM) {
+    ui.notifications?.warn("Only the World Owner / GM can access World Management.");
+    return;
+  }
+
+  const currentWorldGroupId = game.settings.get("heralds-silane", "worldGroupId") || "";
+
+  const content = `
+    <div class="silane-settings-wrapper" style="padding: 10px; color: #f4f4f5;">
+      <div class="silane-form-group" style="margin-bottom: 5px;">
+        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: white; font-size: 13px;">
+          <i class="fa-solid fa-layer-group" style="color: #60a5fa; margin-right: 6px;"></i>World's Project Ignite Group ID
+        </label>
+        <input type="text" id="hs-mgmt-world-group-id" class="silane-input" value="${currentWorldGroupId}" placeholder="e.g. Y5AfasnpznaA07gdQPxy" style="width: 100%; padding: 8px 10px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 6px; font-size: 13px; outline: none;" />
+      </div>
+    </div>
+  `;
+
+  new Dialog(
+    {
+      title: "World Management (GM Only)",
+      content: content,
+      buttons: {
+        save: {
+          label: '<i class="fa-solid fa-save"></i> Save Management Settings',
+          callback: async (html) => {
+            const newGroupId = html.find("#hs-mgmt-world-group-id").val()?.trim() || "";
+            await game.settings.set("heralds-silane", "worldGroupId", newGroupId);
+            ui.notifications?.info("World Management settings saved successfully.");
+          },
+        },
+        cancel: { label: "Cancel" },
+      },
+      default: "save",
+      render: (html) => {
+        applyDarkThemeToDialog(html);
+      },
+    },
+    { width: 450, height: "auto", classes: ["dialog", "silane-custom-dialog"] }
   ).render(true);
 }
 function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {
