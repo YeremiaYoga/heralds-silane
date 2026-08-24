@@ -218,7 +218,10 @@ export async function uploadImageToS3(file, s3Config) {
 }
 
 export async function downloadAndCacheImageToFoundry(url, filename) {
-  if (!url || typeof url !== "string") return url;
+  if (url && typeof url === "object") {
+    url = url.src || url.url || url.path || null;
+  }
+  if (!url || typeof url !== "string") return url || "icons/svg/mystery-man.svg";
   if (!url.startsWith("http://") && !url.startsWith("https://")) return url;
 
   try {

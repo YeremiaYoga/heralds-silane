@@ -663,17 +663,17 @@ function heraldSilane_openManagementModal() {
 
         <div>
           <label style="display: block; font-size: 11px; color: #a1a1aa; margin-bottom: 4px;">Endpoint</label>
-          <input type="text" id="hs-mgmt-s3-endpoint" value="${s3.endpoint || ""}" placeholder="(Kosong)" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 4px; font-size: 12px;" />
+          <input type="text" id="hs-mgmt-s3-endpoint" value="${s3.endpoint || ""}" placeholder="example.web.id" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 4px; font-size: 12px;" />
         </div>
 
         <div>
           <label style="display: block; font-size: 11px; color: #a1a1aa; margin-bottom: 4px;">Access Key ID</label>
-          <input type="text" id="hs-mgmt-s3-accessKeyId" value="${s3.accessKeyId || ""}" placeholder="(Kosong)" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 4px; font-size: 12px;" />
+          <input type="text" id="hs-mgmt-s3-accessKeyId" value="${s3.accessKeyId || ""}" placeholder="AKIAIOSFODNN7 - EXAMPLE ID" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 4px; font-size: 12px;" />
         </div>
 
         <div>
           <label style="display: block; font-size: 11px; color: #a1a1aa; margin-bottom: 4px;">Secret Access Key</label>
-          <input type="password" id="hs-mgmt-s3-secretAccessKey" value="${s3.secretAccessKey || ""}" placeholder="(Kosong)" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 4px; font-size: 12px;" />
+          <input type="password" id="hs-mgmt-s3-secretAccessKey" value="${s3.secretAccessKey || ""}" placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCY - EXAMPLE KEY" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 4px; font-size: 12px;" />
         </div>
 
         <div style="display: flex; gap: 10px;">
@@ -683,7 +683,7 @@ function heraldSilane_openManagementModal() {
           </div>
           <div style="flex: 1.5;">
             <label style="display: block; font-size: 11px; color: #a1a1aa; margin-bottom: 4px;">Bucket</label>
-            <input type="text" id="hs-mgmt-s3-bucket" value="${s3.bucket || ""}" placeholder="(Kosong)" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 4px; font-size: 12px;" />
+            <input type="text" id="hs-mgmt-s3-bucket" value="${s3.bucket || ""}" placeholder="my-bucket" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 4px; font-size: 12px;" />
           </div>
         </div>
       </div>

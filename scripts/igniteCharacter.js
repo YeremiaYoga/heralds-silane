@@ -625,14 +625,37 @@ function formatTreasureForFoundry(treasureInput) {
           }
         }
 
-        const rawPortrait = char.art_image || dataToImport.img || char.token_image || "icons/svg/mystery-man.svg";
-        const rawToken = char.token_image || char.art_image || dataToImport.prototypeToken?.texture?.src || rawPortrait;
+        const getStringUrl = (val) => {
+          if (!val) return null;
+          if (typeof val === "string") return val.trim();
+          if (typeof val === "object") {
+            return val.src || val.url || val.path || null;
+          }
+          return null;
+        };
+
+        const rawPortrait = getStringUrl(char.art_image) ||
+                           getStringUrl(char.npc_format?.img_portrait) ||
+                           getStringUrl(char.npc_format?.img_potrait) ||
+                           getStringUrl(dataToImport.img) ||
+                           "icons/svg/mystery-man.svg";
+
+        const rawToken = getStringUrl(char.token_image) ||
+                        getStringUrl(char.npc_format?.img_token) ||
+                        getStringUrl(char.bestiary?.img_token) ||
+                        getStringUrl(dataToImport.prototypeToken?.texture?.src) ||
+                        getStringUrl(dataToImport.prototypeToken?.texture) ||
+                        rawPortrait;
 
         if (!dataToImport.prototypeToken) dataToImport.prototypeToken = {};
         if (!dataToImport.prototypeToken.texture) dataToImport.prototypeToken.texture = {};
 
-        dataToImport.img = await downloadAndCacheImageToFoundry(rawPortrait, `${dataToImport.name || char.name || "actor"}_portrait`);
-        dataToImport.prototypeToken.texture.src = await downloadAndCacheImageToFoundry(rawToken, `${dataToImport.name || char.name || "actor"}_token`);
+        const cleanActorName = (dataToImport.name || char.name || "actor").replace(/[^a-zA-Z0-9_.-]/g, "_");
+        const portraitUrl = await downloadAndCacheImageToFoundry(rawPortrait, `${cleanActorName}_portrait`);
+        const tokenUrl = await downloadAndCacheImageToFoundry(rawToken, `${cleanActorName}_token`);
+
+        dataToImport.img = portraitUrl;
+        dataToImport.prototypeToken.texture.src = tokenUrl;
         dataToImport.prototypeToken.name = dataToImport.name || char.name;
 
         if (Array.isArray(dataToImport.items)) {
@@ -671,8 +694,13 @@ function formatTreasureForFoundry(treasureInput) {
         dataToImport.folder = userActorFolderId;
 
         const newActor = await Actor.create(dataToImport);
-        if (newActor && userActorFolderId) {
-          await newActor.update({ folder: userActorFolderId });
+        if (newActor) {
+          const updateObj = {
+            img: portraitUrl,
+            "prototypeToken.texture.src": tokenUrl
+          };
+          if (userActorFolderId) updateObj.folder = userActorFolderId;
+          await newActor.update(updateObj);
         }
 
         if (newActor) {
