@@ -218,4 +218,23 @@ Hooks.once("init", () => {
     type: String,
     default: ""
   });
+
+  game.settings.register("heralds-silane", "storageConfig", {
+    name: "Storage Configuration",
+    hint: "Storage method (Local / S3) and credentials for imported character assets",
+    scope: "world",
+    config: false,
+    type: Object,
+    default: {
+      method: "local",
+      localPath: "assets/silane/character/art",
+      s3: {
+        endpoint: "",
+        accessKeyId: "",
+        secretAccessKey: "",
+        region: "us-east-1",
+        bucket: ""
+      }
+    }
+  });
 });

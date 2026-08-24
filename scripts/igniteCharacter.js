@@ -1,4 +1,4 @@
-import { API_BASE_URL, applyDarkThemeToDialog } from "./helper.js";
+import { API_BASE_URL, applyDarkThemeToDialog, downloadAndCacheImageToFoundry } from "./helper.js";
 
 let igniteCharacters = [];
 let parentContainer = null;
@@ -625,19 +625,14 @@ function formatTreasureForFoundry(treasureInput) {
           }
         }
 
-        if (char.art_image) {
-          dataToImport.img = char.art_image;
-        } else if (!dataToImport.img) {
-          dataToImport.img = char.token_image || "icons/svg/mystery-man.svg";
-        }
+        const rawPortrait = char.art_image || dataToImport.img || char.token_image || "icons/svg/mystery-man.svg";
+        const rawToken = char.token_image || char.art_image || dataToImport.prototypeToken?.texture?.src || rawPortrait;
 
         if (!dataToImport.prototypeToken) dataToImport.prototypeToken = {};
         if (!dataToImport.prototypeToken.texture) dataToImport.prototypeToken.texture = {};
-        if (char.token_image) {
-          dataToImport.prototypeToken.texture.src = char.token_image;
-        } else if (char.art_image && !dataToImport.prototypeToken.texture.src) {
-          dataToImport.prototypeToken.texture.src = char.art_image;
-        }
+
+        dataToImport.img = await downloadAndCacheImageToFoundry(rawPortrait, `${dataToImport.name || char.name || "actor"}_portrait`);
+        dataToImport.prototypeToken.texture.src = await downloadAndCacheImageToFoundry(rawToken, `${dataToImport.name || char.name || "actor"}_token`);
         dataToImport.prototypeToken.name = dataToImport.name || char.name;
 
         if (Array.isArray(dataToImport.items)) {
@@ -673,13 +668,6 @@ function formatTreasureForFoundry(treasureInput) {
         const userActorFolder = await getOrCreateSilaneUserFolder(username, "Actor");
         const userActorFolderId = userActorFolder?.id || userActorFolder?._id;
 
-        const existingActor = game.actors.find(
-          (a) => a.name === dataToImport.name && (a.folder === userActorFolderId || a.folder?.id === userActorFolderId)
-        );
-        if (existingActor) {
-          await existingActor.delete();
-        }
-
         dataToImport.folder = userActorFolderId;
 
         const newActor = await Actor.create(dataToImport);
@@ -698,18 +686,22 @@ function formatTreasureForFoundry(treasureInput) {
             const userItemFolder = await getOrCreateSilaneUserFolder(username, "Item");
             const userItemFolderId = userItemFolder?.id || userItemFolder?._id;
 
-            const charFolderName = `${newActor.name} (${exportDate})`;
-            let charFolder = game.folders.find(
-              (f) =>
-                f.name === charFolderName &&
-                f.type === "Item" &&
-                (f.folder === userItemFolderId || f.folder?.id === userItemFolderId)
-            );
-            if (charFolder) {
-              await charFolder.delete({ deleteContents: true });
+            let baseFolderName = `${newActor.name} (${exportDate})`;
+            let charFolderName = baseFolderName;
+            let counter = 1;
+            while (
+              game.folders.find(
+                (f) =>
+                  f.name === charFolderName &&
+                  f.type === "Item" &&
+                  (f.folder === userItemFolderId || f.folder?.id === userItemFolderId)
+              )
+            ) {
+              charFolderName = `${baseFolderName} (${counter})`;
+              counter++;
             }
 
-            charFolder = await Folder.create({
+            const charFolder = await Folder.create({
               name: charFolderName,
               type: "Item",
               folder: userItemFolderId
@@ -799,9 +791,6 @@ export async function importCharacterById(input) {
   let existingActor = null;
   if (cleanCode) {
     existingActor = game.actors.get(cleanCode);
-  }
-  if (!existingActor && searchName) {
-    existingActor = game.actors.find(a => norm(a.name) === norm(searchName));
   }
 
   if (existingActor) {

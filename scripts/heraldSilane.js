@@ -524,6 +524,8 @@ function heraldSilane_openSettingsModal() {
   const currentSize = game.settings.get("heralds-silane", "windowSize");
   const currentDetail = game.settings.get("heralds-silane", "characterDetailMode");
   const currentApiMode = game.settings.get("heralds-silane", "apiMode") || "auto";
+  const currentWorldGroupId = game.settings.get("heralds-silane", "worldGroupId") || "";
+
   const content = `
     <div class="silane-settings-wrapper" style="padding: 10px; color: #f4f4f5;">
       <div class="silane-form-group" style="margin-bottom: 15px;">
@@ -551,6 +553,15 @@ function heraldSilane_openSettingsModal() {
           <option value="prod" style="background: #18181b; color: white;" ${currentApiMode === "prod" ? "selected" : ""}>Production</option>
         </select>
       </div>
+      ${game.user.isGM ? `
+        <hr style="border-color: #3f3f46; margin: 15px 0;" />
+        <div class="silane-form-group" style="margin-bottom: 5px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: bold; color: white;">
+            <i class="fa-solid fa-layer-group" style="color: #60a5fa; margin-right: 6px;"></i>World's Project Ignite Group ID (GM Only)
+          </label>
+          <input type="text" id="hs-setting-worldGroupId" class="silane-input" value="${currentWorldGroupId}" placeholder="e.g. Y5AfasnpznaA07gdQPxy" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 4px; font-size: 13px;" />
+        </div>
+      ` : ""}
     </div>
   `;
   new Dialog(
@@ -567,6 +578,10 @@ function heraldSilane_openSettingsModal() {
             await game.settings.set("heralds-silane", "windowSize", newSize);
             await game.settings.set("heralds-silane", "characterDetailMode", newDetail);
             await game.settings.set("heralds-silane", "apiMode", newApiMode);
+            if (game.user.isGM) {
+              const newWorldGroupId = html.find("#hs-setting-worldGroupId").val()?.trim() || "";
+              await game.settings.set("heralds-silane", "worldGroupId", newWorldGroupId);
+            }
             initializeApiBaseUrl();
             if (heraldSilane_currentDialog) {
               const dims = heraldSilane_getWindowDimensions();
@@ -605,14 +620,72 @@ function heraldSilane_openManagementModal() {
   }
 
   const currentWorldGroupId = game.settings.get("heralds-silane", "worldGroupId") || "";
+  let currentStorage = game.settings.get("heralds-silane", "storageConfig");
+  if (!currentStorage) {
+    currentStorage = {
+      method: "local",
+      localPath: "assets/silane/character/art",
+      s3: { endpoint: "", accessKeyId: "", secretAccessKey: "", region: "us-east-1", bucket: "" }
+    };
+  }
+
+  const s3 = currentStorage.s3 || {};
 
   const content = `
-    <div class="silane-settings-wrapper" style="padding: 10px; color: #f4f4f5;">
-      <div class="silane-form-group" style="margin-bottom: 5px;">
-        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: white; font-size: 13px;">
+    <div class="silane-settings-wrapper" style="padding: 12px 12px 20px 12px; color: #f4f4f5; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box;">
+      <div class="silane-form-group">
+        <label style="display: block; margin-bottom: 6px; font-weight: bold; color: white; font-size: 13px;">
           <i class="fa-solid fa-layer-group" style="color: #60a5fa; margin-right: 6px;"></i>World's Project Ignite Group ID
         </label>
         <input type="text" id="hs-mgmt-world-group-id" class="silane-input" value="${currentWorldGroupId}" placeholder="e.g. Y5AfasnpznaA07gdQPxy" style="width: 100%; padding: 8px 10px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 6px; font-size: 13px; outline: none;" />
+      </div>
+
+      <hr style="border: 0; border-top: 1px solid #3f3f46; margin: 4px 0;" />
+
+      <div class="silane-form-group">
+        <label style="display: block; margin-bottom: 6px; font-weight: bold; color: white; font-size: 13px;">
+          <i class="fa-solid fa-hard-drive" style="color: #34d399; margin-right: 6px;"></i>Storage Method
+        </label>
+        <select id="hs-mgmt-storage-method" class="silane-input" style="width: 100%; padding: 8px 10px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 6px; font-size: 13px;">
+          <option value="local" style="background: #18181b; color: white;" ${currentStorage.method === "local" ? "selected" : ""}>Local Storage (Foundry VTT)</option>
+          <option value="s3" style="background: #18181b; color: white;" ${currentStorage.method === "s3" ? "selected" : ""}>S3 Bucket</option>
+        </select>
+      </div>
+
+      <div id="hs-mgmt-local-info" style="display: ${currentStorage.method === "local" ? "block" : "none"}; background: rgba(24, 24, 27, 0.6); padding: 10px; border-radius: 6px; border: 1px solid #3f3f46; font-size: 12px; color: #a1a1aa; margin-bottom: 12px;">
+        <i class="fa-solid fa-folder-tree" style="color: #60a5fa; margin-right: 6px;"></i>Imported character art & token assets will be stored in: <br/><strong style="color: #f4f4f5;">assets/silane/character/art</strong>
+      </div>
+
+      <div id="hs-mgmt-s3-container" style="display: ${currentStorage.method === "s3" ? "flex" : "none"}; flex-direction: column; gap: 10px; background: rgba(24, 24, 27, 0.6); padding: 14px; border-radius: 6px; border: 1px solid #3f3f46; margin-bottom: 16px;">
+        <div style="font-size: 12px; font-weight: bold; color: #34d399; display: flex; align-items: center; gap: 6px;">
+          <i class="fa-solid fa-cloud-arrow-up"></i> S3 Bucket Configuration
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 11px; color: #a1a1aa; margin-bottom: 4px;">Endpoint</label>
+          <input type="text" id="hs-mgmt-s3-endpoint" value="${s3.endpoint || ""}" placeholder="(Kosong)" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 4px; font-size: 12px;" />
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 11px; color: #a1a1aa; margin-bottom: 4px;">Access Key ID</label>
+          <input type="text" id="hs-mgmt-s3-accessKeyId" value="${s3.accessKeyId || ""}" placeholder="(Kosong)" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 4px; font-size: 12px;" />
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 11px; color: #a1a1aa; margin-bottom: 4px;">Secret Access Key</label>
+          <input type="password" id="hs-mgmt-s3-secretAccessKey" value="${s3.secretAccessKey || ""}" placeholder="(Kosong)" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 4px; font-size: 12px;" />
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+          <div style="flex: 1;">
+            <label style="display: block; font-size: 11px; color: #a1a1aa; margin-bottom: 4px;">Region</label>
+            <input type="text" id="hs-mgmt-s3-region" value="${s3.region || "us-east-1"}" placeholder="us-east-1" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 4px; font-size: 12px;" />
+          </div>
+          <div style="flex: 1.5;">
+            <label style="display: block; font-size: 11px; color: #a1a1aa; margin-bottom: 4px;">Bucket</label>
+            <input type="text" id="hs-mgmt-s3-bucket" value="${s3.bucket || ""}" placeholder="(Kosong)" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 4px; font-size: 12px;" />
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -627,6 +700,20 @@ function heraldSilane_openManagementModal() {
           callback: async (html) => {
             const newGroupId = html.find("#hs-mgmt-world-group-id").val()?.trim() || "";
             await game.settings.set("heralds-silane", "worldGroupId", newGroupId);
+
+            const method = html.find("#hs-mgmt-storage-method").val() || "local";
+            const newStorageConfig = {
+              method,
+              localPath: "assets/silane/character/art",
+              s3: {
+                endpoint: html.find("#hs-mgmt-s3-endpoint").val()?.trim() || "",
+                accessKeyId: html.find("#hs-mgmt-s3-accessKeyId").val()?.trim() || "",
+                secretAccessKey: html.find("#hs-mgmt-s3-secretAccessKey").val()?.trim() || "",
+                region: html.find("#hs-mgmt-s3-region").val()?.trim() || "us-east-1",
+                bucket: html.find("#hs-mgmt-s3-bucket").val()?.trim() || ""
+              }
+            };
+            await game.settings.set("heralds-silane", "storageConfig", newStorageConfig);
             ui.notifications?.info("World Management settings saved successfully.");
           },
         },
@@ -635,9 +722,21 @@ function heraldSilane_openManagementModal() {
       default: "save",
       render: (html) => {
         applyDarkThemeToDialog(html);
+        html.find("#hs-mgmt-storage-method").on("change", (e) => {
+          const val = e.target.value;
+          html.find("#hs-mgmt-local-info").toggle(val === "local");
+          html.find("#hs-mgmt-s3-container").css("display", val === "s3" ? "flex" : "none");
+          applyDarkThemeToDialog(html);
+
+          const app = html.closest(".app");
+          if (app.length) {
+            app.css({ height: "auto", "max-height": "88vh" });
+            app.find(".window-content").css({ "max-height": "76vh", "overflow-y": "auto" });
+          }
+        });
       },
     },
-    { width: 450, height: "auto", classes: ["dialog", "silane-custom-dialog"] }
+    { width: 480, height: "auto", classes: ["dialog", "silane-custom-dialog"] }
   ).render(true);
 }
 function heraldSilane_openUploadModal(activeTab, onSuccessCallback) {

@@ -37,6 +37,15 @@ async function fetchGroupsData() {
 
     state.owned = result.owned || [];
     state.member = result.member || [];
+
+    const worldGroupId = game.settings.get("heralds-silane", "worldGroupId");
+    if (worldGroupId && !state.currentGroupId) {
+      const allGroups = [...state.owned, ...state.member];
+      if (allGroups.some(g => g.id === worldGroupId || g._id === worldGroupId)) {
+        state.currentGroupId = worldGroupId;
+      }
+    }
+
     render();
   } catch (error) {
     console.error("Failed to fetch groups data:", error);
