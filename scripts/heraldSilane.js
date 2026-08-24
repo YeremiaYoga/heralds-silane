@@ -557,7 +557,7 @@ function heraldSilane_openSettingsModal() {
         <hr style="border-color: #3f3f46; margin: 15px 0;" />
         <div class="silane-form-group" style="margin-bottom: 5px;">
           <label style="display: block; margin-bottom: 5px; font-weight: bold; color: white;">
-            <i class="fa-solid fa-layer-group" style="color: #60a5fa; margin-right: 6px;"></i>World's Project Ignite Group ID (GM Only)
+            <i class="fa-solid fa-layer-group" style="color: #60a5fa; margin-right: 6px;"></i>World Group Silane ID (GM Only)
           </label>
           <input type="text" id="hs-setting-worldGroupId" class="silane-input" value="${currentWorldGroupId}" placeholder="e.g. Y5AfasnpznaA07gdQPxy" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 4px; font-size: 13px;" />
         </div>
@@ -635,7 +635,7 @@ function heraldSilane_openManagementModal() {
     <div class="silane-settings-wrapper" style="padding: 12px 12px 20px 12px; color: #f4f4f5; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box;">
       <div class="silane-form-group">
         <label style="display: block; margin-bottom: 6px; font-weight: bold; color: white; font-size: 13px;">
-          <i class="fa-solid fa-layer-group" style="color: #60a5fa; margin-right: 6px;"></i>World's Project Ignite Group ID
+          <i class="fa-solid fa-layer-group" style="color: #60a5fa; margin-right: 6px;"></i>World Group Silane ID
         </label>
         <input type="text" id="hs-mgmt-world-group-id" class="silane-input" value="${currentWorldGroupId}" placeholder="e.g. Y5AfasnpznaA07gdQPxy" style="width: 100%; padding: 8px 10px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 6px; font-size: 13px; outline: none;" />
       </div>

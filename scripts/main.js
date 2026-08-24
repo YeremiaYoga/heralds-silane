@@ -211,8 +211,8 @@ Hooks.once("init", () => {
   });
 
   game.settings.register("heralds-silane", "worldGroupId", {
-    name: "World Group ID",
-    hint: "The Silane Group ID for this world's Project Ignite Group",
+    name: "World Group Silane ID",
+    hint: "The Silane Group ID for this world",
     scope: "world",
     config: false,
     type: String,

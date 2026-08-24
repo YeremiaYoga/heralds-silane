@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./helper.js";
+import { API_BASE_URL, downloadAndCacheImageToFoundry, sanitizeFoundryItems } from "./helper.js";
 
 let parentContainer = null;
 let currentItems = [];
@@ -383,6 +383,26 @@ async function importBestiaryToFoundry(id) {
       };
     }
 
+    const getStringUrl = (val) => {
+      if (!val) return null;
+      if (typeof val === "string") return val.trim();
+      if (typeof val === "object") return val.src || val.url || val.path || null;
+      return null;
+    };
+
+    const rawPortrait = getStringUrl(itemData.img_portrait) || getStringUrl(itemData.image) || getStringUrl(rawData.img) || "icons/svg/mystery-man.svg";
+    const rawToken = getStringUrl(itemData.img_token) || getStringUrl(itemData.image) || getStringUrl(rawData.prototypeToken?.texture?.src) || rawPortrait;
+
+    const cleanCreatureName = (itemData.name || "creature").replace(/[^a-zA-Z0-9_.-]/g, "_");
+    const portraitUrl = await downloadAndCacheImageToFoundry(rawPortrait, `${cleanCreatureName}_portrait`);
+    const tokenUrl = await downloadAndCacheImageToFoundry(rawToken, `${cleanCreatureName}_token`);
+
+    rawData.img = portraitUrl;
+    if (!rawData.prototypeToken) rawData.prototypeToken = {};
+    if (!rawData.prototypeToken.texture) rawData.prototypeToken.texture = {};
+    rawData.prototypeToken.texture.src = tokenUrl;
+    rawData.prototypeToken.name = itemData.name;
+
     let existingItems = Array.isArray(rawData.items) && rawData.items.length > 0
       ? rawData.items
       : [
@@ -395,7 +415,7 @@ async function importBestiaryToFoundry(id) {
     const nonSpellItems = existingItems.filter((it) => (it?.type || "").toLowerCase() !== "spell");
     const spellsFromCol = Array.isArray(itemData.spells) ? itemData.spells : [];
 
-    const combined = [...nonSpellItems, ...spellsFromCol];
+    const combined = sanitizeFoundryItems([...nonSpellItems, ...spellsFromCol]);
 
     const uniqueItems = [];
     const seen = new Set();
@@ -411,6 +431,10 @@ async function importBestiaryToFoundry(id) {
     delete rawData._id;
     const createdActor = await Actor.create(rawData);
     if (createdActor) {
+      await createdActor.update({
+        img: portraitUrl,
+        "prototypeToken.texture.src": tokenUrl
+      });
       ui.notifications?.info(`Imported "${createdActor.name}" to Foundry Actors!`);
     }
   } catch (err) {

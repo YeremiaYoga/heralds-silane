@@ -115,14 +115,14 @@ export async function uploadImageToS3(file, s3Config) {
     return null;
   }
 
-  // Attempt native Foundry S3 upload if no custom credentials supplied
-  if (!accessKeyId || !secretAccessKey) {
+  // 1. Attempt native Foundry S3 upload if FilePicker and S3 source are available
+  if (typeof FilePicker !== "undefined" && FilePicker._sources?.s3 && typeof FilePicker.upload === "function") {
     try {
       const targetDir = "assets/silane/character/art";
       const uploadRes = await FilePicker.upload("s3", targetDir, file, { bucket });
       if (uploadRes && uploadRes.path) return uploadRes.path;
     } catch (e) {
-      console.warn("Foundry FilePicker S3 upload fallback failed:", e);
+      console.warn("Foundry FilePicker S3 upload fallback failed, proceeding to SigV4 REST API:", e);
     }
   }
 
@@ -142,7 +142,8 @@ export async function uploadImageToS3(file, s3Config) {
   const objectPath = `assets/silane/character/art/${cleanFilename}`;
 
   let host = "";
-  let s3Url = "";
+  let primaryS3Url = "";
+  let secondaryS3Url = "";
   let path = "";
 
   if (endpoint && endpoint.trim()) {
@@ -152,11 +153,18 @@ export async function uploadImageToS3(file, s3Config) {
     }
     const urlObj = new URL(cleanEndpoint);
     host = urlObj.host;
-    s3Url = `${cleanEndpoint}/${bucket}/${objectPath}`;
-    path = `/${bucket}/${objectPath}`;
+
+    if (host.startsWith(`${bucket}.`)) {
+      primaryS3Url = `${cleanEndpoint}/${objectPath}`;
+      path = `/${objectPath}`;
+    } else {
+      primaryS3Url = `${cleanEndpoint}/${bucket}/${objectPath}`;
+      secondaryS3Url = `${cleanEndpoint}/${objectPath}`;
+      path = `/${bucket}/${objectPath}`;
+    }
   } else {
     host = `${bucket}.s3.${region}.amazonaws.com`;
-    s3Url = `https://${host}/${objectPath}`;
+    primaryS3Url = `https://${host}/${objectPath}`;
     path = `/${objectPath}`;
   }
 
@@ -194,27 +202,53 @@ export async function uploadImageToS3(file, s3Config) {
 
   const authorizationHeader = `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
-  const uploadResponse = await fetch(s3Url, {
-    method: "PUT",
-    headers: {
-      "Host": host,
-      "x-amz-date": amzDate,
-      "x-amz-content-sha256": payloadHash,
-      "Authorization": authorizationHeader,
-      "Content-Type": file.type || "application/octet-stream"
-    },
-    body: fileBytes
-  });
+  // Try primary URL
+  try {
+    const uploadResponse = await fetch(primaryS3Url, {
+      method: "PUT",
+      headers: {
+        "Host": host,
+        "x-amz-date": amzDate,
+        "x-amz-content-sha256": payloadHash,
+        "Authorization": authorizationHeader,
+        "Content-Type": file.type || "application/octet-stream"
+      },
+      body: fileBytes
+    });
 
-  if (!uploadResponse.ok) {
-    const errText = await uploadResponse.text();
-    console.error("S3 Upload Error:", errText);
-    ui.notifications?.error(`S3 Upload failed (${uploadResponse.status}).`);
-    return null;
+    if (uploadResponse.ok) {
+      ui.notifications?.info(`Asset successfully uploaded to S3 Bucket [${bucket}]`);
+      return primaryS3Url;
+    }
+  } catch (err) {
+    console.warn("Primary S3 upload failed:", err);
   }
 
-  ui.notifications?.info(`Asset successfully uploaded to S3 Bucket [${bucket}]`);
-  return s3Url;
+  // Try secondary URL (without bucket path prefix)
+  if (secondaryS3Url) {
+    try {
+      const uploadResponse = await fetch(secondaryS3Url, {
+        method: "PUT",
+        headers: {
+          "Host": host,
+          "x-amz-date": amzDate,
+          "x-amz-content-sha256": payloadHash,
+          "Authorization": authorizationHeader,
+          "Content-Type": file.type || "application/octet-stream"
+        },
+        body: fileBytes
+      });
+
+      if (uploadResponse.ok) {
+        ui.notifications?.info(`Asset successfully uploaded to S3 Bucket [${bucket}]`);
+        return secondaryS3Url;
+      }
+    } catch (err) {
+      console.warn("Secondary S3 upload failed:", err);
+    }
+  }
+
+  return null;
 }
 
 export async function downloadAndCacheImageToFoundry(url, filename) {
@@ -238,10 +272,65 @@ export async function downloadAndCacheImageToFoundry(url, filename) {
       };
     }
 
-    const response = await fetch(url);
-    if (!response.ok) return url;
+    let blob = null;
 
-    const blob = await response.blob();
+    // 1. Try direct fetch
+    try {
+      const res = await fetch(url);
+      if (res.ok) blob = await res.blob();
+    } catch (e) {}
+
+    // 2. Try proxy via silane_assets (bypasses browser CORS restrictions on external domain)
+    if (!blob) {
+      try {
+        const proxyUrl = `${API_BASE_URL}/api/silane_assets/proxy-image?url=${encodeURIComponent(url)}`;
+        const res = await fetch(proxyUrl);
+        if (res.ok) blob = await res.blob();
+      } catch (e) {}
+    }
+
+    // 3. Try proxy via root API
+    if (!blob) {
+      try {
+        const proxyUrl = `${API_BASE_URL}/api/proxy-image?url=${encodeURIComponent(url)}`;
+        const res = await fetch(proxyUrl);
+        if (res.ok) blob = await res.blob();
+      } catch (e) {}
+    }
+
+    // 4. Try replacing http with https
+    if (!blob && url.startsWith("http://")) {
+      try {
+        const httpsUrl = url.replace("http://", "https://");
+        const res = await fetch(httpsUrl);
+        if (res.ok) blob = await res.blob();
+      } catch (e) {}
+    }
+
+    if (!blob) {
+      blob = await new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.naturalWidth || img.width || 300;
+            canvas.height = img.naturalHeight || img.height || 300;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+            try {
+              canvas.toBlob((b) => resolve(b), "image/png");
+            } catch (err) {
+              resolve(null);
+            }
+          } catch (err) { resolve(null); }
+        };
+        img.onerror = () => resolve(null);
+        img.src = url;
+      });
+    }
+
+    if (!blob) return url;
+
     const mimeType = blob.type || "image/png";
     let ext = "png";
     if (mimeType.includes("jpeg") || mimeType.includes("jpg")) ext = "jpg";
@@ -270,4 +359,55 @@ export async function downloadAndCacheImageToFoundry(url, filename) {
     console.warn("Silane Storage Helper: Failed to cache image, using original URL:", err);
   }
   return url;
+}
+
+export function sanitizeFoundryItems(items) {
+  if (!Array.isArray(items)) return [];
+
+  return items.map((item) => {
+    if (!item || typeof item !== "object") return item;
+
+    // Fix spell innate suffix
+    if (item.type === "spell" && item.name) {
+      if (item.name.endsWith(" (In)") || item.name.endsWith(" (in)")) {
+        item.name = item.name.slice(0, -5) + " (IN)";
+      } else if (item.name.endsWith("(In)") || item.name.endsWith("(in)")) {
+        item.name = item.name.slice(0, -4) + " (IN)";
+      }
+
+      if (item.name.endsWith("(In)") || item.name.endsWith("(IN)")) {
+        if (!item.system) item.system = {};
+        item.system.method = "innate";
+        item.system.prepared = 0;
+        delete item.system.preparation;
+      }
+    }
+
+    // Fix D&D 5e v3+ Activities validation errors (e.g. SummonActivity profiles validation error like dnd5eactivity001)
+    if (item.system && item.system.activities && typeof item.system.activities === "object") {
+      Object.entries(item.system.activities).forEach(([actId, activity]) => {
+        if (activity && typeof activity === "object") {
+          // Fix SummonActivity profiles validation requirement for any summon activity or activity with empty profiles
+          if (activity.type === "summon" || actId.toLowerCase().includes("summon") || activity.profiles !== undefined) {
+            if (!Array.isArray(activity.profiles) || activity.profiles.length === 0) {
+              const profileId = (typeof foundry !== "undefined" && foundry.utils?.randomID)
+                ? foundry.utils.randomID()
+                : "profile00000000";
+              activity.profiles = [
+                {
+                  _id: profileId,
+                  name: "",
+                  uuid: "",
+                  count: "1",
+                  level: { min: null, max: null }
+                }
+              ];
+            }
+          }
+        }
+      });
+    }
+
+    return item;
+  });
 }

@@ -1,4 +1,4 @@
-import { API_BASE_URL, applyDarkThemeToDialog, downloadAndCacheImageToFoundry } from "./helper.js";
+import { API_BASE_URL, applyDarkThemeToDialog, downloadAndCacheImageToFoundry, sanitizeFoundryItems } from "./helper.js";
 
 let igniteCharacters = [];
 let parentContainer = null;
@@ -647,36 +647,22 @@ function formatTreasureForFoundry(treasureInput) {
                         getStringUrl(dataToImport.prototypeToken?.texture) ||
                         rawPortrait;
 
-        if (!dataToImport.prototypeToken) dataToImport.prototypeToken = {};
-        if (!dataToImport.prototypeToken.texture) dataToImport.prototypeToken.texture = {};
-
         const cleanActorName = (dataToImport.name || char.name || "actor").replace(/[^a-zA-Z0-9_.-]/g, "_");
         const portraitUrl = await downloadAndCacheImageToFoundry(rawPortrait, `${cleanActorName}_portrait`);
         const tokenUrl = await downloadAndCacheImageToFoundry(rawToken, `${cleanActorName}_token`);
 
         dataToImport.img = portraitUrl;
-        dataToImport.prototypeToken.texture.src = tokenUrl;
+        if (!dataToImport.prototypeToken || typeof dataToImport.prototypeToken !== "object") {
+          dataToImport.prototypeToken = {};
+        }
         dataToImport.prototypeToken.name = dataToImport.name || char.name;
+        dataToImport.prototypeToken.texture = { src: tokenUrl };
 
         if (Array.isArray(dataToImport.items)) {
+          const sanitized = sanitizeFoundryItems(dataToImport.items);
           const uniqueItems = [];
           const seenKeys = new Set();
-          for (const item of dataToImport.items) {
-            if (item.type === "spell") {
-              if (item.name.endsWith(" (In)") || item.name.endsWith(" (in)")) {
-                item.name = item.name.slice(0, -5) + " (IN)";
-              } else if (item.name.endsWith("(In)") || item.name.endsWith("(in)")) {
-                item.name = item.name.slice(0, -4) + " (IN)";
-              }
-
-              if (item.name.endsWith("(In)") || item.name.endsWith("(IN)")) {
-                if (!item.system) item.system = {};
-                item.system.method = "innate";
-                item.system.prepared = 0;
-                delete item.system.preparation;
-              }
-            }
-
+          for (const item of sanitized) {
             const key = `${item.type}-${item.name}`;
             if (["spell", "feat", "feature", "race-feat", "race", "class", "subclass"].includes(item.type)) {
               if (seenKeys.has(key)) continue;
@@ -697,10 +683,32 @@ function formatTreasureForFoundry(treasureInput) {
         if (newActor) {
           const updateObj = {
             img: portraitUrl,
+            prototypeToken: {
+              name: newActor.name,
+              texture: { src: tokenUrl }
+            },
             "prototypeToken.texture.src": tokenUrl
           };
           if (userActorFolderId) updateObj.folder = userActorFolderId;
+
+          // Replace token & portrait on newly created actor
           await newActor.update(updateObj);
+
+          // Replace token & portrait on any existing actor in the world with the same name
+          const targetName = newActor.name;
+          const matchingActors = game.actors.filter((a) => a.name === targetName);
+          for (const actor of matchingActors) {
+            try {
+              await actor.update({
+                img: portraitUrl,
+                prototypeToken: {
+                  name: actor.name,
+                  texture: { src: tokenUrl }
+                },
+                "prototypeToken.texture.src": tokenUrl
+              });
+            } catch (e) {}
+          }
         }
 
         if (newActor) {

@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./helper.js";
+import { API_BASE_URL, downloadAndCacheImageToFoundry, sanitizeFoundryItems } from "./helper.js";
 let characterData = { items: [] };
 let currentFolderId = null;
 let parentContainer = null;
@@ -332,8 +332,29 @@ async function importCharacterToFoundry(characterItem) {
     ui.notifications?.info(`Importing ${actorData.name} into Foundry...`);
     const dataToImport = foundry.utils.deepClone(actorData);
     delete dataToImport._id;
+
+    const cleanCharName = (dataToImport.name || "character").replace(/[^a-zA-Z0-9_.-]/g, "_");
+    const rawPortrait = dataToImport.img || "icons/svg/mystery-man.svg";
+    const rawToken = dataToImport.prototypeToken?.texture?.src || rawPortrait;
+
+    const portraitUrl = await downloadAndCacheImageToFoundry(rawPortrait, `${cleanCharName}_portrait`);
+    const tokenUrl = await downloadAndCacheImageToFoundry(rawToken, `${cleanCharName}_token`);
+
+    dataToImport.img = portraitUrl;
+    if (!dataToImport.prototypeToken) dataToImport.prototypeToken = {};
+    if (!dataToImport.prototypeToken.texture) dataToImport.prototypeToken.texture = {};
+    dataToImport.prototypeToken.texture.src = tokenUrl;
+
+    if (Array.isArray(dataToImport.items)) {
+      dataToImport.items = sanitizeFoundryItems(dataToImport.items);
+    }
+
     const newActor = await Actor.create(dataToImport);
     if (newActor) {
+      await newActor.update({
+        img: portraitUrl,
+        "prototypeToken.texture.src": tokenUrl
+      });
       ui.notifications?.info(
         `Success! Actor [${newActor.name}] has been created.`,
       );
