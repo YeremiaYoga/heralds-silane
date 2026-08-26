@@ -91,7 +91,7 @@ function renderUI() {
       </div>
       ${showGrid ? `
       <div class="bs-toolbar" style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;align-items:center;">
-        <div class="bs-search-box" style="width:100%;height:32px;box-sizing:border-radius:6px;">
+        <div class="bs-search-box" style="width:100%;height:32px;box-sizing:border-box;">
           <i class="fa-solid fa-search" style="color:#71717a;"></i>
           <input type="text" id="bs-search" placeholder="Search creatures..." value="${searchQuery}" style="width:100%;" />
         </div>
@@ -107,13 +107,28 @@ function renderUI() {
           <i class="fa-solid fa-user-plus"></i> Select Character
         </button>
       </div>
-      <div id="bs-list" class="bs-list"></div>
-      <div id="bs-bulk-bar" class="bs-bulk-bar">
-        <span id="bs-bulk-count">0</span>
-        <button id="bs-bulk-import" class="bs-bulk-btn import-bulk" style="color:#10b981; display:none;"><i class="fa-solid fa-download"></i> Import to Foundry</button>
-        <button id="bs-bulk-delete" class="bs-bulk-btn delete-bulk" style="color:#ef4444;"><i class="fa-solid fa-trash"></i> Delete</button>
-        <button id="bs-bulk-deselect" class="bs-bulk-btn deselect-bulk"><i class="fa-solid fa-xmark"></i></button>
-      </div>` : `<div id="bs-user-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px;"></div>`}
+      <div class="bs-selection-bar">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button id="bs-bulk-select-all" class="bs-sub-btn" title="Select All Visible Creatures">
+            <i class="fa-solid fa-check-double"></i> Select All
+          </button>
+          <button id="bs-bulk-deselect" class="bs-sub-btn" title="Unselect All Creatures">
+            <i class="fa-solid fa-xmark"></i> Unselect All
+          </button>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span id="bs-bulk-count" class="bs-bulk-count-badge">
+            ${selectedCards.size} Selected
+          </span>
+          <button id="bs-bulk-import" class="bs-sub-btn import" title="Import Selected Creatures to Foundry">
+            <i class="fa-solid fa-file-import"></i> Import Selected
+          </button>
+          <button id="bs-bulk-delete" class="bs-sub-btn delete" title="Delete Selected Creatures">
+            <i class="fa-solid fa-trash"></i> Delete Selected
+          </button>
+        </div>
+      </div>
+      <div id="bs-list" class="bs-list"></div>` : `<div id="bs-user-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px;"></div>`}
     </div>
   `;
 
@@ -234,9 +249,13 @@ function renderList() {
     const hasImg = rawImg && rawImg !== "null" && rawImg !== "undefined";
     const crDisplay = item.cr !== undefined && item.cr !== null ? `CR ${item.cr}` : "CR -";
     const typeDisplay = item.creature_type || item.type || "npc";
+    const isSelected = selectedCards.has(item.id);
 
     return `
-      <div class="bs-card" data-id="${item.id}" title="${item.name}">
+      <div class="bs-card ${isSelected ? 'selected' : ''}" data-id="${item.id}" title="${item.name}">
+        <div class="bs-card-select-checkbox" title="Select Creature">
+          <i class="fa-solid fa-check"></i>
+        </div>
         <div class="bs-card-img">
           ${hasImg ? `<img src="${rawImg}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />` : ""}
           <div class="bs-card-img-fallback" ${hasImg ? 'style="display:none;"' : ""}><i class="fa-solid fa-dragon"></i></div>
@@ -247,7 +266,7 @@ function renderList() {
           <span class="bs-badge-type">${typeDisplay}</span>
         </div>
         <div class="bs-card-actions">
-          <button class="bs-btn-icon import" data-id="${item.id}" title="Import to Foundry" style="display:none;"><i class="fa-solid fa-download"></i></button>
+          <button class="bs-btn-icon import" data-id="${item.id}" title="Import to Foundry (World Management)"><i class="fa-solid fa-file-import"></i></button>
           <button class="bs-btn-icon delete" data-id="${item.id}" title="Delete"><i class="fa-solid fa-trash"></i></button>
         </div>
       </div>`;
@@ -333,6 +352,22 @@ function attachEvents() {
     });
   }
 
+  const bulkSelectAll = document.getElementById("bs-bulk-select-all");
+  if (bulkSelectAll) {
+    bulkSelectAll.addEventListener("click", () => {
+      let items = currentItems;
+      if (activeFilters.size > 0) {
+        items = items.filter((i) => {
+          const t = (i.creature_type || i.type || "").toLowerCase();
+          return Array.from(activeFilters).some(f => t.includes(f));
+        });
+      }
+      items.forEach(item => selectedCards.add(item.id));
+      renderList();
+      updateBulkBar();
+    });
+  }
+
   const bulkImport = document.getElementById("bs-bulk-import");
   if (bulkImport) bulkImport.addEventListener("click", () => bulkImportToFoundry());
   const bulkDelete = document.getElementById("bs-bulk-delete");
@@ -340,20 +375,15 @@ function attachEvents() {
   const bulkDeselect = document.getElementById("bs-bulk-deselect");
   if (bulkDeselect) bulkDeselect.addEventListener("click", () => {
     selectedCards.clear();
-    document.querySelectorAll(".bs-card.selected").forEach((c) => c.classList.remove("selected"));
+    renderList();
     updateBulkBar();
   });
 }
 
 function updateBulkBar() {
-  const bar = document.getElementById("bs-bulk-bar");
   const count = document.getElementById("bs-bulk-count");
-  if (!bar) return;
-  if (selectedCards.size > 0) {
-    bar.style.display = "flex";
-    count.textContent = `${selectedCards.size} selected`;
-  } else {
-    bar.style.display = "none";
+  if (count) {
+    count.textContent = `${selectedCards.size} Selected`;
   }
 }
 
@@ -429,13 +459,28 @@ async function importBestiaryToFoundry(id) {
     rawData.items = uniqueItems;
 
     delete rawData._id;
+
+    let rootFolder = game.folders.find(
+      (f) => f.name === "Silane Bestiary Import" && f.type === "Actor" && (!f.folder || f.folder === null)
+    );
+    if (!rootFolder) {
+      rootFolder = await Folder.create({
+        name: "Silane Bestiary Import",
+        type: "Actor",
+        color: "#6366f1",
+      });
+    }
+    if (rootFolder?.id || rootFolder?._id) {
+      rawData.folder = rootFolder.id || rootFolder._id;
+    }
+
     const createdActor = await Actor.create(rawData);
     if (createdActor) {
       await createdActor.update({
         img: portraitUrl,
         "prototypeToken.texture.src": tokenUrl
       });
-      ui.notifications?.info(`Imported "${createdActor.name}" to Foundry Actors!`);
+      ui.notifications?.info(`Imported "${createdActor.name}" to Foundry (via World Management System)!`);
     }
   } catch (err) {
     console.error("Bestiary import error:", err);

@@ -5,6 +5,7 @@ let parentContainer = null;
 let searchQuery = "";
 let currentTypeFilter = "player"; // "player" | "npc"
 let currentSilaneUsername = "";
+let selectedIgniteCharIds = new Set();
 
 function isNpcChar(char) {
   const t = String(char?.character_type || char?.type || "").toLowerCase().trim();
@@ -21,7 +22,7 @@ const injectIgniteCharacterStyles = () => {
   const style = document.createElement("style");
   style.id = "ignite-character-modern-styles";
   style.innerHTML = `
-    .ig-container { display: flex; flex-direction: column; height: 100%; width: 100%; color: #f4f4f5; padding-top: 5px; }
+    .ig-container { display: flex; flex-direction: column; height: 100%; width: 100%; color: #f4f4f5; padding-top: 5px; position: relative; }
     .ig-type-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
     .ig-tab-btn { flex: 1; height: 34px; border-radius: 6px; border: 1px solid #3f3f46; background: rgba(0, 0, 0, 0.25); color: #a1a1aa; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; user-select: none; }
     .ig-tab-btn:hover { border-color: #71717a; color: #f4f4f5; background: rgba(255, 255, 255, 0.05); }
@@ -37,8 +38,19 @@ const injectIgniteCharacterStyles = () => {
     .ig-list-area { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 5px; }
     .ig-list-area::-webkit-scrollbar { width: 6px; }
     .ig-list-area::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
-    .ig-row-card { display: flex; align-items: center; padding: 10px 14px; background: rgba(0, 0, 0, 0.3); border: 1px solid #3f3f46; border-radius: 8px; transition: all 0.2s; user-select: none; gap: 14px; }
+    .ig-row-card { display: flex; align-items: center; padding: 10px 14px; background: rgba(0, 0, 0, 0.3); border: 1px solid #3f3f46; border-radius: 8px; transition: all 0.2s; user-select: none; gap: 14px; cursor: pointer; position: relative; }
     .ig-row-card:hover { background: rgba(0, 0, 0, 0.5); border-color: #52525b; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    .ig-row-card.selected { border-color: #3b82f6; background: rgba(59, 130, 246, 0.12); box-shadow: 0 0 12px rgba(59, 130, 246, 0.25); }
+    .ig-card-select-checkbox { width: 22px; height: 22px; border-radius: 6px; border: 1px solid #52525b; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; color: transparent; font-size: 12px; transition: all 0.2s; flex-shrink: 0; }
+    .ig-row-card.selected .ig-card-select-checkbox { border-color: #3b82f6; background: #3b82f6; color: #ffffff; }
+
+    .ig-selection-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: rgba(0,0,0,0.25); border: 1px solid #3f3f46; border-radius: 6px; flex-shrink: 0; margin-bottom: 12px; box-sizing: border-box; }
+    .ig-bulk-count-badge { font-size: 11px; font-weight: 700; color: #60a5fa; background: rgba(59,130,246,0.15); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(59,130,246,0.3); white-space: nowrap; }
+    .ig-sub-btn { height: 28px; padding: 0 10px; border-radius: 5px; border: 1px solid #3f3f46; background: rgba(0,0,0,0.4); color: #a1a1aa; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; box-sizing: border-box; }
+    .ig-sub-btn:hover { background: rgba(255,255,255,0.08); color: #f4f4f5; border-color: #52525b; }
+    .ig-sub-btn.import { border-color: rgba(16,185,129,0.5); background: rgba(16,185,129,0.15); color: #34d399; }
+    .ig-sub-btn.import:hover { background: rgba(16,185,129,0.3); color: #6ee7b7; border-color: #10b981; }
+
     .ig-card-avatar, .ig-card-art { width: 52px; height: 52px; border-radius: 6px; border: 1px solid #52525b; overflow: hidden; background: #18181b; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .ig-card-avatar img, .ig-card-art img { width: 100%; height: 100%; object-fit: cover; }
     .ig-card-info { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
@@ -106,6 +118,47 @@ function updateTabCounts() {
   if (countNpcEl) countNpcEl.textContent = npcCount;
 }
 
+function updateBulkBar() {
+  const countEl = document.getElementById("ig-bulk-count");
+  if (countEl) {
+    countEl.textContent = `${selectedIgniteCharIds.size} Selected`;
+  }
+}
+
+async function bulkImportIgniteCharacters() {
+  if (selectedIgniteCharIds.size === 0) return;
+
+  const targets = igniteCharacters.filter(c => selectedIgniteCharIds.has(c.id));
+  if (targets.length === 0) return;
+
+  const importBtn = document.getElementById("ig-bulk-import");
+  if (importBtn) {
+    importBtn.disabled = true;
+    importBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Importing ${targets.length}...`;
+  }
+
+  ui.notifications?.info(`Starting mass import of ${targets.length} Ignite character(s)...`);
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const char of targets) {
+    try {
+      await exportCharacterToFoundry(char);
+      successCount++;
+    } catch (err) {
+      console.error(`Failed to export ${char.name}:`, err);
+      failCount++;
+    }
+  }
+
+  ui.notifications?.info(`Mass import complete! Successfully imported: ${successCount}${failCount > 0 ? `, Failed: ${failCount}` : ''}.`);
+
+  selectedIgniteCharIds.clear();
+  renderListArea();
+  updateBulkBar();
+}
+
 function renderIgniteCharacterUI() {
   if (!parentContainer) return;
 
@@ -131,12 +184,31 @@ function renderIgniteCharacterUI() {
           <input type="text" id="ig-search-input" placeholder="Search Ignite Character..." value="${searchQuery}" />
         </div>
       </div>
+      <div class="ig-selection-bar">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button id="ig-bulk-select-all" class="ig-sub-btn" title="Select All Visible Characters">
+            <i class="fa-solid fa-check-double"></i> Select All
+          </button>
+          <button id="ig-bulk-deselect" class="ig-sub-btn" title="Unselect All Characters">
+            <i class="fa-solid fa-xmark"></i> Unselect All
+          </button>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span id="ig-bulk-count" class="ig-bulk-count-badge">
+            ${selectedIgniteCharIds.size} Selected
+          </span>
+          <button id="ig-bulk-import" class="ig-sub-btn import" title="Import Selected Characters to Foundry">
+            <i class="fa-solid fa-file-import"></i> Import
+          </button>
+        </div>
+      </div>
       <div id="ig-list-area" class="ig-list-area"></div>
     </div>
   `;
 
   renderListArea();
   attachEvents();
+  updateBulkBar();
 }
 
 function renderListArea() {
@@ -171,6 +243,7 @@ function renderListArea() {
   let html = "";
   filtered.forEach(char => {
     const isNpc = isNpcChar(char);
+    const isSelected = selectedIgniteCharIds.has(char.id);
     const avatar = char.token_image || "icons/svg/mystery-man.svg";
     const displayName = char.name || "Hero Without A Name";
     const displayFullName = char.full_name || "";
@@ -200,7 +273,10 @@ function renderListArea() {
     }
 
     html += `
-      <div class="ig-row-card">
+      <div class="ig-row-card ${isSelected ? 'selected' : ''}" data-id="${char.id}">
+        <div class="ig-card-select-checkbox" title="Select Character">
+          <i class="fa-solid fa-check"></i>
+        </div>
         <div class="ig-card-avatar" title="Token Image">
           <img src="${avatar}" onerror="this.src='icons/svg/mystery-man.svg'" />
         </div>
@@ -1008,12 +1084,67 @@ function attachEvents() {
     listArea.addEventListener("click", async (e) => {
       const exportBtn = e.target.closest(".ig-action-export");
       if (exportBtn) {
+        e.stopPropagation();
         const id = exportBtn.dataset.id;
         const char = igniteCharacters.find((c) => c.id === id);
         if (char) {
           await exportCharacterToFoundry(char);
         }
+        return;
       }
+
+      const card = e.target.closest(".ig-row-card");
+      if (card) {
+        const id = card.dataset.id;
+        if (!id) return;
+
+        if (selectedIgniteCharIds.has(id)) {
+          selectedIgniteCharIds.delete(id);
+          card.classList.remove("selected");
+        } else {
+          selectedIgniteCharIds.add(id);
+          card.classList.add("selected");
+        }
+        updateBulkBar();
+      }
+    });
+  }
+
+  const bulkImportBtn = document.getElementById("ig-bulk-import");
+  if (bulkImportBtn) {
+    bulkImportBtn.addEventListener("click", () => {
+      bulkImportIgniteCharacters();
+    });
+  }
+
+  const bulkSelectAllBtn = document.getElementById("ig-bulk-select-all");
+  if (bulkSelectAllBtn) {
+    bulkSelectAllBtn.addEventListener("click", () => {
+      const query = searchQuery.toLowerCase().trim();
+      const filtered = igniteCharacters.filter(char => {
+        const isNpc = isNpcChar(char);
+        if (currentTypeFilter === "player" && isNpc) return false;
+        if (currentTypeFilter === "npc" && !isNpc) return false;
+
+        if (!query) return true;
+        return (
+          (char.name || "").toLowerCase().includes(query) ||
+          (char.full_name || "").toLowerCase().includes(query)
+        );
+      });
+
+      filtered.forEach(c => selectedIgniteCharIds.add(c.id));
+      renderListArea();
+      updateBulkBar();
+    });
+  }
+
+  const bulkDeselectBtn = document.getElementById("ig-bulk-deselect");
+  if (bulkDeselectBtn) {
+    bulkDeselectBtn.addEventListener("click", () => {
+      selectedIgniteCharIds.clear();
+      renderListArea();
+      updateBulkBar();
     });
   }
 }

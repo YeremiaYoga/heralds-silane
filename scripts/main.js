@@ -237,4 +237,13 @@ Hooks.once("init", () => {
       }
     }
   });
+
+  game.settings.register("heralds-silane", "autoBackupSettingsJson", {
+    name: "Auto Backup Settings JSON",
+    hint: "Automatically download settings JSON backup whenever World Management settings are saved",
+    scope: "world",
+    config: false,
+    type: Boolean,
+    default: false,
+  });
 });

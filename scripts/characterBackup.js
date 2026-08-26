@@ -821,7 +821,7 @@ async function renderRestoreTab(container) {
       container.innerHTML = `
         <div class="cb-empty-state" style="padding: 40px; text-align: center; color: #71717a;">
           <i class="fa-solid fa-cloud-slash fa-3x" style="margin-bottom: 12px; color: #3f3f46;"></i>
-          <div>Tidak ada data backup ditemukan di cloud.</div>
+          <div>No cloud backup data found.</div>
         </div>
       `;
       return;
@@ -894,8 +894,8 @@ async function renderRestoreTab(container) {
     container.innerHTML = `
       <div class="cb-error-container">
         <i class="fa-solid fa-triangle-exclamation fa-2x" style="margin-bottom: 10px;"></i>
-        <div style="font-weight: bold; font-size: 14px;">Gagal Menghubungkan ke Server</div>
-        <p style="font-size: 12px; margin-top: 5px; color: #fca5a5;">Server backend Silane offline atau tidak dapat diakses. Silakan coba lagi beberapa saat lagi.</p>
+        <div style="font-weight: bold; font-size: 14px;">Failed to Connect to Server</div>
+        <p style="font-size: 12px; margin-top: 5px; color: #fca5a5;">The Silane backend server is offline or unreachable. Please try again later.</p>
       </div>
     `;
   }

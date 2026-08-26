@@ -1,4 +1,4 @@
-import { API_BASE_URL, heraldSilane_getWindowDimensions, initializeApiBaseUrl, applyDarkThemeToDialog } from "./helper.js";
+import { API_BASE_URL, heraldSilane_getWindowDimensions, initializeApiBaseUrl, applyDarkThemeToDialog, hexToRgb } from "./helper.js";
 import { initVisageTab } from "./visage.js";
 import { initCharacterTab } from "./character.js";
 import { initAudioTab } from "./audio.js";
@@ -269,7 +269,7 @@ async function heraldSilane_renderMainView() {
       } else if (userData.limits && userData.limits.silane) {
         maxStorageMb = userData.limits.silane.count || 0;
       }
-    } catch (e) {}
+    } catch (e) { }
   }
   container.innerHTML = `
     <div class="hs-layout-override" style="height: ${dims.overrideHeight}px; flex: 1; display: flex; flex-direction: column; min-height: 0;">
@@ -520,6 +520,167 @@ async function heraldSilane_renderMainView() {
     });
   switchTab("visage");
 }
+async function fetchGroupInfoById(groupId) {
+  if (!groupId) return null;
+  const token = localStorage.getItem("heraldSilane_token");
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+  const target = String(groupId).trim();
+  const targetLower = target.toLowerCase();
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/groups/${target}`, { headers });
+    if (res.ok) {
+      const result = await res.json();
+      const groupData = result.group || result.data || result;
+      if (groupData && (groupData.id || groupData._id || groupData.silane_group_id || groupData.name)) {
+        return groupData;
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to fetch group by ID:", e);
+  }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/groups/silane_group_id/${target}`, { headers });
+    if (res.ok) {
+      const result = await res.json();
+      const groupData = result.group || result.data || result;
+      if (groupData && (groupData.id || groupData._id || groupData.silane_group_id || groupData.name)) {
+        return groupData;
+      }
+    }
+  } catch (e) { }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/groups/silane/${target}`, { headers });
+    if (res.ok) {
+      const result = await res.json();
+      const groupData = result.group || result.data || result;
+      if (groupData && (groupData.id || groupData._id || groupData.silane_group_id || groupData.name)) {
+        return groupData;
+      }
+    }
+  } catch (e) { }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/groups/code/${target}`, { headers });
+    if (res.ok) {
+      const result = await res.json();
+      const groupData = result.group || result.data || result;
+      if (groupData && (groupData.id || groupData._id || groupData.silane_group_id || groupData.name)) {
+        return groupData;
+      }
+    }
+  } catch (e) { }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/groups`, { headers });
+    if (res.ok) {
+      const result = await res.json();
+      const all = Array.isArray(result)
+        ? result
+        : [
+          ...(result.owned || []),
+          ...(result.member || []),
+          ...(result.groups || []),
+          ...(result.data || [])
+        ];
+
+      const found = all.find((g) => {
+        if (!g) return false;
+        return (
+          String(g.silane_group_id || "").toLowerCase() === targetLower ||
+          String(g.silaneGroupId || "").toLowerCase() === targetLower ||
+          String(g.silane_id || "").toLowerCase() === targetLower ||
+          String(g.silaneId || "").toLowerCase() === targetLower ||
+          String(g.silane_code || "").toLowerCase() === targetLower ||
+          String(g.share_code || "").toLowerCase() === targetLower ||
+          String(g.shareCode || "").toLowerCase() === targetLower ||
+          String(g.code || "").toLowerCase() === targetLower ||
+          String(g.id || "").toLowerCase() === targetLower ||
+          String(g._id || "").toLowerCase() === targetLower
+        );
+      });
+      if (found) return found;
+    }
+  } catch (e) {
+    console.warn("Failed to fetch group list fallback:", e);
+  }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/silane_assets/groups`, { headers });
+    if (res.ok) {
+      const result = await res.json();
+      const all = Array.isArray(result) ? result : (result.data || result.groups || []);
+      const found = all.find((g) => {
+        if (!g) return false;
+        return (
+          String(g.silane_group_id || "").toLowerCase() === targetLower ||
+          String(g.silaneGroupId || "").toLowerCase() === targetLower ||
+          String(g.silane_id || "").toLowerCase() === targetLower ||
+          String(g.silaneId || "").toLowerCase() === targetLower ||
+          String(g.silane_code || "").toLowerCase() === targetLower ||
+          String(g.share_code || "").toLowerCase() === targetLower ||
+          String(g.shareCode || "").toLowerCase() === targetLower ||
+          String(g.code || "").toLowerCase() === targetLower ||
+          String(g.id || "").toLowerCase() === targetLower ||
+          String(g._id || "").toLowerCase() === targetLower
+        );
+      });
+      if (found) return found;
+    }
+  } catch (e) { }
+
+  return null;
+}
+
+function renderGroupPreviewHTML(group, groupId, isLoading = false) {
+  if (isLoading) {
+    return `
+      <div style="margin-top: 8px; padding: 8px 10px; background: rgba(24, 24, 27, 0.6); border: 1px solid #3f3f46; border-radius: 6px; font-size: 12px; color: #60a5fa; display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-spinner fa-spin"></i>
+        <span>Checking Group Silane (ID: ${groupId})...</span>
+      </div>
+    `;
+  }
+
+  if (!groupId) {
+    return ``;
+  }
+
+  if (!group) {
+    return `
+      <div style="margin-top: 8px; padding: 8px 10px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; font-size: 12px; color: #f87171; display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>Group not found for ID "${groupId}".</span>
+      </div>
+    `;
+  }
+
+  const rgbColor = hexToRgb(group.color || "#6366f1");
+  const iconContent = group.icon
+    ? `<img src="${group.icon}" style="width: 100%; height: 100%; object-fit: cover;" />`
+    : `<i class="fa-solid fa-shield-halved" style="font-size: 16px; color: rgb(${rgbColor});"></i>`;
+
+  return `
+    <div class="silane-group-preview-card" style="margin-top: 8px; padding: 8px 10px; background: linear-gradient(135deg, rgba(${rgbColor}, 0.15), rgba(24, 24, 27, 0.8)); border: 1px solid rgba(${rgbColor}, 0.4); border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: all 0.2s ease;">
+      <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(${rgbColor}, 0.2); border: 1px solid rgba(${rgbColor}, 0.5); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
+        ${iconContent}
+      </div>
+      <div style="flex: 1; min-width: 0;">
+        <div style="font-size: 13px; font-weight: bold; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          ${group.name}
+        </div>
+        <div style="font-size: 11px; color: #34d399; display: flex; align-items: center; gap: 4px; margin-top: 2px;">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>Connected to Group: <strong>${group.name}</strong></span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function heraldSilane_openSettingsModal() {
   const currentSize = game.settings.get("heralds-silane", "windowSize");
   const currentDetail = game.settings.get("heralds-silane", "characterDetailMode");
@@ -560,6 +721,7 @@ function heraldSilane_openSettingsModal() {
             <i class="fa-solid fa-layer-group" style="color: #60a5fa; margin-right: 6px;"></i>World Group Silane ID (GM Only)
           </label>
           <input type="text" id="hs-setting-worldGroupId" class="silane-input" value="${currentWorldGroupId}" placeholder="e.g. Y5AfasnpznaA07gdQPxy" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 4px; font-size: 13px;" />
+          <div id="hs-setting-group-preview-container"></div>
         </div>
       ` : ""}
     </div>
@@ -607,10 +769,53 @@ function heraldSilane_openSettingsModal() {
           border: "1px solid #3f3f46",
           background: "rgba(0,0,0,0.4)",
         });
+
+        if (game.user.isGM) {
+          let timer = null;
+          const updatePreview = async (gid) => {
+            const container = html.find("#hs-setting-group-preview-container");
+            if (!gid) {
+              container.html(renderGroupPreviewHTML(null, ""));
+              return;
+            }
+            container.html(renderGroupPreviewHTML(null, gid, true));
+            const group = await fetchGroupInfoById(gid);
+            container.html(renderGroupPreviewHTML(group, gid, false));
+          };
+          updatePreview(html.find("#hs-setting-worldGroupId").val()?.trim() || "");
+          html.find("#hs-setting-worldGroupId").on("input", (e) => {
+            clearTimeout(timer);
+            const val = e.target.value?.trim() || "";
+            timer = setTimeout(() => updatePreview(val), 400);
+          });
+        }
       },
     },
     { width: 450, height: "auto", classes: ["dialog", "silane-custom-dialog"] },
   ).render(true);
+}
+
+export function exportSettingsJSON() {
+  const data = {
+    module: "heralds-silane",
+    version: "1.0.0",
+    exportDate: new Date().toISOString(),
+    worldId: game.world?.id || "world",
+    worldTitle: game.world?.title || "World",
+    settings: {
+      worldGroupId: game.settings.get("heralds-silane", "worldGroupId") || "",
+      storageConfig: game.settings.get("heralds-silane", "storageConfig") || {},
+      apiMode: game.settings.get("heralds-silane", "apiMode") || "auto",
+      windowSize: game.settings.get("heralds-silane", "windowSize") || "large",
+      characterDetailMode: game.settings.get("heralds-silane", "characterDetailMode") || "all",
+      autoBackupSettingsJson: game.settings.get("heralds-silane", "autoBackupSettingsJson") || false,
+    }
+  };
+
+  const jsonStr = JSON.stringify(data, null, 2);
+  const filename = `herald-silane-settings-${game.world?.id || "world"}.json`;
+
+  saveDataToFile(jsonStr, "text/json", filename);
 }
 
 function heraldSilane_openManagementModal() {
@@ -620,6 +825,7 @@ function heraldSilane_openManagementModal() {
   }
 
   const currentWorldGroupId = game.settings.get("heralds-silane", "worldGroupId") || "";
+  const currentAutoBackup = game.settings.get("heralds-silane", "autoBackupSettingsJson") || false;
   let currentStorage = game.settings.get("heralds-silane", "storageConfig");
   if (!currentStorage) {
     currentStorage = {
@@ -638,6 +844,29 @@ function heraldSilane_openManagementModal() {
           <i class="fa-solid fa-layer-group" style="color: #60a5fa; margin-right: 6px;"></i>World Group Silane ID
         </label>
         <input type="text" id="hs-mgmt-world-group-id" class="silane-input" value="${currentWorldGroupId}" placeholder="e.g. Y5AfasnpznaA07gdQPxy" style="width: 100%; padding: 8px 10px; background: rgba(0,0,0,0.5); color: white !important; border: 1px solid #52525b; border-radius: 6px; font-size: 13px; outline: none;" />
+        <div id="hs-mgmt-group-preview-container"></div>
+      </div>
+
+      <div class="silane-form-group">
+        <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(24, 24, 27, 0.6); padding: 10px 12px; border-radius: 8px; border: 1px solid #3f3f46;">
+          <label style="font-weight: bold; color: white; font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer;" for="hs-mgmt-auto-backup-json">
+            <i class="fa-solid fa-cloud-arrow-down" style="color: #60a5fa;"></i> Auto Download Backup Settings JSON
+          </label>
+          <label class="silane-toggle-switch">
+            <input type="checkbox" id="hs-mgmt-auto-backup-json" ${currentAutoBackup ? "checked" : ""} />
+            <span class="silane-toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-top: -4px;">
+        <button id="hs-btn-download-backup-json" type="button" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); color: #818cf8; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+          <i class="fa-solid fa-download"></i> Backup Settings (JSON)
+        </button>
+        <button id="hs-btn-restore-backup-json" type="button" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+          <i class="fa-solid fa-upload"></i> Restore Settings (JSON)
+        </button>
+        <input type="file" id="hs-file-restore-json" accept=".json" style="display: none;" />
       </div>
 
       <hr style="border: 0; border-top: 1px solid #3f3f46; margin: 4px 0;" />
@@ -714,7 +943,24 @@ function heraldSilane_openManagementModal() {
               }
             };
             await game.settings.set("heralds-silane", "storageConfig", newStorageConfig);
-            ui.notifications?.info("World Management settings saved successfully.");
+
+            const autoBackupChecked = html.find("#hs-mgmt-auto-backup-json").is(":checked");
+            await game.settings.set("heralds-silane", "autoBackupSettingsJson", autoBackupChecked);
+
+            if (newGroupId) {
+              const group = await fetchGroupInfoById(newGroupId);
+              if (group) {
+                ui.notifications?.info(`World Management saved. Connected to Group: "${group.name}".`);
+              } else {
+                ui.notifications?.info("World Management settings saved successfully.");
+              }
+            } else {
+              ui.notifications?.info("World Management settings saved successfully.");
+            }
+
+            if (autoBackupChecked) {
+              exportSettingsJSON();
+            }
           },
         },
         cancel: { label: "Cancel" },
@@ -733,6 +979,87 @@ function heraldSilane_openManagementModal() {
             app.css({ height: "auto", "max-height": "88vh" });
             app.find(".window-content").css({ "max-height": "76vh", "overflow-y": "auto" });
           }
+        });
+
+        let debounceTimer = null;
+        const updateGroupPreview = async (gid) => {
+          const container = html.find("#hs-mgmt-group-preview-container");
+          if (!gid) {
+            container.html(renderGroupPreviewHTML(null, ""));
+            return;
+          }
+          container.html(renderGroupPreviewHTML(null, gid, true));
+          const groupInfo = await fetchGroupInfoById(gid);
+          container.html(renderGroupPreviewHTML(groupInfo, gid, false));
+        };
+
+        const initialGid = html.find("#hs-mgmt-world-group-id").val()?.trim() || "";
+        updateGroupPreview(initialGid);
+
+        html.find("#hs-mgmt-world-group-id").on("input", (e) => {
+          clearTimeout(debounceTimer);
+          const val = e.target.value?.trim() || "";
+          debounceTimer = setTimeout(() => updateGroupPreview(val), 400);
+        });
+
+        html.find("#hs-btn-download-backup-json").on("click", (e) => {
+          e.preventDefault();
+          exportSettingsJSON();
+        });
+
+        html.find("#hs-btn-restore-backup-json").on("click", (e) => {
+          e.preventDefault();
+          html.find("#hs-file-restore-json").click();
+        });
+
+        html.find("#hs-file-restore-json").on("change", (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = async (evt) => {
+            try {
+              const data = JSON.parse(evt.target.result);
+              const settings = data.settings || data;
+
+              if (settings.worldGroupId !== undefined) {
+                await game.settings.set("heralds-silane", "worldGroupId", settings.worldGroupId);
+                html.find("#hs-mgmt-world-group-id").val(settings.worldGroupId).trigger("input");
+              }
+              if (settings.storageConfig !== undefined) {
+                await game.settings.set("heralds-silane", "storageConfig", settings.storageConfig);
+                const sc = settings.storageConfig || {};
+                html.find("#hs-mgmt-storage-method").val(sc.method || "local").trigger("change");
+                if (sc.s3) {
+                  html.find("#hs-mgmt-s3-endpoint").val(sc.s3.endpoint || "");
+                  html.find("#hs-mgmt-s3-accessKeyId").val(sc.s3.accessKeyId || "");
+                  html.find("#hs-mgmt-s3-secretAccessKey").val(sc.s3.secretAccessKey || "");
+                  html.find("#hs-mgmt-s3-region").val(sc.s3.region || "us-east-1");
+                  html.find("#hs-mgmt-s3-bucket").val(sc.s3.bucket || "");
+                }
+              }
+              if (settings.autoBackupSettingsJson !== undefined) {
+                await game.settings.set("heralds-silane", "autoBackupSettingsJson", !!settings.autoBackupSettingsJson);
+                html.find("#hs-mgmt-auto-backup-json").prop("checked", !!settings.autoBackupSettingsJson);
+              }
+              if (settings.apiMode !== undefined) {
+                await game.settings.set("heralds-silane", "apiMode", settings.apiMode);
+              }
+              if (settings.windowSize !== undefined) {
+                await game.settings.set("heralds-silane", "windowSize", settings.windowSize);
+              }
+              if (settings.characterDetailMode !== undefined) {
+                await game.settings.set("heralds-silane", "characterDetailMode", settings.characterDetailMode);
+              }
+
+              ui.notifications?.info("Settings restored successfully from JSON backup!");
+            } catch (err) {
+              console.error("Failed to restore settings from JSON file:", err);
+              ui.notifications?.error("Failed to restore settings: Invalid JSON file format.");
+            }
+          };
+          reader.readAsText(file);
+          e.target.value = "";
         });
       },
     },
