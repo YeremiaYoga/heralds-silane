@@ -10,7 +10,137 @@ let selectedHomebrewUser = null;
 let selectedCards = new Set();
 let activeFilters = new Set();
 let currentImageViewMode = "portrait"; 
+let currentSortMode = "name_asc";
 const LIMIT = 200;
+
+function getNumericCr(val) {
+  if (val === null || val === undefined || val === "") return 0;
+  if (typeof val === "number") return val;
+  if (typeof val === "object" && val !== null) {
+    return getNumericCr(val.value ?? val.cr ?? 0);
+  }
+  const s = String(val).trim().toLowerCase();
+  if (s === "1/8" || s === "0.125") return 0.125;
+  if (s === "1/4" || s === "0.25") return 0.25;
+  if (s === "1/2" || s === "0.5") return 0.5;
+  const num = parseFloat(s);
+  return isNaN(num) ? 0 : num;
+}
+
+function getNumericAc(val) {
+  if (val === null || val === undefined || val === "") return 0;
+  if (typeof val === "number") return val;
+  if (typeof val === "object" && val !== null) {
+    return getNumericAc(val.value ?? val.ac ?? val.flat ?? 0);
+  }
+  const num = parseFloat(val);
+  return isNaN(num) ? 0 : num;
+}
+
+function sortCreatures(items, sortMode) {
+  return [...items].sort((a, b) => {
+    let diff = 0;
+    if (sortMode === "name_asc") {
+      diff = (a.name || "").localeCompare(b.name || "");
+    } else if (sortMode === "name_desc") {
+      diff = (b.name || "").localeCompare(a.name || "");
+    } else if (sortMode === "cr_asc") {
+      diff = getNumericCr(a.cr) - getNumericCr(b.cr);
+    } else if (sortMode === "cr_desc") {
+      diff = getNumericCr(b.cr) - getNumericCr(a.cr);
+    } else if (sortMode === "ac_asc") {
+      diff = getNumericAc(a.ac) - getNumericAc(b.ac);
+    } else if (sortMode === "ac_desc") {
+      diff = getNumericAc(b.ac) - getNumericAc(a.ac);
+    }
+
+    if (diff !== 0) return diff;
+    return (a.name || "").localeCompare(b.name || "");
+  });
+}
+
+const DEFAULT_BESTIARY_FILTERS = {
+  creatureTypes: [],
+  sizes: [],
+  alignments: [],
+  languages: [],
+  homebrewUserModes: {},
+};
+
+let bestiaryFilters = { ...DEFAULT_BESTIARY_FILTERS };
+
+function getActiveFilterCount() {
+  let count = 0;
+  if (bestiaryFilters.creatureTypes && bestiaryFilters.creatureTypes.length > 0) count += bestiaryFilters.creatureTypes.length;
+  if (bestiaryFilters.sizes && bestiaryFilters.sizes.length > 0) count += bestiaryFilters.sizes.length;
+  if (bestiaryFilters.alignments && bestiaryFilters.alignments.length > 0) count += bestiaryFilters.alignments.length;
+  if (bestiaryFilters.languages && bestiaryFilters.languages.length > 0) count += bestiaryFilters.languages.length;
+  const activeModes = Object.values(bestiaryFilters.homebrewUserModes || {}).filter(m => m > 0);
+  count += activeModes.length;
+  return count;
+}
+
+const FILTER_CREATURE_TYPES = [
+  "aberration", "beast", "celestial", "construct", "dragon",
+  "elemental", "fey", "fiend", "giant", "humanoid",
+  "monstrosity", "ooze", "plant", "undead"
+];
+
+const FILTER_SIZES = [
+  "Tiny", "Small", "Medium", "Large", "Huge", "Gargantuan"
+];
+
+const FILTER_ALIGNMENTS = [
+  "Lawful Good", "Neutral Good", "Chaotic Good",
+  "Lawful Neutral", "Neutral", "Chaotic Neutral",
+  "Lawful Evil", "Neutral Evil", "Chaotic Evil",
+  "Unaligned"
+];
+
+const FILTER_LANGUAGES = [
+  "Abyssal", "Aquan", "Auran", "Celestial", "Common",
+  "Common Sign Language", "Deep Speech", "Draconic", "Dwarvish",
+  "Elvish", "Giant", "Gnomish", "Goblin", "Halfling",
+  "Infernal", "Orc", "Primordial", "Sylvan", "Telepathy",
+  "Thieves Cant", "Undercommon"
+];
+
+const FILTER_CR_OPTIONS = [
+  { val: 0, label: "0" },
+  { val: 0.125, label: "1/8" },
+  { val: 0.25, label: "1/4" },
+  { val: 0.5, label: "1/2" },
+  { val: 1, label: "1" },
+  { val: 2, label: "2" },
+  { val: 3, label: "3" },
+  { val: 4, label: "4" },
+  { val: 5, label: "5" },
+  { val: 6, label: "6" },
+  { val: 7, label: "7" },
+  { val: 8, label: "8" },
+  { val: 9, label: "9" },
+  { val: 10, label: "10" },
+  { val: 11, label: "11" },
+  { val: 12, label: "12" },
+  { val: 13, label: "13" },
+  { val: 14, label: "14" },
+  { val: 15, label: "15" },
+  { val: 16, label: "16" },
+  { val: 17, label: "17" },
+  { val: 18, label: "18" },
+  { val: 19, label: "19" },
+  { val: 20, label: "20" },
+  { val: 21, label: "21" },
+  { val: 22, label: "22" },
+  { val: 23, label: "23" },
+  { val: 24, label: "24" },
+  { val: 25, label: "25" },
+  { val: 26, label: "26" },
+  { val: 27, label: "27" },
+  { val: 28, label: "28" },
+  { val: 29, label: "29" },
+  { val: 30, label: "30" }
+];
 
 const CREATURE_TYPES = [
   "humanoid", "beast", "dragon", "undead", "fiend", 
@@ -116,15 +246,26 @@ function renderUI() {
             <i class="fa-solid fa-xmark"></i> Unselect All
           </button>
         </div>
-        <div style="display:flex; align-items:center; gap:8px;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <select id="bs-sort-select" class="bs-sort-select" title="Sort Bestiary" style="height:28px;background:#18181b;border:1px solid #3f3f46;border-radius:5px;color:#f4f4f5;font-size:11px;font-weight:600;padding:0 6px;cursor:pointer;outline:none;">
+            <option value="name_asc" ${currentSortMode === 'name_asc' ? 'selected' : ''}>Name (A-Z)</option>
+            <option value="name_desc" ${currentSortMode === 'name_desc' ? 'selected' : ''}>Name (Z-A)</option>
+            <option value="cr_asc" ${currentSortMode === 'cr_asc' ? 'selected' : ''}>CR (Low)</option>
+            <option value="cr_desc" ${currentSortMode === 'cr_desc' ? 'selected' : ''}>CR (High)</option>
+            <option value="ac_asc" ${currentSortMode === 'ac_asc' ? 'selected' : ''}>AC (Low)</option>
+            <option value="ac_desc" ${currentSortMode === 'ac_desc' ? 'selected' : ''}>AC (High)</option>
+          </select>
+          <button id="bs-btn-filter" class="bs-sub-btn ${getActiveFilterCount() > 0 ? 'active' : ''}" title="Filter Bestiary" style="${getActiveFilterCount() > 0 ? 'border-color:rgba(99,102,241,0.6);background:rgba(99,102,241,0.2);color:#a5b4fc;' : ''}">
+            <i class="fa-solid fa-sliders"></i> Filter ${getActiveFilterCount() > 0 ? `<span class="bs-bulk-count-badge" style="background:#6366f1;color:#fff;padding:1px 6px;margin-left:4px;border-radius:10px;font-size:10px;">${getActiveFilterCount()}</span>` : ''}
+          </button>
           <span id="bs-bulk-count" class="bs-bulk-count-badge">
-            ${selectedCards.size} Selected
+            ${selectedCards.size}
           </span>
           <button id="bs-bulk-import" class="bs-sub-btn import" title="Import Selected Creatures to Foundry">
-            <i class="fa-solid fa-file-import"></i> Import Selected
+            <i class="fa-solid fa-file-import"></i> Import
           </button>
           <button id="bs-bulk-delete" class="bs-sub-btn delete" title="Delete Selected Creatures">
-            <i class="fa-solid fa-trash"></i> Delete Selected
+            <i class="fa-solid fa-trash"></i> Delete
           </button>
         </div>
       </div>
@@ -234,6 +375,48 @@ function renderList() {
     });
   }
 
+  if (bestiaryFilters.creatureTypes && bestiaryFilters.creatureTypes.length > 0) {
+    items = items.filter((i) => {
+      const t = (i.creature_type || i.type || "").toLowerCase();
+      return bestiaryFilters.creatureTypes.some((ct) => t.includes(ct.toLowerCase()));
+    });
+  }
+
+  if (bestiaryFilters.sizes && bestiaryFilters.sizes.length > 0) {
+    items = items.filter((i) => {
+      const sz = (i.size || "").toLowerCase();
+      return bestiaryFilters.sizes.some((s) => sz.includes(s.toLowerCase()) || s.toLowerCase().includes(sz));
+    });
+  }
+
+  if (bestiaryFilters.alignments && bestiaryFilters.alignments.length > 0) {
+    items = items.filter((i) => {
+      const align = (i.alignment || "").toLowerCase();
+      return bestiaryFilters.alignments.some((a) => align.includes(a.toLowerCase()));
+    });
+  }
+
+  if (bestiaryFilters.languages && bestiaryFilters.languages.length > 0) {
+    items = items.filter((i) => {
+      const langs = Array.isArray(i.languages)
+        ? i.languages.join(" ").toLowerCase()
+        : (typeof i.languages === "string" ? i.languages.toLowerCase() : "");
+      return bestiaryFilters.languages.some((l) => langs.includes(l.toLowerCase()));
+    });
+  }
+
+  const userModes = bestiaryFilters.homebrewUserModes || {};
+  const onlyUserIds = Object.keys(userModes).filter(uid => userModes[uid] === 2);
+  const incUserIds = Object.keys(userModes).filter(uid => userModes[uid] === 1);
+
+  if (onlyUserIds.length > 0) {
+    items = items.filter(item => onlyUserIds.includes(String(item.user_id)));
+  } else if (incUserIds.length > 0) {
+    items = items.filter(item => incUserIds.includes(String(item.user_id)));
+  }
+
+  items = sortCreatures(items, currentSortMode);
+
   if (items.length === 0) {
     listEl.innerHTML = `<div class="bs-empty" style="grid-column:1/-1;"><i class="fa-solid fa-filter fa-2x" style="margin-bottom:12px;opacity:0.5;"></i><div>No creatures match active filters.</div></div>`;
     return;
@@ -303,6 +486,19 @@ function attachEvents() {
       currentImageViewMode = "token";
       renderUI();
     });
+  }
+
+  const sortSelect = document.getElementById("bs-sort-select");
+  if (sortSelect) {
+    sortSelect.addEventListener("change", (e) => {
+      currentSortMode = e.target.value;
+      renderList();
+    });
+  }
+
+  const filterBtn = document.getElementById("bs-btn-filter");
+  if (filterBtn) {
+    filterBtn.addEventListener("click", () => showFilterModal());
   }
 
   const selectActorBtn = document.getElementById("bs-btn-select-actor");
@@ -383,7 +579,7 @@ function attachEvents() {
 function updateBulkBar() {
   const count = document.getElementById("bs-bulk-count");
   if (count) {
-    count.textContent = `${selectedCards.size} Selected`;
+    count.textContent = `${selectedCards.size}`;
   }
 }
 
@@ -936,3 +1132,423 @@ const formatHttpsUrl = (urlStr) => {
   }
   return str;
 };
+
+function showFilterModal() {
+  const existingModal = document.getElementById("bs-filter-modal");
+  if (existingModal) existingModal.remove();
+
+  let draft = JSON.parse(JSON.stringify(bestiaryFilters));
+  if (!draft.creatureTypes) draft.creatureTypes = [];
+  if (!draft.sizes) draft.sizes = [];
+  if (!draft.alignments) draft.alignments = [];
+  if (!draft.languages) draft.languages = [];
+  if (!draft.homebrewUserModes) draft.homebrewUserModes = {};
+
+  let userSearchQuery = "";
+  let homebrewUsers = [];
+  let isLoadingFriends = true;
+
+  const curUser = getUser() || {};
+  const currentUserId = String(curUser.id || curUser.user_id || curUser._id || "");
+  const currentUsername = (curUser.username || curUser.name || curUser.user_name || "").toLowerCase().trim();
+
+  // Initial users from currentItems (excluding current user)
+  const usersMap = {};
+  currentItems.forEach(item => {
+    const uid = String(item.user_id || "unknown");
+    const uname = (item.user_name || "Homebrew Creator").toLowerCase().trim();
+    if (currentUserId && uid === currentUserId) return;
+    if (currentUsername && uname === currentUsername) return;
+    if (uid !== "unknown" && !usersMap[uid]) {
+      usersMap[uid] = {
+        user_id: uid,
+        user_name: item.user_name || "Homebrew Creator",
+        username: uname.replace(/[^a-z0-9]/g, "") || "creator",
+        profile_picture: item.user_avatar || item.profile_picture || item.img_portrait || ""
+      };
+    }
+  });
+  homebrewUsers = Object.values(usersMap);
+
+  const renderUserRows = (modalEl) => {
+    const listContainer = modalEl.querySelector("#bs-user-filter-list");
+    if (!listContainer) return;
+
+    if (isLoadingFriends && homebrewUsers.length === 0) {
+      listContainer.innerHTML = `<div style="text-align:center;padding:14px;color:#a1a1aa;font-size:11px;"><i class="fa-solid fa-spinner fa-spin" style="margin-right:6px;color:#818cf8;"></i> Loading homebrew creators...</div>`;
+      return;
+    }
+
+    const filteredUsers = homebrewUsers.filter(u => 
+      u.user_name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+      u.username.toLowerCase().includes(userSearchQuery.toLowerCase())
+    );
+
+    if (filteredUsers.length === 0) {
+      listContainer.innerHTML = `<div style="text-align:center;padding:14px;color:#71717a;font-size:11px;">No homebrew creators found.</div>`;
+      return;
+    }
+
+    listContainer.innerHTML = filteredUsers.map(u => {
+      const mode = draft.homebrewUserModes[u.user_id] ?? 0;
+      const avatarSrc = formatHttpsUrl(u.profile_picture);
+      return `
+        <div class="bs-user-filter-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;border-radius:8px;border:1px solid ${mode === 2 ? 'rgba(217,70,239,0.5)' : mode === 1 ? 'rgba(245,158,11,0.5)' : '#27272a'};background:${mode === 2 ? 'rgba(217,70,239,0.12)' : mode === 1 ? 'rgba(245,158,11,0.12)' : '#09090b'};margin-bottom:4px;">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+            ${avatarSrc ? `
+              <img src="${avatarSrc}" alt="${u.user_name}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1px solid #3f3f46;flex-shrink:0;" />
+            ` : `
+              <div style="width:26px;height:26px;border-radius:50%;background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);display:flex;align-items:center;justify-content:center;color:#a5b4fc;font-weight:700;font-size:11px;flex-shrink:0;">
+                ${(u.user_name || "U")[0].toUpperCase()}
+              </div>
+            `}
+            <div style="min-width:0;">
+              <div style="font-size:11px;font-weight:600;color:#f4f4f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.user_name}</div>
+              <div style="font-size:9px;color:#71717a;">@${u.username}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">
+            <button class="bs-btn-mode-off" data-uid="${u.user_id}" style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;border:${mode === 0 ? '1px solid #52525b' : '1px solid transparent'};background:${mode === 0 ? '#27272a' : 'transparent'};color:${mode === 0 ? '#f4f4f5' : '#71717a'};">Off</button>
+            <button class="bs-btn-mode-inc" data-uid="${u.user_id}" style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;border:${mode === 1 ? '1px solid #f59e0b' : '1px solid transparent'};background:${mode === 1 ? 'rgba(245,158,11,0.25)' : 'transparent'};color:${mode === 1 ? '#fbbf24' : '#71717a'};" title="Include creatures from this creator">+INC</button>
+            <button class="bs-btn-mode-only" data-uid="${u.user_id}" style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;border:${mode === 2 ? '1px solid #d946ef' : '1px solid transparent'};background:${mode === 2 ? 'rgba(217,70,239,0.25)' : 'transparent'};color:${mode === 2 ? '#f0abfc' : '#71717a'};" title="Show ONLY creatures from this creator">ONLY</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  };
+
+  const activeHomebrewCount = Object.values(draft.homebrewUserModes).filter(m => m > 0).length;
+
+  const modalHtml = `
+    <div id="bs-filter-modal" class="bs-modal-overlay" style="display:flex;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(9,9,11,0.8);backdrop-filter:blur(8px);z-index:10000;align-items:center;justify-content:center;animation:bs-fade-in 0.2s ease;">
+      <div class="bs-modal-content" style="width:560px;max-width:92vw;max-height:88vh;background:#121215;border:1px solid #27272a;border-radius:14px;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05);overflow:hidden;color:#f4f4f5;font-family:sans-serif;">
+        
+        <!-- Header -->
+        <div style="padding:16px 22px;border-bottom:1px solid #27272a;display:flex;align-items:center;justify-content:space-between;background:rgba(24,24,27,0.8);">
+          <div style="display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;color:#f4f4f5;">
+            <div style="width:32px;height:32px;border-radius:8px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.4);display:flex;align-items:center;justify-content:center;color:#818cf8;">
+              <i class="fa-solid fa-sliders" style="font-size:14px;"></i>
+            </div>
+            <span>Filter Bestiary & Creatures</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <button id="bs-modal-reset-btn" style="background:rgba(255,255,255,0.05);border:1px solid #3f3f46;color:#a1a1aa;font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" title="Reset all filters">
+              <i class="fa-solid fa-rotate-left"></i> Reset All
+            </button>
+            <button id="bs-modal-close-btn" style="background:transparent;border:none;color:#71717a;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:color 0.2s;" title="Close">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div style="padding:20px 22px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:16px;font-size:12px;">
+          
+          <!-- FRIENDS HOMEBREW BESTIARY SECTION -->
+          <div style="background:rgba(24,24,27,0.6);border:1px solid #27272a;border-radius:10px;padding:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div style="font-weight:700;color:#a5b4fc;text-transform:uppercase;font-size:10px;letter-spacing:0.6px;display:flex;align-items:center;gap:6px;">
+                <i class="fa-solid fa-users"></i> FRIENDS HOMEBREW BESTIARY
+                ${activeHomebrewCount > 0 ? `<span style="background:rgba(99,102,241,0.25);color:#a5b4fc;border:1px solid rgba(99,102,241,0.4);font-size:9px;padding:1px 6px;border-radius:10px;">Active</span>` : ''}
+              </div>
+              ${activeHomebrewCount > 0 ? `<button id="bs-reset-homebrew-btn" style="background:transparent;border:none;color:#f87171;font-size:10px;cursor:pointer;font-weight:600;">Reset homebrew filter</button>` : ''}
+            </div>
+
+            <div style="font-size:11px;color:#a1a1aa;margin-bottom:8px;">Filter by Friends Homebrew:</div>
+
+            <div style="position:relative;margin-bottom:10px;">
+              <i class="fa-solid fa-search" style="position:absolute;left:10px;top:9px;color:#71717a;font-size:11px;"></i>
+              <input type="text" id="bs-user-filter-search" placeholder="Search friends by name, username, or code..." style="width:100%;height:30px;background:#09090b;border:1px solid #3f3f46;border-radius:6px;color:#f4f4f5;padding:0 10px 0 28px;font-size:11px;outline:none;box-sizing:border-box;" />
+            </div>
+
+            <div id="bs-user-filter-list" style="max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">
+            </div>
+          </div>
+
+          <!-- Creature Types -->
+          <div style="background:rgba(24,24,27,0.6);border:1px solid #27272a;border-radius:10px;padding:14px;">
+            <div style="font-weight:700;color:#a5b4fc;margin-bottom:10px;text-transform:uppercase;font-size:10px;letter-spacing:0.6px;display:flex;align-items:center;gap:6px;">
+              <i class="fa-solid fa-dragon"></i> CREATURE TYPES
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              ${FILTER_CREATURE_TYPES.map(type => `
+                <button class="bs-modal-chip ${draft.creatureTypes.includes(type) ? 'active' : ''}" data-type="${type}" style="padding:5px 12px;border-radius:18px;border:1px solid ${draft.creatureTypes.includes(type) ? '#6366f1' : '#3f3f46'};background:${draft.creatureTypes.includes(type) ? 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(99,102,241,0.15))' : '#09090b'};color:${draft.creatureTypes.includes(type) ? '#e0e7ff' : '#a1a1aa'};font-size:11px;font-weight:${draft.creatureTypes.includes(type) ? '600' : '400'};cursor:pointer;text-transform:capitalize;transition:all 0.15s;box-shadow:${draft.creatureTypes.includes(type) ? '0 0 10px rgba(99,102,241,0.25)' : 'none'};">
+                  ${type}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Size -->
+          <div style="background:rgba(24,24,27,0.6);border:1px solid #27272a;border-radius:10px;padding:14px;">
+            <div style="font-weight:700;color:#a5b4fc;margin-bottom:10px;text-transform:uppercase;font-size:10px;letter-spacing:0.6px;display:flex;align-items:center;gap:6px;">
+              <i class="fa-solid fa-up-right-and-down-left-from-center"></i> SIZE
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              ${FILTER_SIZES.map(size => `
+                <button class="bs-modal-chip-size ${draft.sizes.includes(size) ? 'active' : ''}" data-size="${size}" style="padding:5px 12px;border-radius:18px;border:1px solid ${draft.sizes.includes(size) ? '#6366f1' : '#3f3f46'};background:${draft.sizes.includes(size) ? 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(99,102,241,0.15))' : '#09090b'};color:${draft.sizes.includes(size) ? '#e0e7ff' : '#a1a1aa'};font-size:11px;font-weight:${draft.sizes.includes(size) ? '600' : '400'};cursor:pointer;transition:all 0.15s;box-shadow:${draft.sizes.includes(size) ? '0 0 10px rgba(99,102,241,0.25)' : 'none'};">
+                  ${size}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Alignment -->
+          <div style="background:rgba(24,24,27,0.6);border:1px solid #27272a;border-radius:10px;padding:14px;">
+            <div style="font-weight:700;color:#a5b4fc;margin-bottom:10px;text-transform:uppercase;font-size:10px;letter-spacing:0.6px;display:flex;align-items:center;gap:6px;">
+              <i class="fa-solid fa-scale-balanced"></i> ALIGNMENT
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              ${FILTER_ALIGNMENTS.map(align => `
+                <button class="bs-modal-chip-align ${draft.alignments.includes(align) ? 'active' : ''}" data-align="${align}" style="padding:5px 12px;border-radius:18px;border:1px solid ${draft.alignments.includes(align) ? '#6366f1' : '#3f3f46'};background:${draft.alignments.includes(align) ? 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(99,102,241,0.15))' : '#09090b'};color:${draft.alignments.includes(align) ? '#e0e7ff' : '#a1a1aa'};font-size:11px;font-weight:${draft.alignments.includes(align) ? '600' : '400'};cursor:pointer;transition:all 0.15s;box-shadow:${draft.alignments.includes(align) ? '0 0 10px rgba(99,102,241,0.25)' : 'none'};">
+                  ${align}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Languages -->
+          <div style="background:rgba(24,24,27,0.6);border:1px solid #27272a;border-radius:10px;padding:14px;">
+            <div style="font-weight:700;color:#a5b4fc;margin-bottom:10px;text-transform:uppercase;font-size:10px;letter-spacing:0.6px;display:flex;align-items:center;gap:6px;">
+              <i class="fa-solid fa-language"></i> LANGUAGES
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              ${FILTER_LANGUAGES.map(lang => `
+                <button class="bs-modal-chip-lang ${draft.languages.includes(lang) ? 'active' : ''}" data-lang="${lang}" style="padding:5px 12px;border-radius:18px;border:1px solid ${draft.languages.includes(lang) ? '#6366f1' : '#3f3f46'};background:${draft.languages.includes(lang) ? 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(99,102,241,0.15))' : '#09090b'};color:${draft.languages.includes(lang) ? '#e0e7ff' : '#a1a1aa'};font-size:11px;font-weight:${draft.languages.includes(lang) ? '600' : '400'};cursor:pointer;transition:all 0.15s;box-shadow:${draft.languages.includes(lang) ? '0 0 10px rgba(99,102,241,0.25)' : 'none'};">
+                  ${lang}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div style="padding:14px 22px;border-top:1px solid #27272a;display:flex;align-items:center;justify-content:flex-end;gap:12px;background:rgba(24,24,27,0.9);">
+          <button id="bs-modal-cancel-btn" style="height:34px;padding:0 16px;border-radius:8px;border:1px solid #3f3f46;background:transparent;color:#a1a1aa;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.2s;">Cancel</button>
+          <button id="bs-modal-apply-btn" style="height:34px;padding:0 22px;border-radius:8px;border:1px solid #818cf8;background:linear-gradient(135deg, #6366f1, #4f46e5);color:#ffffff;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(99,102,241,0.4);transition:all 0.2s;display:flex;align-items:center;gap:6px;">
+            <i class="fa-solid fa-check"></i> Apply Filters
+          </button>
+        </div>
+
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML("beforeend", modalHtml);
+  const modalEl = document.getElementById("bs-filter-modal");
+  renderUserRows(modalEl);
+
+  const searchInput = modalEl.querySelector("#bs-user-filter-search");
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+      userSearchQuery = e.target.value;
+      renderUserRows(modalEl);
+    });
+  }
+
+  const updateChips = () => {
+    modalEl.querySelectorAll(".bs-modal-chip").forEach(btn => {
+      const type = btn.dataset.type;
+      const isActive = draft.creatureTypes.includes(type);
+      btn.style.borderColor = isActive ? '#6366f1' : '#3f3f46';
+      btn.style.background = isActive ? 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(99,102,241,0.15))' : '#09090b';
+      btn.style.color = isActive ? '#e0e7ff' : '#a1a1aa';
+      btn.style.boxShadow = isActive ? '0 0 10px rgba(99,102,241,0.25)' : 'none';
+    });
+    modalEl.querySelectorAll(".bs-modal-chip-size").forEach(btn => {
+      const size = btn.dataset.size;
+      const isActive = draft.sizes.includes(size);
+      btn.style.borderColor = isActive ? '#6366f1' : '#3f3f46';
+      btn.style.background = isActive ? 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(99,102,241,0.15))' : '#09090b';
+      btn.style.color = isActive ? '#e0e7ff' : '#a1a1aa';
+      btn.style.boxShadow = isActive ? '0 0 10px rgba(99,102,241,0.25)' : 'none';
+    });
+    modalEl.querySelectorAll(".bs-modal-chip-align").forEach(btn => {
+      const align = btn.dataset.align;
+      const isActive = draft.alignments.includes(align);
+      btn.style.borderColor = isActive ? '#6366f1' : '#3f3f46';
+      btn.style.background = isActive ? 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(99,102,241,0.15))' : '#09090b';
+      btn.style.color = isActive ? '#e0e7ff' : '#a1a1aa';
+      btn.style.boxShadow = isActive ? '0 0 10px rgba(99,102,241,0.25)' : 'none';
+    });
+    modalEl.querySelectorAll(".bs-modal-chip-lang").forEach(btn => {
+      const lang = btn.dataset.lang;
+      const isActive = draft.languages.includes(lang);
+      btn.style.borderColor = isActive ? '#6366f1' : '#3f3f46';
+      btn.style.background = isActive ? 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(99,102,241,0.15))' : '#09090b';
+      btn.style.color = isActive ? '#e0e7ff' : '#a1a1aa';
+      btn.style.boxShadow = isActive ? '0 0 10px rgba(99,102,241,0.25)' : 'none';
+    });
+  };
+
+  // Fetch friends list and homebrew creators from Silane Backend
+  (async () => {
+    try {
+      const token = localStorage.getItem("heraldSilane_token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const friendList = [];
+      try {
+        const friendsRes = await fetch(`${API_BASE_URL}/api/friends`, { headers });
+        if (friendsRes.ok) {
+          const friendsData = await friendsRes.json();
+          const friendsArr = Array.isArray(friendsData.friends)
+            ? friendsData.friends.map(f => f.friend || f).filter(Boolean)
+            : (Array.isArray(friendsData) ? friendsData : []);
+          
+          friendsArr.forEach(f => {
+            if (f) {
+              const uId = String(f.id || f.user_id || f._id || "");
+              const uName = (f.username || f.name || f.display_name || "").toLowerCase().trim();
+              if (currentUserId && uId === currentUserId) return;
+              if (currentUsername && uName === currentUsername) return;
+
+              friendList.push({
+                user_id: uId,
+                user_name: f.name || f.display_name || f.username || "Friend",
+                username: f.username || (f.name || "friend").toLowerCase().replace(/\s+/g, ""),
+                profile_picture: f.profile_picture || f.avatar || f.avatar_url || f.image || ""
+              });
+            }
+          });
+        }
+      } catch (e) {
+        console.warn("Failed to fetch friends from Silane Backend:", e);
+      }
+
+      let items = [];
+      try {
+        let url = `${API_BASE_URL}/api/bestiary/items?view=homebrew&all=true&limit=1000`;
+        let res = await fetch(url, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          items = data.items || [];
+        }
+      } catch (_) {}
+
+      const usersMap = {};
+      friendList.forEach(u => {
+        if (u.user_id) usersMap[u.user_id] = u;
+      });
+
+      items.forEach(item => {
+        const uid = String(item.user_id || "unknown");
+        const uname = (item.user_name || "Homebrew Creator").toLowerCase().trim();
+        if (currentUserId && uid === currentUserId) return;
+        if (currentUsername && uname === currentUsername) return;
+
+        if (uid !== "unknown" && !usersMap[uid]) {
+          usersMap[uid] = {
+            user_id: uid,
+            user_name: item.user_name || "Homebrew Creator",
+            username: uname.replace(/[^a-z0-9]/g, "") || "creator",
+            profile_picture: item.user_avatar || item.profile_picture || item.img_portrait || ""
+          };
+        }
+      });
+
+      const list = Object.values(usersMap);
+      if (list.length > 0) {
+        homebrewUsers = list;
+      }
+    } catch (e) {
+      console.warn("Failed to load homebrew users:", e);
+    } finally {
+      isLoadingFriends = false;
+      renderUserRows(modalEl);
+    }
+  })();
+
+  modalEl.addEventListener("click", (e) => {
+    const btnOff = e.target.closest(".bs-btn-mode-off");
+    if (btnOff) {
+      const uid = btnOff.dataset.uid;
+      draft.homebrewUserModes[uid] = 0;
+      renderUserRows(modalEl);
+      return;
+    }
+
+    const btnInc = e.target.closest(".bs-btn-mode-inc");
+    if (btnInc) {
+      const uid = btnInc.dataset.uid;
+      draft.homebrewUserModes[uid] = 1;
+      renderUserRows(modalEl);
+      return;
+    }
+
+    const btnOnly = e.target.closest(".bs-btn-mode-only");
+    if (btnOnly) {
+      const uid = btnOnly.dataset.uid;
+      draft.homebrewUserModes[uid] = 2;
+      renderUserRows(modalEl);
+      return;
+    }
+
+    const resetHb = e.target.closest("#bs-reset-homebrew-btn");
+    if (resetHb) {
+      draft.homebrewUserModes = {};
+      renderUserRows(modalEl);
+      return;
+    }
+
+    const chipType = e.target.closest(".bs-modal-chip");
+    if (chipType) {
+      const t = chipType.dataset.type;
+      const idx = draft.creatureTypes.indexOf(t);
+      if (idx >= 0) draft.creatureTypes.splice(idx, 1);
+      else draft.creatureTypes.push(t);
+      updateChips();
+      return;
+    }
+
+    const chipSize = e.target.closest(".bs-modal-chip-size");
+    if (chipSize) {
+      const s = chipSize.dataset.size;
+      const idx = draft.sizes.indexOf(s);
+      if (idx >= 0) draft.sizes.splice(idx, 1);
+      else draft.sizes.push(s);
+      updateChips();
+      return;
+    }
+
+    const chipAlign = e.target.closest(".bs-modal-chip-align");
+    if (chipAlign) {
+      const a = chipAlign.dataset.align;
+      const idx = draft.alignments.indexOf(a);
+      if (idx >= 0) draft.alignments.splice(idx, 1);
+      else draft.alignments.push(a);
+      updateChips();
+      return;
+    }
+
+    const chipLang = e.target.closest(".bs-modal-chip-lang");
+    if (chipLang) {
+      const l = chipLang.dataset.lang;
+      const idx = draft.languages.indexOf(l);
+      if (idx >= 0) draft.languages.splice(idx, 1);
+      else draft.languages.push(l);
+      updateChips();
+      return;
+    }
+
+    if (e.target.closest("#bs-modal-close-btn") || e.target.closest("#bs-modal-cancel-btn") || e.target === modalEl) {
+      modalEl.remove();
+      return;
+    }
+
+    if (e.target.closest("#bs-modal-reset-btn")) {
+      draft = JSON.parse(JSON.stringify(DEFAULT_BESTIARY_FILTERS));
+      updateChips();
+      renderUserRows(modalEl);
+      return;
+    }
+
+    if (e.target.closest("#bs-modal-apply-btn")) {
+      bestiaryFilters = draft;
+      modalEl.remove();
+      renderUI();
+      return;
+    }
+  });
+}

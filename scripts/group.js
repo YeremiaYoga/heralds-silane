@@ -272,6 +272,8 @@ function renderGroupDetails() {
   const resources = Array.isArray(group.resources) ? group.resources : [];
   const missions = Array.isArray(group.missions) ? group.missions : [];
 
+  const groupIdDisplay = group.silane_group_id || group.id || group._id || "";
+
   let html = `
     <div style="padding: 10px; display:flex; flex-direction:column; height: 100%; overflow-y: auto;">
       
@@ -291,6 +293,7 @@ function renderGroupDetails() {
           </h2>
           <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; font-family: monospace; color: #a1a1aa; flex-wrap: wrap;">
             <span id="hs-btn-copy-group-invite" style="background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px; border: 1px solid #3f3f46; cursor: pointer; display: flex; align-items: center; gap: 6px;" title="Copy Invite Code">Invite: ${group.share_code} <i class="fa-solid fa-copy"></i></span>
+            <span id="hs-btn-copy-group-id" style="background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px; border: 1px solid #3f3f46; cursor: pointer; display: flex; align-items: center; gap: 6px;" title="Copy Silane Group ID">Silane Id: ${groupIdDisplay} <i class="fa-solid fa-copy"></i></span>
             <span style="color: #d4d4d8; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px; border: 1px solid #3f3f46;">${members.length} Members</span>
           </div>
           ${group.description ? `<p style="margin: 12px 0 0 0; color: #a1a1aa; font-size:13px; line-height:1.5; max-width:600px;">${group.description}</p>` : ""}
@@ -489,18 +492,18 @@ function renderGroupDetails() {
           rewardsHtml = `
             <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">
               ${rewards.map(rw => {
-                let icon = '<i class="fa-solid fa-gift" style="color: #c084fc;"></i>';
-                if (rw.type === "coin") icon = '<i class="fa-solid fa-coins" style="color: #fbbf24;"></i>';
-                if (rw.type === "exp") icon = '<i class="fa-solid fa-star" style="color: #60a5fa;"></i>';
-                if (rw.type === "item") {
-                  icon = rw.item_img ? `<img src="${rw.item_img}" style="width:16px; height:16px; border-radius: 2px; object-fit: cover;" />` : '<i class="fa-solid fa-bag-shopping" style="color: #34d399;"></i>';
-                }
-                return `
+            let icon = '<i class="fa-solid fa-gift" style="color: #c084fc;"></i>';
+            if (rw.type === "coin") icon = '<i class="fa-solid fa-coins" style="color: #fbbf24;"></i>';
+            if (rw.type === "exp") icon = '<i class="fa-solid fa-star" style="color: #60a5fa;"></i>';
+            if (rw.type === "item") {
+              icon = rw.item_img ? `<img src="${rw.item_img}" style="width:16px; height:16px; border-radius: 2px; object-fit: cover;" />` : '<i class="fa-solid fa-bag-shopping" style="color: #34d399;"></i>';
+            }
+            return `
                   <span style="font-size: 9px; display: inline-flex; align-items: center; gap: 3px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); padding: 2px 5px; border-radius: 4px; color: #fbbf24;" title="${rw.name}">
                     ${icon} ${rw.amount ? 'x' + rw.amount : ''}
                   </span>
                 `;
-              }).join("")}
+          }).join("")}
             </div>
           `;
         } else if (m.reward) {
@@ -571,10 +574,21 @@ function renderGroupDetails() {
     render();
   };
 
-  parentContainer.querySelector("#hs-btn-copy-group-invite").onclick = () => {
-    navigator.clipboard.writeText(group.share_code);
-    ui.notifications?.info("Invite code copied to clipboard!");
-  };
+  const btnCopyInvite = parentContainer.querySelector("#hs-btn-copy-group-invite");
+  if (btnCopyInvite) {
+    btnCopyInvite.onclick = () => {
+      navigator.clipboard.writeText(group.share_code);
+      ui.notifications?.info("Invite code copied to clipboard!");
+    };
+  }
+
+  const btnCopyGroupId = parentContainer.querySelector("#hs-btn-copy-group-id");
+  if (btnCopyGroupId) {
+    btnCopyGroupId.onclick = () => {
+      navigator.clipboard.writeText(groupIdDisplay);
+      ui.notifications?.info("Group ID copied to clipboard!");
+    };
+  }
 
   if (isOwner) {
     const btnSettings = parentContainer.querySelector("#hs-btn-group-settings");
@@ -959,9 +973,9 @@ function showCreateOrEditMissionModal(group, mission = null) {
         <label style="display:block; margin-bottom:5px; color:#e4e4e7; font-weight: 500;">Mission Type</label>
         <select id="hs-mission-type" class="silane-input" style="width:100%;">
           ${(Array.isArray(group.mission_types) && group.mission_types.length > 0
-            ? group.mission_types
-            : [{ id: "main", name: "Main Quest" }, { id: "side", name: "Side Quest" }]
-          ).map(t => `<option value="${t.id}" style="background: #27272a; color: #ffffff;" ${missionType === t.id ? 'selected' : ''}>${t.name}</option>`).join("")}
+      ? group.mission_types
+      : [{ id: "main", name: "Main Quest" }, { id: "side", name: "Side Quest" }]
+    ).map(t => `<option value="${t.id}" style="background: #27272a; color: #ffffff;" ${missionType === t.id ? 'selected' : ''}>${t.name}</option>`).join("")}
         </select>
       </div>
       ${isEdit ? `
@@ -1326,10 +1340,10 @@ function showCreateOrEditMissionModal(group, mission = null) {
               </div>
             `;
           } else if (rw.type === "item") {
-            const itemImgHtml = rw.item_img 
-              ? `<img src="${rw.item_img}" style="width: 24px; height: 24px; border-radius: 4px; object-fit: cover; border: 1px solid rgba(255,255,255,0.15);" />` 
+            const itemImgHtml = rw.item_img
+              ? `<img src="${rw.item_img}" style="width: 24px; height: 24px; border-radius: 4px; object-fit: cover; border: 1px solid rgba(255,255,255,0.15);" />`
               : `<div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); flex-shrink: 0;"><i class="fa-solid fa-bag-shopping" style="color: #34d399; font-size: 12px;"></i></div>`;
-            
+
             rewardHtml = `
               <div class="hs-reward-row hs-reward-item" data-type="item" style="display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.2); border: 1px solid #3f3f46; padding: 10px; border-radius: 6px; position: relative;">
                 <div style="display: flex; gap: 8px; align-items: center;">
@@ -1440,12 +1454,12 @@ function showCreateOrEditMissionModal(group, mission = null) {
           container.find(".reward-item-uuid").val(uuid);
           container.find(".reward-item-img").val(img);
           container.find(".hs-item-search-container").remove();
-          
-          const imgHtml = img 
-            ? `<img src="${img}" style="width: 24px; height: 24px; border-radius: 4px; object-fit: cover; border: 1px solid rgba(255,255,255,0.15);" />` 
+
+          const imgHtml = img
+            ? `<img src="${img}" style="width: 24px; height: 24px; border-radius: 4px; object-fit: cover; border: 1px solid rgba(255,255,255,0.15);" />`
             : `<div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); flex-shrink: 0;"><i class="fa-solid fa-bag-shopping" style="color: #34d399; font-size: 12px;"></i></div>`;
           container.find(".reward-item-img-container").html(imgHtml);
-          
+
           container.append(`<div style="font-size: 9px; color: #71717a; font-family: monospace;">UUID: ${uuid}</div>`);
         });
 
