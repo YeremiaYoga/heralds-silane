@@ -952,8 +952,14 @@ export async function importCharacterById(input) {
       });
       if (res.ok) {
         const result = await res.json();
-        if (result.data) {
-          targetChar = result.data;
+        const found = result.data || result.character;
+        if (found && typeof found === "object") {
+          targetChar = found;
+          if (!igniteCharacters.some(c => (c.id && c.id === targetChar.id) || (c.private_id && c.private_id === targetChar.private_id))) {
+            igniteCharacters.unshift(targetChar);
+            renderListArea();
+            updateTabCounts();
+          }
         }
       }
     } catch (err) {}
@@ -965,7 +971,15 @@ export async function importCharacterById(input) {
       const directRes = await fetch(`${API_BASE_URL}/characters/private/${encodeURIComponent(cleanCode)}`);
       if (directRes.ok) {
         const result = await directRes.json();
-        targetChar = result.character || result.data || result;
+        const found = result.data || result.character || result;
+        if (found && typeof found === "object" && (found.name || found.id)) {
+          targetChar = found;
+          if (!igniteCharacters.some(c => (c.id && c.id === targetChar.id) || (c.private_id && c.private_id === targetChar.private_id))) {
+            igniteCharacters.unshift(targetChar);
+            renderListArea();
+            updateTabCounts();
+          }
+        }
       }
     } catch (err) {}
   }
