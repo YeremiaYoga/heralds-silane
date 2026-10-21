@@ -5,11 +5,11 @@ let currentItems = [];
 let searchQuery = "";
 let currentOffset = 0;
 let currentType = "";
-let currentAdminView = "foundry"; 
+let currentAdminView = "foundry";
 let selectedHomebrewUser = null;
 let selectedCards = new Set();
 let activeFilters = new Set();
-let currentImageViewMode = "portrait"; 
+let currentImageViewMode = "portrait";
 let currentSortMode = "name_asc";
 const LIMIT = 200;
 
@@ -143,7 +143,7 @@ const FILTER_CR_OPTIONS = [
 ];
 
 const CREATURE_TYPES = [
-  "humanoid", "beast", "dragon", "undead", "fiend", 
+  "humanoid", "beast", "dragon", "undead", "fiend",
   "monstrosity", "aberration", "elemental", "construct", "fey", "giant"
 ];
 
@@ -1152,7 +1152,6 @@ function showFilterModal() {
   const currentUserId = String(curUser.id || curUser.user_id || curUser._id || "");
   const currentUsername = (curUser.username || curUser.name || curUser.user_name || "").toLowerCase().trim();
 
-  // Initial users from currentItems (excluding current user)
   const usersMap = {};
   currentItems.forEach(item => {
     const uid = String(item.user_id || "unknown");
@@ -1179,7 +1178,7 @@ function showFilterModal() {
       return;
     }
 
-    const filteredUsers = homebrewUsers.filter(u => 
+    const filteredUsers = homebrewUsers.filter(u =>
       u.user_name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
       u.username.toLowerCase().includes(userSearchQuery.toLowerCase())
     );
@@ -1222,7 +1221,7 @@ function showFilterModal() {
   const modalHtml = `
     <div id="bs-filter-modal" class="bs-modal-overlay" style="display:flex;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(9,9,11,0.8);backdrop-filter:blur(8px);z-index:10000;align-items:center;justify-content:center;animation:bs-fade-in 0.2s ease;">
       <div class="bs-modal-content" style="width:560px;max-width:92vw;max-height:88vh;background:#121215;border:1px solid #27272a;border-radius:14px;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05);overflow:hidden;color:#f4f4f5;font-family:sans-serif;">
-        
+
         <!-- Header -->
         <div style="padding:16px 22px;border-bottom:1px solid #27272a;display:flex;align-items:center;justify-content:space-between;background:rgba(24,24,27,0.8);">
           <div style="display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;color:#f4f4f5;">
@@ -1243,7 +1242,7 @@ function showFilterModal() {
 
         <!-- Body -->
         <div style="padding:20px 22px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:16px;font-size:12px;">
-          
+
           <!-- FRIENDS HOMEBREW BESTIARY SECTION -->
           <div style="background:rgba(24,24,27,0.6);border:1px solid #27272a;border-radius:10px;padding:14px;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
@@ -1265,7 +1264,6 @@ function showFilterModal() {
             </div>
           </div>
 
-          <!-- Creature Types -->
           <div style="background:rgba(24,24,27,0.6);border:1px solid #27272a;border-radius:10px;padding:14px;">
             <div style="font-weight:700;color:#a5b4fc;margin-bottom:10px;text-transform:uppercase;font-size:10px;letter-spacing:0.6px;display:flex;align-items:center;gap:6px;">
               <i class="fa-solid fa-dragon"></i> CREATURE TYPES
@@ -1279,7 +1277,6 @@ function showFilterModal() {
             </div>
           </div>
 
-          <!-- Size -->
           <div style="background:rgba(24,24,27,0.6);border:1px solid #27272a;border-radius:10px;padding:14px;">
             <div style="font-weight:700;color:#a5b4fc;margin-bottom:10px;text-transform:uppercase;font-size:10px;letter-spacing:0.6px;display:flex;align-items:center;gap:6px;">
               <i class="fa-solid fa-up-right-and-down-left-from-center"></i> SIZE
@@ -1293,7 +1290,6 @@ function showFilterModal() {
             </div>
           </div>
 
-          <!-- Alignment -->
           <div style="background:rgba(24,24,27,0.6);border:1px solid #27272a;border-radius:10px;padding:14px;">
             <div style="font-weight:700;color:#a5b4fc;margin-bottom:10px;text-transform:uppercase;font-size:10px;letter-spacing:0.6px;display:flex;align-items:center;gap:6px;">
               <i class="fa-solid fa-scale-balanced"></i> ALIGNMENT
@@ -1307,7 +1303,6 @@ function showFilterModal() {
             </div>
           </div>
 
-          <!-- Languages -->
           <div style="background:rgba(24,24,27,0.6);border:1px solid #27272a;border-radius:10px;padding:14px;">
             <div style="font-weight:700;color:#a5b4fc;margin-bottom:10px;text-transform:uppercase;font-size:10px;letter-spacing:0.6px;display:flex;align-items:center;gap:6px;">
               <i class="fa-solid fa-language"></i> LANGUAGES
@@ -1323,7 +1318,6 @@ function showFilterModal() {
 
         </div>
 
-        <!-- Footer -->
         <div style="padding:14px 22px;border-top:1px solid #27272a;display:flex;align-items:center;justify-content:flex-end;gap:12px;background:rgba(24,24,27,0.9);">
           <button id="bs-modal-cancel-btn" style="height:34px;padding:0 16px;border-radius:8px;border:1px solid #3f3f46;background:transparent;color:#a1a1aa;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.2s;">Cancel</button>
           <button id="bs-modal-apply-btn" style="height:34px;padding:0 22px;border-radius:8px;border:1px solid #818cf8;background:linear-gradient(135deg, #6366f1, #4f46e5);color:#ffffff;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(99,102,241,0.4);transition:all 0.2s;display:flex;align-items:center;gap:6px;">
@@ -1396,7 +1390,7 @@ function showFilterModal() {
           const friendsArr = Array.isArray(friendsData.friends)
             ? friendsData.friends.map(f => f.friend || f).filter(Boolean)
             : (Array.isArray(friendsData) ? friendsData : []);
-          
+
           friendsArr.forEach(f => {
             if (f) {
               const uId = String(f.id || f.user_id || f._id || "");

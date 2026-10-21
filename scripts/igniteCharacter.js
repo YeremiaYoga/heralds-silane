@@ -3,7 +3,7 @@ import { API_BASE_URL, applyDarkThemeToDialog, downloadAndCacheImageToFoundry, s
 let igniteCharacters = [];
 let parentContainer = null;
 let searchQuery = "";
-let currentTypeFilter = "player"; // "player" | "npc"
+let currentTypeFilter = "player";
 let currentSilaneUsername = "";
 let selectedIgniteCharIds = new Set();
 
@@ -28,7 +28,7 @@ const injectIgniteCharacterStyles = () => {
     .ig-tab-btn:hover { border-color: #71717a; color: #f4f4f5; background: rgba(255, 255, 255, 0.05); }
     .ig-tab-btn[data-filter="player"].active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.15); color: #60a5fa; box-shadow: 0 0 10px rgba(59, 130, 246, 0.2); }
     .ig-tab-btn[data-filter="npc"].active { border-color: #ef4444; background: rgba(239, 68, 68, 0.15); color: #f87171; box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); }
-    
+
     .ig-action-bar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; justify-content: space-between; }
     .ig-search-box { flex: 1; display: flex; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid #3f3f46; border-radius: 6px; padding: 0 15px; height: 38px; transition: border-color 0.2s; }
     .ig-search-box:focus-within { border-color: #3b82f6; }

@@ -685,7 +685,6 @@ select.silane-input option {
 .bs-filter-chip:hover { border-color: #818cf8; color: #818cf8; }
 .bs-filter-chip.active { border-color: #6366f1; background: rgba(99,102,241,0.15); color: #a5b4fc; }
 
-/* Toggle Switch Component */
 .silane-toggle-switch {
   position: relative;
   display: inline-block;

@@ -82,7 +82,7 @@ export async function ensureDirectoryExistsRecursive(source, targetPath) {
     try {
       await FilePicker.createDirectory(source, current, {});
     } catch (e) {
-      // Directory may already exist
+
     }
   }
 }
@@ -115,7 +115,6 @@ export async function uploadImageToS3(file, s3Config) {
     return null;
   }
 
-  // 1. Attempt native Foundry S3 upload if FilePicker and S3 source are available
   if (typeof FilePicker !== "undefined" && FilePicker._sources?.s3 && typeof FilePicker.upload === "function") {
     try {
       const targetDir = "assets/silane/character/art";
@@ -202,7 +201,6 @@ export async function uploadImageToS3(file, s3Config) {
 
   const authorizationHeader = `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
-  // Try primary URL
   try {
     const uploadResponse = await fetch(primaryS3Url, {
       method: "PUT",
@@ -224,7 +222,6 @@ export async function uploadImageToS3(file, s3Config) {
     console.warn("Primary S3 upload failed:", err);
   }
 
-  // Try secondary URL (without bucket path prefix)
   if (secondaryS3Url) {
     try {
       const uploadResponse = await fetch(secondaryS3Url, {
@@ -274,13 +271,11 @@ export async function downloadAndCacheImageToFoundry(url, filename) {
 
     let blob = null;
 
-    // 1. Try direct fetch
     try {
       const res = await fetch(url);
       if (res.ok) blob = await res.blob();
     } catch (e) {}
 
-    // 2. Try proxy via silane_assets (bypasses browser CORS restrictions on external domain)
     if (!blob) {
       try {
         const proxyUrl = `${API_BASE_URL}/api/silane_assets/proxy-image?url=${encodeURIComponent(url)}`;
@@ -289,7 +284,6 @@ export async function downloadAndCacheImageToFoundry(url, filename) {
       } catch (e) {}
     }
 
-    // 3. Try proxy via root API
     if (!blob) {
       try {
         const proxyUrl = `${API_BASE_URL}/api/proxy-image?url=${encodeURIComponent(url)}`;
@@ -298,7 +292,6 @@ export async function downloadAndCacheImageToFoundry(url, filename) {
       } catch (e) {}
     }
 
-    // 4. Try replacing http with https
     if (!blob && url.startsWith("http://")) {
       try {
         const httpsUrl = url.replace("http://", "https://");
@@ -347,7 +340,6 @@ export async function downloadAndCacheImageToFoundry(url, filename) {
       if (s3Url) return s3Url;
     }
 
-    // Local Storage Mode (Default): assets/silane/character/art
     const targetDir = storageConfig.localPath || "assets/silane/character/art";
     await ensureDirectoryExistsRecursive("data", targetDir);
 
@@ -367,7 +359,6 @@ export function sanitizeFoundryItems(items) {
   return items.map((item) => {
     if (!item || typeof item !== "object") return item;
 
-    // Fix spell innate suffix
     if (item.type === "spell" && item.name) {
       if (item.name.endsWith(" (In)") || item.name.endsWith(" (in)")) {
         item.name = item.name.slice(0, -5) + " (IN)";
@@ -383,11 +374,10 @@ export function sanitizeFoundryItems(items) {
       }
     }
 
-    // Fix D&D 5e v3+ Activities validation errors (e.g. SummonActivity profiles validation error like dnd5eactivity001)
     if (item.system && item.system.activities && typeof item.system.activities === "object") {
       Object.entries(item.system.activities).forEach(([actId, activity]) => {
         if (activity && typeof activity === "object") {
-          // Fix SummonActivity profiles validation requirement for any summon activity or activity with empty profiles
+
           if (activity.type === "summon" || actId.toLowerCase().includes("summon") || activity.profiles !== undefined) {
             if (!Array.isArray(activity.profiles) || activity.profiles.length === 0) {
               const profileId = (typeof foundry !== "undefined" && foundry.utils?.randomID)
