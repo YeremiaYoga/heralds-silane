@@ -833,19 +833,27 @@ function formatTreasureForFoundry(treasureInput) {
             };
 
             for (const itemData of dataToImport.items) {
-              const standaloneItemData = foundry.utils.deepClone(itemData);
-              delete standaloneItemData._id;
+              try {
+                const standaloneItemData = foundry.utils.deepClone(itemData);
+                delete standaloneItemData._id;
 
-              let category = "Items";
-              if (["feat", "feature", "race-feat", "race", "class", "subclass", "background"].includes(itemData.type)) {
-                category = "Features";
-              } else if (itemData.type === "spell") {
-                category = "Spells";
+                if (standaloneItemData.type === "feature" || standaloneItemData.type === "race-feat") {
+                  standaloneItemData.type = "feat";
+                }
+
+                let category = "Items";
+                if (["feat", "feature", "race-feat", "race", "class", "subclass", "background"].includes(standaloneItemData.type)) {
+                  category = "Features";
+                } else if (standaloneItemData.type === "spell") {
+                  category = "Spells";
+                }
+
+                const sf = await getOrCreateSubfolder(category);
+                standaloneItemData.folder = sf.id;
+                await Item.create(standaloneItemData);
+              } catch (itemErr) {
+                console.warn(`Silane: Failed to create standalone item "${itemData?.name}":`, itemErr);
               }
-
-              const sf = await getOrCreateSubfolder(category);
-              standaloneItemData.folder = sf.id;
-              await Item.create(standaloneItemData);
             }
 
             ui.notifications?.info(`Success! Actor [${newActor.name}] imported into "Silane Import -> ${username}". Items created under Silane Import -> ${username} -> ${charFolderName}.`);

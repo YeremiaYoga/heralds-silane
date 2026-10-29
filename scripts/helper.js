@@ -111,7 +111,7 @@ export async function uploadImageToS3(file, s3Config) {
   const { endpoint, accessKeyId, secretAccessKey, region = "us-east-1", bucket } = s3Config;
 
   if (!bucket) {
-    ui.notifications?.warn("S3 Bucket is not configured in World Management. Falling back to local storage.");
+    console.warn("Silane: S3 Bucket is not configured in World Management. Falling back to local storage.");
     return null;
   }
 
@@ -126,7 +126,7 @@ export async function uploadImageToS3(file, s3Config) {
   }
 
   if (!accessKeyId || !secretAccessKey) {
-    ui.notifications?.error("S3 Access Key ID and Secret Access Key are required for custom S3 uploads.");
+    console.warn("Silane: S3 Access Key ID and Secret Access Key are required for custom S3 uploads.");
     return null;
   }
 
@@ -215,7 +215,7 @@ export async function uploadImageToS3(file, s3Config) {
     });
 
     if (uploadResponse.ok) {
-      ui.notifications?.info(`Asset successfully uploaded to S3 Bucket [${bucket}]`);
+      console.log(`Silane: Asset cached to S3 Bucket [${bucket}]`);
       return primaryS3Url;
     }
   } catch (err) {
@@ -237,7 +237,7 @@ export async function uploadImageToS3(file, s3Config) {
       });
 
       if (uploadResponse.ok) {
-        ui.notifications?.info(`Asset successfully uploaded to S3 Bucket [${bucket}]`);
+        console.log(`Silane: Asset cached to S3 Bucket [${bucket}]`);
         return secondaryS3Url;
       }
     } catch (err) {
@@ -359,6 +359,17 @@ export function sanitizeFoundryItems(items) {
   return items.map((item) => {
     if (!item || typeof item !== "object") return item;
 
+    // 1. Ensure type is valid in Foundry dnd5e (convert legacy "feature" or "race-feat" to "feat")
+    if (item.type === "feature" || item.type === "race-feat") {
+      item.type = "feat";
+    }
+
+    // 2. Ensure item._id is a valid 16-character alphanumeric Foundry Document ID
+    if (item._id && typeof item._id === "string" && !/^[a-zA-Z0-9]{16}$/.test(item._id)) {
+      item._id = item._id.replace(/[^a-zA-Z0-9]/g, "").slice(-16).padEnd(16, "0");
+    }
+
+    // 3. Innate and always-prepared spell preparation modes
     if (item.type === "spell" && item.name) {
       if (item.name.endsWith(" (In)") || item.name.endsWith(" (in)")) {
         item.name = item.name.slice(0, -5) + " (IN)";
@@ -370,13 +381,29 @@ export function sanitizeFoundryItems(items) {
         if (!item.system) item.system = {};
         item.system.method = "innate";
         item.system.prepared = 0;
-        delete item.system.preparation;
+        if (!item.system.preparation || typeof item.system.preparation !== "object") {
+          item.system.preparation = {};
+        }
+        item.system.preparation.mode = "innate";
+        item.system.preparation.prepared = false;
+      } else if (item.system?.prepared === 2) {
+        if (!item.system.preparation || typeof item.system.preparation !== "object") {
+          item.system.preparation = {};
+        }
+        item.system.preparation.mode = "always";
+        item.system.preparation.prepared = true;
       }
     }
 
+    // 4. Sanitize activities (valid 16-char activity IDs and non-empty summon profiles)
     if (item.system && item.system.activities && typeof item.system.activities === "object") {
       Object.entries(item.system.activities).forEach(([actId, activity]) => {
         if (activity && typeof activity === "object") {
+          if (activity._id && typeof activity._id === "string" && !/^[a-zA-Z0-9]{16}$/.test(activity._id)) {
+            activity._id = (typeof foundry !== "undefined" && foundry.utils?.randomID)
+              ? foundry.utils.randomID()
+              : activity._id.replace(/[^a-zA-Z0-9]/g, "").slice(-16).padEnd(16, "0");
+          }
 
           if (activity.type === "summon" || actId.toLowerCase().includes("summon") || activity.profiles !== undefined) {
             if (!Array.isArray(activity.profiles) || activity.profiles.length === 0) {
