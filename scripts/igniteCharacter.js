@@ -573,6 +573,73 @@ async function exportCharacterToFoundry(char) {
     return;
   }
 
+  // Ensure damage modifiers (resistances, immunities, vulnerabilities) are synchronized to actor traits and flags
+  const rawDamageMod = char.damage_modifier || dataToImport.damage_modifier || dataToImport.system?.damage_modifier || dataToImport.flags?.dnd5e?.damage_modifier;
+  if (rawDamageMod) {
+    let dm = rawDamageMod;
+    if (typeof dm === "string") {
+      try { dm = JSON.parse(dm); } catch (e) { dm = null; }
+    }
+    if (dm && typeof dm === "object") {
+      if (!dataToImport.system) dataToImport.system = {};
+      if (!dataToImport.system.traits) dataToImport.system.traits = {};
+      if (!dataToImport.flags) dataToImport.flags = {};
+      if (!dataToImport.flags.dnd5e) dataToImport.flags.dnd5e = {};
+
+      const mapDamageTrait = (traitKey, sourceData) => {
+        if (!dataToImport.system.traits[traitKey]) {
+          dataToImport.system.traits[traitKey] = { value: [], custom: "", bypasses: [] };
+        }
+        let currentVals = Array.isArray(dataToImport.system.traits[traitKey].value)
+          ? [...dataToImport.system.traits[traitKey].value]
+          : (dataToImport.system.traits[traitKey].value instanceof Set
+              ? Array.from(dataToImport.system.traits[traitKey].value)
+              : []);
+
+        const valSet = new Set(currentVals.map(v => String(v).toLowerCase().trim()));
+
+        let toAdd = [];
+        if (Array.isArray(sourceData)) {
+          toAdd = sourceData;
+        } else if (sourceData && typeof sourceData === "object") {
+          toAdd = [
+            ...(Array.isArray(sourceData.total) ? sourceData.total : []),
+            ...(Array.isArray(sourceData.default) ? sourceData.default : []),
+            ...(Array.isArray(sourceData.custom) ? sourceData.custom : []),
+            ...(Array.isArray(sourceData.chosen) ? sourceData.chosen : [])
+          ];
+        }
+        toAdd.forEach(item => {
+          if (typeof item === "string") {
+            const clean = item.trim().toLowerCase().replace(/^(dr:|di:|dv:)/, "");
+            if (clean) valSet.add(clean);
+          }
+        });
+        dataToImport.system.traits[traitKey].value = Array.from(valSet);
+      };
+
+      if (dm.resistances) mapDamageTrait("dr", dm.resistances);
+      if (dm.immunities) mapDamageTrait("di", dm.immunities);
+      if (dm.vulnerabilities) mapDamageTrait("dv", dm.vulnerabilities);
+
+      dataToImport.system.damage_modifier = dm;
+      dataToImport.flags.dnd5e.damage_modifier = dm;
+      dataToImport.damage_modifier = dm;
+    }
+  }
+
+  // Fallback single damage_type (e.g. dragonborn ancestral resistance)
+  if (char.damage_type && typeof char.damage_type === "string") {
+    if (!dataToImport.system) dataToImport.system = {};
+    if (!dataToImport.system.traits) dataToImport.system.traits = {};
+    if (!dataToImport.system.traits.dr) dataToImport.system.traits.dr = { value: [], custom: "", bypasses: [] };
+    const currentDr = Array.isArray(dataToImport.system.traits.dr.value) ? dataToImport.system.traits.dr.value : [];
+    const cleanDt = char.damage_type.trim().toLowerCase();
+    if (cleanDt && !currentDr.includes(cleanDt)) {
+      dataToImport.system.traits.dr.value = [...currentDr, cleanDt];
+    }
+  }
+
 function formatHabitatForFoundry(habitatInput) {
   if (!habitatInput) return { value: [], custom: "" };
   let arr = [];
