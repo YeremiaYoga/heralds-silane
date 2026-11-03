@@ -264,6 +264,13 @@ function renderListArea() {
       classesStr = [cr, type].filter(Boolean).join(" • ");
     }
 
+    let bgName = char.background_name || char.background?.name || "";
+    let homebrewBadge = "";
+    const activeRules = char.homebrew_rules?.active_rules || (Array.isArray(char.homebrew_rules) ? char.homebrew_rules : []);
+    if (Array.isArray(activeRules) && activeRules.length > 0) {
+      homebrewBadge = `<span class="ig-badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);" title="Homebrew Rules: ${activeRules.join(', ')}"><i class="fa-solid fa-gear"></i> Homebrew (${activeRules.length})</span>`;
+    }
+
     let formattedDate = "";
     if (char.created_at) {
       try {
@@ -286,11 +293,13 @@ function renderListArea() {
             <span class="ig-badge ${isNpc ? 'ig-badge-npc' : 'ig-badge-player'}">
               ${isNpc ? '<i class="fa-solid fa-skull"></i> NPC' : '<i class="fa-solid fa-user-shield"></i> Player'}
             </span>
+            ${homebrewBadge}
           </div>
           ${displayFullName ? `<div class="ig-card-fullname">${displayFullName}</div>` : ""}
         </div>
         <div class="ig-card-meta">
           ${speciesName ? `<div class="ig-meta-species">${speciesName}</div>` : ""}
+          ${bgName ? `<div class="ig-meta-species" style="color: #94a3b8;"><i class="fa-solid fa-book-atlas"></i> ${bgName}</div>` : ""}
           ${classesStr ? `<div class="ig-meta-classes">${classesStr}</div>` : ""}
           ${formattedDate ? `<div class="ig-meta-date">Created on ${formattedDate}</div>` : ""}
         </div>
@@ -566,6 +575,15 @@ async function exportCharacterToFoundry(char) {
       return;
     }
     dataToImport = foundry.utils.deepClone(char.fvtt_format);
+  }
+
+  // Ensure homebrew_rules are attached to flags
+  const hbRules = char.homebrew_rules || dataToImport.flags?.homebrew_rules || dataToImport.flags?.ignite?.homebrew_rules;
+  if (hbRules) {
+    if (!dataToImport.flags) dataToImport.flags = {};
+    if (!dataToImport.flags.ignite) dataToImport.flags.ignite = {};
+    dataToImport.flags.homebrew_rules = hbRules;
+    dataToImport.flags.ignite.homebrew_rules = hbRules;
   }
 
   if (!dataToImport || typeof dataToImport !== "object") {
