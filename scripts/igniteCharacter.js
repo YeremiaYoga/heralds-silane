@@ -584,6 +584,16 @@ async function exportCharacterToFoundry(char) {
     if (!dataToImport.flags.ignite) dataToImport.flags.ignite = {};
     dataToImport.flags.homebrew_rules = hbRules;
     dataToImport.flags.ignite.homebrew_rules = hbRules;
+
+    // Ensure homebrew rules are appended to the bottom of the Biography page
+    if (!dataToImport.system) dataToImport.system = {};
+    if (!dataToImport.system.details) dataToImport.system.details = {};
+    if (!dataToImport.system.details.biography) dataToImport.system.details.biography = {};
+
+    dataToImport.system.details.biography.value = appendHomebrewToBiography(
+      dataToImport.system.details.biography.value || "",
+      hbRules
+    );
   }
 
   if (!dataToImport || typeof dataToImport !== "object") {
@@ -656,6 +666,26 @@ async function exportCharacterToFoundry(char) {
     if (cleanDt && !currentDr.includes(cleanDt)) {
       dataToImport.system.traits.dr.value = [...currentDr, cleanDt];
     }
+  }
+
+  // Ensure system.tools are properly formatted for Foundry dnd5e system
+  if (dataToImport.system?.tools && typeof dataToImport.system.tools === "object") {
+    Object.keys(dataToImport.system.tools).forEach((tk) => {
+      const toolEntry = dataToImport.system.tools[tk];
+      if (typeof toolEntry === "number") {
+        dataToImport.system.tools[tk] = {
+          value: toolEntry,
+          ability: "int",
+          bonuses: { check: "" },
+          roll: { min: null, max: null, mode: 0 },
+        };
+      } else if (toolEntry && typeof toolEntry === "object") {
+        if (toolEntry.value === undefined) toolEntry.value = 1;
+        if (!toolEntry.ability) toolEntry.ability = "int";
+        if (!toolEntry.bonuses) toolEntry.bonuses = { check: "" };
+        if (!toolEntry.roll) toolEntry.roll = { min: null, max: null, mode: 0 };
+      }
+    });
   }
 
 function formatHabitatForFoundry(habitatInput) {
@@ -1254,4 +1284,85 @@ function attachEvents() {
       updateBulkBar();
     });
   }
+}
+
+
+function getActiveHomebrewRules(homebrewData) {
+  if (!homebrewData) return [];
+  let parsed = homebrewData;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return [];
+    }
+  }
+
+  const active = [];
+  if (Array.isArray(parsed)) {
+    active.push(...parsed);
+  } else if (parsed && typeof parsed === "object") {
+    if (Array.isArray(parsed.active_rules)) {
+      active.push(...parsed.active_rules);
+    }
+    if (parsed.steps && typeof parsed.steps === "object") {
+      Object.values(parsed.steps).forEach((stepObj) => {
+        if (stepObj && typeof stepObj === "object") {
+          Object.values(stepObj).forEach((ruleObj) => {
+            if (ruleObj && typeof ruleObj === "object" && ruleObj.enabled) {
+              const rName = ruleObj.name || ruleObj.id;
+              if (rName && !active.includes(rName)) {
+                active.push(rName);
+              }
+            }
+          });
+        }
+      });
+    }
+  }
+
+  return Array.from(new Set(active.filter((r) => typeof r === "string" && r.trim().length > 0)));
+}
+
+function formatHomebrewRuleLabel(ruleName) {
+  const clean = String(ruleName).trim();
+  const lower = clean.toLowerCase();
+
+  if (
+    lower.includes("ability score no limit") ||
+    lower.includes("ability_score_no_limit") ||
+    lower.includes("background ability score manipulation") ||
+    lower.includes("ability score")
+  ) {
+    return "Background Ability Score Manipulation";
+  }
+  if (
+    lower.includes("optional origin feat") ||
+    lower.includes("optional_origin_feat")
+  ) {
+    return "Optional Origin Feat";
+  }
+  return clean;
+}
+
+function appendHomebrewToBiography(currentBio, homebrewRules) {
+  const activeRules = getActiveHomebrewRules(homebrewRules);
+  if (activeRules.length === 0) return currentBio || "";
+
+  const formattedRules = Array.from(new Set(activeRules.map(formatHomebrewRuleLabel)));
+  let bio = typeof currentBio === "string" ? currentBio : "";
+
+  const linesToAdd = [];
+  for (const rule of formattedRules) {
+    const textPattern = "Homebrew Rule: " + rule;
+    if (!bio.includes(textPattern)) {
+      linesToAdd.push("<p>Homebrew Rule: " + rule + "</p>");
+    }
+  }
+
+  if (linesToAdd.length === 0) return bio;
+
+  const hasContent = bio.trim().length > 0;
+  const separator = hasContent && !bio.trim().endsWith("<hr>") ? "\n<hr>\n" : "\n";
+  return bio + separator + linesToAdd.join("\n");
 }

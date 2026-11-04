@@ -359,17 +359,14 @@ export function sanitizeFoundryItems(items) {
   return items.map((item) => {
     if (!item || typeof item !== "object") return item;
 
-    // 1. Ensure type is valid in Foundry dnd5e (convert legacy "feature" or "race-feat" to "feat")
     if (item.type === "feature" || item.type === "race-feat") {
       item.type = "feat";
     }
 
-    // 2. Ensure item._id is a valid 16-character alphanumeric Foundry Document ID
     if (item._id && typeof item._id === "string" && !/^[a-zA-Z0-9]{16}$/.test(item._id)) {
       item._id = item._id.replace(/[^a-zA-Z0-9]/g, "").slice(-16).padEnd(16, "0");
     }
 
-    // 3. Innate and always-prepared spell preparation modes
     if (item.type === "spell" && item.name) {
       if (item.name.endsWith(" (In)") || item.name.endsWith(" (in)")) {
         item.name = item.name.slice(0, -5) + " (IN)";
@@ -395,7 +392,6 @@ export function sanitizeFoundryItems(items) {
       }
     }
 
-    // 4. Sanitize activities (valid 16-char activity IDs and non-empty summon profiles)
     if (item.system && item.system.activities && typeof item.system.activities === "object") {
       Object.entries(item.system.activities).forEach(([actId, activity]) => {
         if (activity && typeof activity === "object") {
