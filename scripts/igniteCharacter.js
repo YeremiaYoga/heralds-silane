@@ -688,6 +688,84 @@ async function exportCharacterToFoundry(char) {
     });
   }
 
+  // Ensure system.skills are properly synchronized & formatted for Foundry dnd5e system
+  const STANDARD_SKILL_MAP = {
+    acr: { ability: "dex", name: "acrobatics" },
+    ani: { ability: "wis", name: "animal handling" },
+    arc: { ability: "int", name: "arcana" },
+    ath: { ability: "str", name: "athletics" },
+    dec: { ability: "cha", name: "deception" },
+    his: { ability: "int", name: "history" },
+    ins: { ability: "wis", name: "insight" },
+    itm: { ability: "cha", name: "intimidation" },
+    inv: { ability: "int", name: "investigation" },
+    med: { ability: "wis", name: "medicine" },
+    nat: { ability: "int", name: "nature" },
+    prc: { ability: "wis", name: "perception" },
+    prf: { ability: "cha", name: "performance" },
+    per: { ability: "cha", name: "persuasion" },
+    rel: { ability: "int", name: "religion" },
+    slt: { ability: "dex", name: "sleight of hand" },
+    ste: { ability: "dex", name: "stealth" },
+    sur: { ability: "wis", name: "survival" }
+  };
+
+  const getCleanSkillKey = (raw) => {
+    if (!raw) return "";
+    const clean = String(raw).replace(/^skills?:/i, "").trim().toLowerCase();
+    if (clean === "sle") return "slt";
+    if (STANDARD_SKILL_MAP[clean]) return clean;
+    for (const [k, v] of Object.entries(STANDARD_SKILL_MAP)) {
+      if (v.name === clean) return k;
+    }
+    return "";
+  };
+
+  if (!dataToImport.system) dataToImport.system = {};
+  if (!dataToImport.system.skills || typeof dataToImport.system.skills !== "object") {
+    dataToImport.system.skills = {};
+  }
+
+  // Normalize all standard skills and default properties
+  Object.entries(STANDARD_SKILL_MAP).forEach(([skKey, meta]) => {
+    const existing = dataToImport.system.skills[skKey];
+    if (!existing) {
+      dataToImport.system.skills[skKey] = {
+        value: 0,
+        ability: meta.ability,
+        bonuses: { check: "", passive: "" },
+        roll: { min: null, max: null, mode: 0 }
+      };
+    } else if (typeof existing === "number") {
+      dataToImport.system.skills[skKey] = {
+        value: existing,
+        ability: meta.ability,
+        bonuses: { check: "", passive: "" },
+        roll: { min: null, max: null, mode: 0 }
+      };
+    } else if (typeof existing === "object") {
+      if (existing.value === undefined) existing.value = 0;
+      if (!existing.ability) existing.ability = meta.ability;
+      if (!existing.bonuses) existing.bonuses = { check: "", passive: "" };
+      if (!existing.roll) existing.roll = { min: null, max: null, mode: 0 };
+    }
+  });
+
+  // Synchronize from char.proficiencies (from database payload) taking the highest value
+  const rawProfs = Array.isArray(char.proficiencies)
+    ? char.proficiencies
+    : (Array.isArray(dataToImport.proficiencies) ? dataToImport.proficiencies : []);
+
+  rawProfs.forEach((p) => {
+    const pName = typeof p === "string" ? p : (p?.name || p?.label || p?.key);
+    const pVal = typeof p === "object" && p.proficiency !== undefined ? Number(p.proficiency) : 1;
+    const skKey = getCleanSkillKey(pName);
+    if (skKey && dataToImport.system.skills[skKey]) {
+      const cur = Number(dataToImport.system.skills[skKey].value) || 0;
+      dataToImport.system.skills[skKey].value = Math.max(cur, pVal);
+    }
+  });
+
 function formatHabitatForFoundry(habitatInput) {
   if (!habitatInput) return { value: [], custom: "" };
   let arr = [];
@@ -881,6 +959,9 @@ function formatTreasureForFoundry(treasureInput) {
             "prototypeToken.texture.src": tokenUrl
           };
           if (userActorFolderId) updateObj.folder = userActorFolderId;
+          if (dataToImport.system?.skills) {
+            updateObj["system.skills"] = dataToImport.system.skills;
+          }
 
           // Replace token & portrait on newly created actor
           await newActor.update(updateObj);
